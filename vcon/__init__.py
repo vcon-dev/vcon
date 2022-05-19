@@ -1,11 +1,15 @@
+"""
+Module for creating and modifying vCon conversation containers.
+see https:/vcon.dev
+"""
 import typing
 import json
-#import jose.utils
+import jose.utils
 
 class UnsupportedVconVersion(Exception):
-  pass
+  """ Thrown if vcon version string is not of set of versions supported by this package"""
 
-class vcon():
+class Vcon():
   """
   Constructor, Serializer and Deserializer for vCon conversation data container.
 
@@ -21,6 +25,16 @@ class vcon():
     self._vcon_dict["attachments"] = []
 
   def add_new_participant(self, index : int) -> int:
+    """
+    check if a new participant needs to be added to the list
+
+    Parameters:
+    index (int): -1 indicates adding a new participant, positive numbers
+          throw AttributeError if the partipant with that index does not already exist
+
+    Returns:
+      participant index in the list
+    """
     participant = index
     if(participant == -1):
       self._vcon_dict["participants"].append({})
@@ -28,19 +42,21 @@ class vcon():
 
     else:
       if(not len(self._vcon_dict["participants"]) > index):
-        raise AttributeError("index: {} > then participant List length: {}.  Use index of -1 to add one to the end.".format(index, len(self._vcon_dict["participants"])))
-      
+        raise AttributeError(
+          "index: {} > then participant List length: {}.  Use index of -1 to add one to the end.".format(
+          index, len(self._vcon_dict["participants"])))
+
     return(participant)
 
   def set_party_tel_url(self, tel_url : str, participant : int =-1) -> int:
     """
     Set tel URL for a participant.
-  
+
     Parameters:
     tel_url
     participant (int): index of participant to set tel url on
                   (-1 indicates a new participant should be added)
-  
+
     Returns:
     int: if success, opsitive int index of participant in list
     """
@@ -48,21 +64,21 @@ class vcon():
     participant = self.add_new_participant(participant)
 
     self._vcon_dict["participants"][participant]['tel'] = tel_url
-    
+
     return(participant)
 
   def set_party_join_time(self, joined_time : typing.Union[str, int, float], participant : int = -1) -> int:
     """
       Set the time that a participant joined the conversation.  Update the vCon start if
       it is not set or after the join time for the participant.
-  
+
     Parameters:
     joined_time (str, int, float): string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     participant (int): index of participant to set joined time on
                   (-1 indicates a new participant should be added)
-  
-    Returns: 
+
+    Returns:
       participant index
     """
 
@@ -79,11 +95,11 @@ class vcon():
     participant = self.add_new_participant(participant)
 
     self._vcon_dict["participants"][participant]['joined'] = joined_time
-    
+
     return(participant)
 
-  def add_dialog_inline_recording(self, body : bytes, start_time : typing.Union[str, int, float], 
-    paticipants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]], 
+  def add_dialog_inline_recording(self, body : bytes, start_time : typing.Union[str, int, float],
+    participants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     mime_type : str, file_name : str = None) -> int:
     """
     Add a recording of a portion of the conversation, inline (base64 encoded) to the dialog.
@@ -97,7 +113,7 @@ class vcon():
                channel of the recording.
     mime_type (str): mime type of the recording
     file_name (str): file name of the recording (optional)
-  
+
     Returns:
             Number of bytes read from body.
     """
@@ -108,18 +124,20 @@ class vcon():
     new_dialog['start'] = start_time
     new_dialog['participants'] = participants
     new_dialog['mimetype'] = mime_type
-    if(file_name != None):
+    if(file_name is not None):
       new_dialog['filename'] = file_name
-    
-    
+
     new_dialog['encoding'] = "base64url"
     encoded_body = jose.utils.base64url_encode(body)
     new_dialog['body'] = encoded_body
 
+    self._vcon_dict["dialog"].append(new_dialog)
+
+
     return(len(body))
 
-  def add_dialog_external_recording(self, body : bytes, start_time : typing.Union[str, int, float], 
-    paticipants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]], 
+  def add_dialog_external_recording(self, body : bytes, start_time : typing.Union[str, int, float],
+    participants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     external_url: str, mime_type : str =None, file_name : str =None) -> int:
     """
     Add a recording of a portion of the conversation, as a reference via the given
@@ -135,7 +153,7 @@ class vcon():
     external_url (string): https URL where the body is stored securely
     mime_type (str): mime type of the recording (optional)
     file_name (str): file name of the recording (optional)
-  
+
     Returns:
             Number of bytes read from body.
     """
@@ -161,7 +179,7 @@ class vcon():
     Load the vCon from a JSON string.
     Assumes that this vCon is an empty vCon as it is not cleared.
 
-    Parameters: 
+    Parameters:
       vcon_json (str): string containing JSON representation of a vCon
 
     Returns: none

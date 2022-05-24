@@ -77,6 +77,19 @@ class Vcon():
 
     return(party)
 
+  def get_conversation_time(self) -> typing.Tuple[str, float]:
+    """
+    Get the start time and duration of the vcon
+
+    Parameters: none
+
+    Returns:
+      Tuple(str, float): RFC2822 format string start time and float duration in seconds
+    """
+    # TODO: loop through dialogs and find the oldest start time, calculate end time from
+    # duration, find the most recent end time and return the results
+    raise Exception("not implemented")
+
   def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
     """
     Set tel URL for a party.
@@ -143,6 +156,19 @@ class Vcon():
 
 
     return(len(body))
+
+  def decode_dialog_inline_recording(self, dialog_index):
+    dialog = self.dialog[dialog_index]
+    if(dialog["type"] != "recording"):
+      raise AttributeError("dialog[{}] is not a recording file")
+    if(dialog.get("body") is None):
+      raise AttributeError("dialog[{}] does not contain an inline recording file")
+
+    # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
+    # this is a bug in jose.baseurl_decode
+    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+
+    return(decoded_body)
 
   def add_dialog_external_recording(self, body : bytes,
     start_time : typing.Union[str, int, float],

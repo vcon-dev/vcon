@@ -140,6 +140,11 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   decoded_file = jose.utils.base64url_decode(bytes(vCon._vcon_dict[VCON_DIALOG][0]["body"], 'utf-8'))
   assert(decoded_file == fake_recording_file)
 
+  # Test real accessor
+  decoded_body = vCon.decode_dialog_inline_recording(0)
+  assert(len(decoded_file) == len(decoded_body))
+  assert(decoded_file == decoded_body)
+
   # serialize and deserialize and check the copy too
   vcon_json = vCon.dumps()
   #pprint.pprint(vcon_json)

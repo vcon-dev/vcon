@@ -46,9 +46,7 @@ def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   """ construct vCon with two tel URL """
   vCon = empty_vcon
   first_party = vCon.set_party_tel_url(call_data['source'])
-  vCon.set_party_join_time(call_data['rfc2822'], first_party)
   second_party = vCon.set_party_tel_url(call_data['destination'])
-  vCon.set_party_join_time(call_data['rfc2822'], second_party)
   return(vCon)
 
 def test_tel(empty_vcon : vcon.Vcon):
@@ -100,8 +98,6 @@ def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
   assert_dict_array_size(vcon_dict, VCON_PARTIES, 2)
   assert(vcon_dict['parties'][0]['tel'] == call_data['source'])
   assert(vcon_dict['parties'][1]['tel'] == call_data['destination'])
-  assert(vcon_dict['parties'][0]['joined'] == call_data['rfc2822'])
-  assert(vcon_dict['parties'][1]['joined'] == call_data['rfc2822'])
   assert_dict_array_size(vcon_dict, VCON_DIALOG, 0)
   assert_dict_array_size(vcon_dict, "analysis", 0)
   assert_dict_array_size(vcon_dict, "attachments", 0)
@@ -112,8 +108,6 @@ def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
 
   assert(empty_vcon._vcon_dict[VCON_PARTIES][0]['tel'] == call_data['source'])
   assert(empty_vcon._vcon_dict[VCON_PARTIES][1]['tel'] == call_data['destination'])
-  assert(empty_vcon._vcon_dict[VCON_PARTIES][0]['joined'] == call_data['rfc2822'])
-  assert(empty_vcon._vcon_dict[VCON_PARTIES][1]['joined'] == call_data['rfc2822'])
 
 def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
   """ Test add of a recording file inline to ensure base64 encode and decode are properly done. """
@@ -126,13 +120,15 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   # TODO: create some common mime type constants for convenience
   mime_type = "audio/x-wav"
   file_name = "fake.wav"
+  duration = 77.4
   file_length = vCon.add_dialog_inline_recording(fake_recording_file, call_data['rfc2822'],
-    [0, 1], mime_type, file_name)
+    duration, [0, 1], mime_type, file_name)
 
   assert(file_length == len(fake_recording_file))
   assert_vcon_array_size(vCon, VCON_DIALOG, 1)
   assert(vCon._vcon_dict[VCON_DIALOG][0]["type"] == "recording")
   assert(vCon._vcon_dict[VCON_DIALOG][0]["start"] == call_data['rfc2822'])
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["duration"] == duration)
   assert(vCon._vcon_dict[VCON_DIALOG][0]["mimetype"] == mime_type)
   assert(vCon._vcon_dict[VCON_DIALOG][0]["filename"] == file_name)
   assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][0] == 0)
@@ -162,7 +158,6 @@ def test_enumerate_parties(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vco
   count = 0
   for index, party in two_party_tel_vcon.enumerate_parties():
     #print("two party: {}".format(party))
-    assert(party["joined"] == call_data["rfc2822"])
     if(index == 0):
       assert(party["tel"] == call_data["source"])
     elif(index == 1):
@@ -190,11 +185,9 @@ def test_get_party(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> No
    #assert(empty_vcon.get_party(1) is None)
 
    party = two_party_tel_vcon.get_party(0)
-   assert(party["joined"] == call_data["rfc2822"])
    assert(party["tel"] == call_data["source"])
 
    party = two_party_tel_vcon.get_party(1)
-   assert(party["joined"] == call_data["rfc2822"])
    assert(party["tel"] == call_data["destination"])
 
    #assert(two_party_tel_vcon.get_party(2) is None)

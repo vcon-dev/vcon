@@ -96,40 +96,12 @@ class Vcon():
 
     return(party_index)
 
-  def set_party_join_time(self, joined_time : typing.Union[str, int, float], party_index : int = -1) -> int:
-    """
-      Set the time that a party joined the conversation.  Update the vCon start if
-      it is not set or after the join time for the party.
-
-    Parameters:
-    joined_time (str, int, float): string containing RFC 2822 date time stamp or int/float
-               containing epoch time (since 1970) in seconds.
-    party_index (int): index of party to set joined time on
-                  (-1 indicates a new party should be added)
-
-    Returns:
-      party index
-    """
-
-    # TODO: should we have a global vCon start and stop as a convenience or just label
-    # start and stop/duration for each party?
-
-    # TODO: what about a party that joins and leaves multiple times?  Should party have
-    # array of join and leave times?
-
-    # TODO: do we store leave time or duration?
-
-    # TODO: should validate joined time
-
-    party_index = self.__add_new_party(party_index)
-
-    self._vcon_dict[Vcon.PARTIES][party_index]['joined'] = joined_time
-
-    return(party_index)
-
-  def add_dialog_inline_recording(self, body : bytes, start_time : typing.Union[str, int, float],
+  def add_dialog_inline_recording(self, body : bytes,
+    start_time : typing.Union[str, int, float],
+    duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
-    mime_type : str, file_name : str = None) -> int:
+    mime_type : str,
+    file_name : str = None) -> int:
     """
     Add a recording of a portion of the conversation, inline (base64 encoded) to the dialog.
 
@@ -138,6 +110,7 @@ class Vcon():
     start_time (str, int, float): Date, time of the start of the recording.
                string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
+    duration (int or float): duration of the recording in seconds
     parties (int, List[int], List[List[int]]): party indices speaking in each
                channel of the recording.
     mime_type (str): mime type of the recording
@@ -148,9 +121,12 @@ class Vcon():
     """
     # TODO: do we want to know the number of channels?  e.g. to verify party list length
 
+    # TODO: should we validate the start time?
+
     new_dialog = {}
     new_dialog['type'] = "recording"
     new_dialog['start'] = start_time
+    new_dialog['duration'] = duration
     new_dialog['parties'] = parties
     new_dialog['mimetype'] = mime_type
     if(file_name is not None):
@@ -166,9 +142,13 @@ class Vcon():
 
     return(len(body))
 
-  def add_dialog_external_recording(self, body : bytes, start_time : typing.Union[str, int, float],
+  def add_dialog_external_recording(self, body : bytes,
+    start_time : typing.Union[str, int, float],
+    duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
-    external_url: str, mime_type : str =None, file_name : str =None) -> int:
+    external_url: str,
+    mime_type : str =None,
+    file_name : str =None) -> int:
     """
     Add a recording of a portion of the conversation, as a reference via the given
     URL, to the dialog and generate a signature and key for the content.
@@ -178,6 +158,7 @@ class Vcon():
     start_time (str, int, float): Date, time of the start of the recording.
                string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
+    duration (int or float): duration of the recording in seconds
     parties (int, List[int], List[List[int]]): party indices speaking in each
                channel of the recording.
     external_url (string): https URL where the body is stored securely

@@ -16,48 +16,54 @@ class Vcon():
   Attributes:
     None public`
   """
+  VCON_VERSION = "vcon"
+  PARTIES = "parties"
+  DIALOG = "dialog"
+  ANALYSIS = "analysis"
+  ATTACHMENTS = "attachments"
+
   def __init__(self):
     self._vcon_dict = {}
-    self._vcon_dict["vcon"] = "0.0.1"
-    self._vcon_dict["participants"] = []
-    self._vcon_dict["dialog"] = []
-    self._vcon_dict["analysis"] = []
-    self._vcon_dict["attachments"] = []
+    self._vcon_dict[Vcon.VCON_VERSION] = "0.0.1"
+    self._vcon_dict[Vcon.PARTIES] = []
+    self._vcon_dict[Vcon.DIALOG] = []
+    self._vcon_dict[Vcon.ANALYSIS] = []
+    self._vcon_dict[Vcon.ATTACHMENTS] = []
 
-  def __add_new_participant(self, index : int) -> int:
+  def __add_new_party(self, index : int) -> int:
     """
-    check if a new participant needs to be added to the list
+    check if a new party needs to be added to the list
 
     Parameters:
-    index (int): -1 indicates adding a new participant, positive numbers
-          throw AttributeError if the partipant with that index does not already exist
+    index (int): -1 indicates adding a new party, positive numbers
+          throw AttributeError if the party with that index does not already exist
 
     Returns:
-      participant index in the list
+      party index in the list
     """
-    participant = index
-    if(participant == -1):
-      self._vcon_dict["participants"].append({})
-      participant = len(self._vcon_dict["participants"]) - 1
+    party = index
+    if(party == -1):
+      self._vcon_dict[Vcon.PARTIES].append({})
+      party = len(self._vcon_dict[Vcon.PARTIES]) - 1
 
     else:
-      if(not len(self._vcon_dict["participants"]) > index):
+      if(not len(self._vcon_dict[Vcon.PARTIES]) > index):
         raise AttributeError(
-          "index: {} > then participant List length: {}.  Use index of -1 to add one to the end.".format(
-          index, len(self._vcon_dict["participants"])))
+          "index: {} > then party List length: {}.  Use index of -1 to add one to the end.".format(
+          index, len(self._vcon_dict[Vcon.PARTIES])))
 
-    return(participant)
+    return(party)
 
   def enumerate_parties(self) -> typing.Iterator[typing.Tuple[int, dict]]:
     """
-    Enumerate the participants in the vCon
+    Enumerate the parties in the vCon
 
     Returns:
-      An iterator of tuples of the participant index, and the participant list
+      An iterator of tuples of the party index, and the party list
     """
     index = 0
     party = ""
-    for party in self._vcon_dict["participants"]:
+    for party in self._vcon_dict[Vcon.PARTIES]:
       yield(index, party)
       index += 1
 
@@ -65,64 +71,64 @@ class Vcon():
 
     """
     """
-    if(index >= 0 and len(self._vcon_dict["participants"]) > index):
-      return(self._vcon_dict["participants"][index])
+    if(index >= 0 and len(self._vcon_dict[Vcon.PARTIES]) > index):
+      return(self._vcon_dict[Vcon.PARTIES][index])
     return(None)
-  
-  def set_party_tel_url(self, tel_url : str, participant : int =-1) -> int:
+
+  def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
     """
-    Set tel URL for a participant.
+    Set tel URL for a party.
 
     Parameters:
     tel_url
-    participant (int): index of participant to set tel url on
-                  (-1 indicates a new participant should be added)
+    party_index (int): index of party to set tel url on
+                  (-1 indicates a new party should be added)
 
     Returns:
-    int: if success, opsitive int index of participant in list
+    int: if success, opsitive int index of party in list
     """
 
     # TODO: should label as caller or called
 
-    participant = self.__add_new_participant(participant)
+    party_index = self.__add_new_party(party_index)
 
-    self._vcon_dict["participants"][participant]['tel'] = tel_url
+    self._vcon_dict[Vcon.PARTIES][party_index]['tel'] = tel_url
 
-    return(participant)
+    return(party_index)
 
-  def set_party_join_time(self, joined_time : typing.Union[str, int, float], participant : int = -1) -> int:
+  def set_party_join_time(self, joined_time : typing.Union[str, int, float], party_index : int = -1) -> int:
     """
-      Set the time that a participant joined the conversation.  Update the vCon start if
-      it is not set or after the join time for the participant.
+      Set the time that a party joined the conversation.  Update the vCon start if
+      it is not set or after the join time for the party.
 
     Parameters:
     joined_time (str, int, float): string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
-    participant (int): index of participant to set joined time on
-                  (-1 indicates a new participant should be added)
+    party_index (int): index of party to set joined time on
+                  (-1 indicates a new party should be added)
 
     Returns:
-      participant index
+      party index
     """
 
-    # TODO: should we have a global vCon start and stop as a convenience or just label 
-    # start and stop/duration for each participant?
+    # TODO: should we have a global vCon start and stop as a convenience or just label
+    # start and stop/duration for each party?
 
-    # TODO: what about a party that joins and leaves multiple times?  Should participant have
+    # TODO: what about a party that joins and leaves multiple times?  Should party have
     # array of join and leave times?
 
-    # TODO: do we store leave time or duration?  
+    # TODO: do we store leave time or duration?
 
     # TODO: should validate joined time
 
-    participant = self.__add_new_participant(participant)
+    party_index = self.__add_new_party(party_index)
 
-    self._vcon_dict["participants"][participant]['joined'] = joined_time
+    self._vcon_dict[Vcon.PARTIES][party_index]['joined'] = joined_time
 
-    return(participant)
+    return(party_index)
 
   def add_dialog_inline_recording(self, body : bytes, start_time : typing.Union[str, int, float],
-    participants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
+    parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     mime_type : str, file_name : str = None) -> int:
     """
     Add a recording of a portion of the conversation, inline (base64 encoded) to the dialog.
@@ -132,7 +138,7 @@ class Vcon():
     start_time (str, int, float): Date, time of the start of the recording.
                string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
-    participants (int, List[int], List[List[int]]): participant indices speaking in each
+    parties (int, List[int], List[List[int]]): party indices speaking in each
                channel of the recording.
     mime_type (str): mime type of the recording
     file_name (str): file name of the recording (optional)
@@ -140,12 +146,12 @@ class Vcon():
     Returns:
             Number of bytes read from body.
     """
-    # TODO: do we want to know the number of channels?  e.g. to verify participant list length
+    # TODO: do we want to know the number of channels?  e.g. to verify party list length
 
     new_dialog = {}
     new_dialog['type'] = "recording"
     new_dialog['start'] = start_time
-    new_dialog['participants'] = participants
+    new_dialog['parties'] = parties
     new_dialog['mimetype'] = mime_type
     if(file_name is not None):
       new_dialog['filename'] = file_name
@@ -155,13 +161,13 @@ class Vcon():
     #print("encoded body type: {}".format(type(encoded_body)))
     new_dialog['body'] = encoded_body
 
-    self._vcon_dict["dialog"].append(new_dialog)
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
 
     return(len(body))
 
   def add_dialog_external_recording(self, body : bytes, start_time : typing.Union[str, int, float],
-    participants : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
+    parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     external_url: str, mime_type : str =None, file_name : str =None) -> int:
     """
     Add a recording of a portion of the conversation, as a reference via the given
@@ -172,7 +178,7 @@ class Vcon():
     start_time (str, int, float): Date, time of the start of the recording.
                string containing RFC 2822 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
-    participants (int, List[int], List[List[int]]): participant indices speaking in each
+    parties (int, List[int], List[List[int]]): party indices speaking in each
                channel of the recording.
     external_url (string): https URL where the body is stored securely
     mime_type (str): mime type of the recording (optional)
@@ -209,7 +215,7 @@ class Vcon():
     Returns: none
     """
 
-    #TODO: Should check unsafe stuff is not loaded 
+    #TODO: Should check unsafe stuff is not loaded
 
     #TODO: Once signing is supported, this will get more complicated as
     #      we will need to check the format as to whether it is signed or

@@ -7,6 +7,9 @@ import os
 import jose.utils
 import pprint
 
+VCON_PARTIES = "parties"
+VCON_DIALOG = "dialog"
+
 call_data = {
       "epoch" : "1652552179",
       "destination" : "2117",
@@ -52,12 +55,12 @@ def test_tel(empty_vcon : vcon.Vcon):
   """ Test adding first party with a tel url to create simple vCon """
 
   vCon = empty_vcon
-  assert_vcon_array_size(vCon, "participants", 0)
+  assert_vcon_array_size(vCon, VCON_PARTIES, 0)
   party_index = vCon.set_party_tel_url(call_data['source'])
   assert(party_index == 0)
-  assert(vCon._vcon_dict["participants"][party_index]['tel'] == call_data['source'])
-  assert_vcon_array_size(vCon, "participants", 1)
-  assert_vcon_array_size(vCon, "dialog", 0)
+  assert(vCon._vcon_dict[VCON_PARTIES][party_index]['tel'] == call_data['source'])
+  assert_vcon_array_size(vCon, VCON_PARTIES, 1)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   assert_vcon_array_size(vCon, "analysis", 0)
   assert_vcon_array_size(vCon, "attachments", 0)
 
@@ -67,23 +70,23 @@ def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
   vCon = empty_vcon
 
   # 1st party:
-  assert_vcon_array_size(vCon, "participants", 0)
-  assert_vcon_array_size(vCon, "dialog", 0)
+  assert_vcon_array_size(vCon, VCON_PARTIES, 0)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   assert_vcon_array_size(vCon, "analysis", 0)
   assert_vcon_array_size(vCon, "attachments", 0)
   first_party = vCon.set_party_tel_url(call_data['source'])
   assert(first_party == 0)
-  assert(vCon._vcon_dict["participants"][first_party]['tel'] == call_data['source'])
-  assert_vcon_array_size(vCon, "participants", 1)
+  assert(vCon._vcon_dict[VCON_PARTIES][first_party]['tel'] == call_data['source'])
+  assert_vcon_array_size(vCon, VCON_PARTIES, 1)
 
   # 2nd party:
   second_party = vCon.set_party_tel_url(call_data['destination'])
   assert(second_party== 1)
-  assert(vCon._vcon_dict["participants"][second_party]['tel'] == call_data['destination'])
+  assert(vCon._vcon_dict[VCON_PARTIES][second_party]['tel'] == call_data['destination'])
   # make sure 1st party did not get modified
-  assert(vCon._vcon_dict["participants"][first_party]['tel'] == call_data['source'])
-  assert_vcon_array_size(vCon, "participants", 2)
-  assert_vcon_array_size(vCon, "dialog", 0)
+  assert(vCon._vcon_dict[VCON_PARTIES][first_party]['tel'] == call_data['source'])
+  assert_vcon_array_size(vCon, VCON_PARTIES, 2)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   assert_vcon_array_size(vCon, "analysis", 0)
   assert_vcon_array_size(vCon, "attachments", 0)
 
@@ -94,12 +97,12 @@ def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
   vcon_dict = json.loads(vcon_json)
 
   assert(vcon_dict["vcon"] == "0.0.1")
-  assert_dict_array_size(vcon_dict, "participants", 2)
-  assert(vcon_dict['participants'][0]['tel'] == call_data['source'])
-  assert(vcon_dict['participants'][1]['tel'] == call_data['destination'])
-  assert(vcon_dict['participants'][0]['joined'] == call_data['rfc2822'])
-  assert(vcon_dict['participants'][1]['joined'] == call_data['rfc2822'])
-  assert_dict_array_size(vcon_dict, "dialog", 0)
+  assert_dict_array_size(vcon_dict, VCON_PARTIES, 2)
+  assert(vcon_dict['parties'][0]['tel'] == call_data['source'])
+  assert(vcon_dict['parties'][1]['tel'] == call_data['destination'])
+  assert(vcon_dict['parties'][0]['joined'] == call_data['rfc2822'])
+  assert(vcon_dict['parties'][1]['joined'] == call_data['rfc2822'])
+  assert_dict_array_size(vcon_dict, VCON_DIALOG, 0)
   assert_dict_array_size(vcon_dict, "analysis", 0)
   assert_dict_array_size(vcon_dict, "attachments", 0)
   
@@ -107,10 +110,10 @@ def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
   vcon_json = two_party_tel_vcon.dumps()
   empty_vcon.loads(vcon_json)
 
-  assert(empty_vcon._vcon_dict["participants"][0]['tel'] == call_data['source'])
-  assert(empty_vcon._vcon_dict["participants"][1]['tel'] == call_data['destination'])
-  assert(empty_vcon._vcon_dict["participants"][0]['joined'] == call_data['rfc2822'])
-  assert(empty_vcon._vcon_dict["participants"][1]['joined'] == call_data['rfc2822'])
+  assert(empty_vcon._vcon_dict[VCON_PARTIES][0]['tel'] == call_data['source'])
+  assert(empty_vcon._vcon_dict[VCON_PARTIES][1]['tel'] == call_data['destination'])
+  assert(empty_vcon._vcon_dict[VCON_PARTIES][0]['joined'] == call_data['rfc2822'])
+  assert(empty_vcon._vcon_dict[VCON_PARTIES][1]['joined'] == call_data['rfc2822'])
 
 def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
   """ Test add of a recording file inline to ensure base64 encode and decode are properly done. """
@@ -119,7 +122,7 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   random_size = 4096
   fake_recording_file = os.urandom(random_size)
   assert(len(fake_recording_file) == random_size)
-  assert_vcon_array_size(vCon, "dialog", 0)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   # TODO: create some common mime type constants for convenience
   mime_type = "audio/x-wav"
   file_name = "fake.wav"
@@ -127,18 +130,18 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
     [0, 1], mime_type, file_name)
 
   assert(file_length == len(fake_recording_file))
-  assert_vcon_array_size(vCon, "dialog", 1)
-  assert(vCon._vcon_dict["dialog"][0]["type"] == "recording")
-  assert(vCon._vcon_dict["dialog"][0]["start"] == call_data['rfc2822'])
-  assert(vCon._vcon_dict["dialog"][0]["mimetype"] == mime_type)
-  assert(vCon._vcon_dict["dialog"][0]["filename"] == file_name)
-  assert(vCon._vcon_dict["dialog"][0]["participants"][0] == 0)
-  assert(vCon._vcon_dict["dialog"][0]["participants"][1] == 1)
-  assert(len(vCon._vcon_dict["dialog"][0]["participants"]) == 2)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 1)
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["type"] == "recording")
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["start"] == call_data['rfc2822'])
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["mimetype"] == mime_type)
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["filename"] == file_name)
+  assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][0] == 0)
+  assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][1] == 1)
+  assert(len(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES]) == 2)
 
   # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
   # this is a bug in jose.baseurl_decode
-  decoded_file = jose.utils.base64url_decode(bytes(vCon._vcon_dict["dialog"][0]["body"], 'utf-8'))
+  decoded_file = jose.utils.base64url_decode(bytes(vCon._vcon_dict[VCON_DIALOG][0]["body"], 'utf-8'))
   assert(decoded_file == fake_recording_file)
 
   # serialize and deserialize and check the copy too
@@ -147,13 +150,13 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   deserialized_vcon.loads(vcon_json)
   # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
   # this is a bug in jose.baseurl_decode
-  decoded_file = jose.utils.base64url_decode(bytes(deserialized_vcon._vcon_dict["dialog"][0]["body"], 'utf-8'))
+  decoded_file = jose.utils.base64url_decode(bytes(deserialized_vcon._vcon_dict[VCON_DIALOG][0]["body"], 'utf-8'))
   assert(decoded_file == fake_recording_file)
 
   # TODO check other recording fields
 
 def test_enumerate_parties(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
-  """ Test participant iterator """
+  """ Test party iterator """
   #print("two_party_vcon in enum:")
   #pprint.pprint(two_party_tel_vcon._vcon_dict)
   count = 0
@@ -182,7 +185,7 @@ def test_get_party(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> No
    assert(empty_vcon.get_party(-1) is None)
    # TODO: fix this:
    # Something is messed up with this test or pytest as the empty_vcon 
-   # has elements in the participants list
+   # has elements in the parties list
    #assert(empty_vcon.get_party(0) is None)
    #assert(empty_vcon.get_party(1) is None)
 

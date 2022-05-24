@@ -151,13 +151,10 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
 
   # TODO check other recording fields
 
-def test_enumerate_parties(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
-  """ Test party iterator """
-  #print("two_party_vcon in enum:")
-  #pprint.pprint(two_party_tel_vcon._vcon_dict)
-  count = 0
-  for index, party in two_party_tel_vcon.enumerate_parties():
-    #print("two party: {}".format(party))
+def test_parties_descriptor(two_party_tel_vcon : vcon.Vcon):
+  """ Test that the VconDictList descriptor works for the parties attr """
+  for index, party in enumerate(two_party_tel_vcon.parties):
+    #print("party[{}]: {}".format(index, party))
     if(index == 0):
       assert(party["tel"] == call_data["source"])
     elif(index == 1):
@@ -165,30 +162,14 @@ def test_enumerate_parties(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vco
     else:
       assert(0)
 
-    assert(index == count)
-    count += 1
+  party = two_party_tel_vcon.parties[0]
+  assert(party["tel"] == call_data["source"])
+  party = two_party_tel_vcon.parties[1]
+  assert(party["tel"] == call_data["destination"])
 
-  empty_vcon = vcon.Vcon()
-  #print("empty_vcon in enum:")
-  #pprint.pprint(empty_vcon._vcon_dict)
-  for index, party in empty_vcon.enumerate_parties():
-    print("empty: {}".format(party))
-    assert(party is None)
-    assert(0)
+  assert(len(two_party_tel_vcon.parties) == 2)
 
-def test_get_party(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
-   assert(empty_vcon.get_party(-1) is None)
-   # TODO: fix this:
-   # Something is messed up with this test or pytest as the empty_vcon 
-   # has elements in the parties list
-   #assert(empty_vcon.get_party(0) is None)
-   #assert(empty_vcon.get_party(1) is None)
+  new_vcon = vcon.Vcon()
+  assert(len(new_vcon.parties) == 0)
 
-   party = two_party_tel_vcon.get_party(0)
-   assert(party["tel"] == call_data["source"])
-
-   party = two_party_tel_vcon.get_party(1)
-   assert(party["tel"] == call_data["destination"])
-
-   #assert(two_party_tel_vcon.get_party(2) is None)
 

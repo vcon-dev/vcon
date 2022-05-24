@@ -9,18 +9,41 @@ import jose.utils
 class UnsupportedVconVersion(Exception):
   """ Thrown if vcon version string is not of set of versions supported by this package"""
 
+class VconDictList:
+  """ descriptor for Lists of dicts in vcon """
+  def __set_name__(self, owner_class, name):
+    #print("defining new VconList: {}".format(name))
+    self.name = name
+
+  def __get__(self, instance_object, class_type = None) -> list:
+    #print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
+    # TODO: once signed, this should return a read only list
+    return(instance_object._vcon_dict.get(self.name, None))
+
+  def __set__(self, instance_object, value : dict) -> None:
+    raise AttributeError("not allowed to replace {} List".format(self.name))
+
 class Vcon():
   """
   Constructor, Serializer and Deserializer for vCon conversation data container.
 
   Attributes:
-    None public`
+    parties (List[dict]): containing information on each party to the conversation
+    dialog (List[dict]): containing information dialog exchanges (text or audio/video recordings)
+    analysis (List[dict]): containing analysis information on the dialog
+    attachments (List[dict]): containing meta data about as well as the documents exchanged during the conversation
+
   """
   VCON_VERSION = "vcon"
   PARTIES = "parties"
   DIALOG = "dialog"
   ANALYSIS = "analysis"
   ATTACHMENTS = "attachments"
+
+  parties = VconDictList()
+  dialog = VconDictList()
+  analysis = VconDictList()
+  attachments = VconDictList()
 
   def __init__(self):
     self._vcon_dict = {}
@@ -53,27 +76,6 @@ class Vcon():
           index, len(self._vcon_dict[Vcon.PARTIES])))
 
     return(party)
-
-  def enumerate_parties(self) -> typing.Iterator[typing.Tuple[int, dict]]:
-    """
-    Enumerate the parties in the vCon
-
-    Returns:
-      An iterator of tuples of the party index, and the party list
-    """
-    index = 0
-    party = ""
-    for party in self._vcon_dict[Vcon.PARTIES]:
-      yield(index, party)
-      index += 1
-
-  def get_party(self, index : int) -> dict:
-
-    """
-    """
-    if(index >= 0 and len(self._vcon_dict[Vcon.PARTIES]) > index):
-      return(self._vcon_dict[Vcon.PARTIES][index])
-    return(None)
 
   def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
     """

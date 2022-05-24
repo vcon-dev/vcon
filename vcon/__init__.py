@@ -24,7 +24,7 @@ class Vcon():
     self._vcon_dict["analysis"] = []
     self._vcon_dict["attachments"] = []
 
-  def add_new_participant(self, index : int) -> int:
+  def __add_new_participant(self, index : int) -> int:
     """
     check if a new participant needs to be added to the list
 
@@ -48,6 +48,27 @@ class Vcon():
 
     return(participant)
 
+  def enumerate_parties(self) -> typing.Iterator[typing.Tuple[int, dict]]:
+    """
+    Enumerate the participants in the vCon
+
+    Returns:
+      An iterator of tuples of the participant index, and the participant list
+    """
+    index = 0
+    party = ""
+    for party in self._vcon_dict["participants"]:
+      yield(index, party)
+      index += 1
+
+  def get_party(self, index : int) -> dict:
+
+    """
+    """
+    if(index >= 0 and len(self._vcon_dict["participants"]) > index):
+      return(self._vcon_dict["participants"][index])
+    return(None)
+  
   def set_party_tel_url(self, tel_url : str, participant : int =-1) -> int:
     """
     Set tel URL for a participant.
@@ -61,7 +82,9 @@ class Vcon():
     int: if success, opsitive int index of participant in list
     """
 
-    participant = self.add_new_participant(participant)
+    # TODO: should label as caller or called
+
+    participant = self.__add_new_participant(participant)
 
     self._vcon_dict["participants"][participant]['tel'] = tel_url
 
@@ -92,7 +115,7 @@ class Vcon():
 
     # TODO: should validate joined time
 
-    participant = self.add_new_participant(participant)
+    participant = self.__add_new_participant(participant)
 
     self._vcon_dict["participants"][participant]['joined'] = joined_time
 
@@ -128,7 +151,8 @@ class Vcon():
       new_dialog['filename'] = file_name
 
     new_dialog['encoding'] = "base64url"
-    encoded_body = jose.utils.base64url_encode(body)
+    encoded_body = jose.utils.base64url_encode(body).decode('utf-8')
+    #print("encoded body type: {}".format(type(encoded_body)))
     new_dialog['body'] = encoded_body
 
     self._vcon_dict["dialog"].append(new_dialog)

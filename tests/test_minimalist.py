@@ -20,6 +20,8 @@ call_data = {
       "channels" : 1
 }
 
+# TODO: remove references to Vcon._vcon_dict and use attributes instead
+
 def assert_dict_array_size(test_dict : dict, list_name : str, size : int) -> None:
   test_list = test_dict.get(list_name, None)
   if(test_list is not None):
@@ -176,5 +178,23 @@ def test_parties_descriptor(two_party_tel_vcon : vcon.Vcon):
 
   new_vcon = vcon.Vcon()
   assert(len(new_vcon.parties) == 0)
+
+def test_transcript(two_party_tel_vcon : vcon.Vcon):
+  """ Test the helper function to add a transcript to the analysis list """
+  vCon = two_party_tel_vcon
+  assert(len(vCon.analysis) == 0)
+
+  dialog_index = 0
+  transcript = { "text" : "Hello, how are you" }
+  vendor = "Achme"
+  vendor_schema = "simple"
+
+  vCon.add_analysis_transcript(dialog_index, transcript, vendor, vendor_schema)
+  assert(len(vCon.analysis) == 1)
+  assert(vCon.analysis[0]['type'] == "transcript")
+  assert(vCon.analysis[0]['dialog'] == dialog_index)
+  assert(vCon.analysis[0]['transcript'] == transcript)
+  assert(vCon.analysis[0]['vendor'] == vendor)
+  assert(vCon.analysis[0]['vendor_schema'] == vendor_schema)
 
 

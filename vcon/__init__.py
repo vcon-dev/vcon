@@ -45,6 +45,35 @@ class Vcon():
   analysis = VconDictList()
   attachments = VconDictList()
 
+  # TODO:  work out states the vcon can be in.  For example:
+  """
+    unsigned
+    signed
+    signed_unverified
+    signed_verified
+    encrypted
+    encrypted_unverified
+    decryppted_verified
+
+  Also are there failure cases for the above?
+
+  JSW (RFC7515) signing stored in:
+  _jsw_dict
+  {
+    payload
+    signatures
+    [
+      {
+        protected
+        header
+        signature
+      } [, ...]
+    ]
+  }
+
+
+  """
+
   def __init__(self):
     self._vcon_dict = {}
     self._vcon_dict[Vcon.VCON_VERSION] = "0.0.1"
@@ -88,6 +117,11 @@ class Vcon():
     """
     # TODO: loop through dialogs and find the oldest start time, calculate end time from
     # duration, find the most recent end time and return the results
+
+    # TODO: Dialog recordings for mutiple parties will not show the start/join time for
+    # all of the parties, only the first to join.  Requires analysis of recording to show
+    # when party speaks, but this may not be a good indicator of join time.  Where as signalling
+    # has defininte joine time for each party, but is not captured in the vcon.
     raise Exception("not implemented")
 
   def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
@@ -157,7 +191,7 @@ class Vcon():
 
     return(len(body))
 
-  def decode_dialog_inline_recording(self, dialog_index):
+  def decode_dialog_inline_recording(self, dialog_index : int) -> bytes:
     dialog = self.dialog[dialog_index]
     if(dialog["type"] != "recording"):
       raise AttributeError("dialog[{}] is not a recording file")
@@ -199,6 +233,28 @@ class Vcon():
 
     return(-1)
 
+  def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
+    """
+    Add a transcript for the indicated dialog.
+
+    Parameters:
+    dialog_index (str): index to the dialog in the vCon dialog list that this trascript corresponds to.
+    vendor (str): string token for the vendor of the audio to text transcription service
+    vendor_schema (str): schema label for the transcription data.  Used to identify data format of the transcription
+                  for vendors that have more than one format or version.
+    """
+
+    analysis_element = {}
+    analysis_element["type"] = "transcript"
+    # TODO should validate dialog_index??
+    analysis_element["dialog"] = dialog_index
+    analysis_element["transcript"] = transcript
+    analysis_element["vendor"] = vendor
+    if(vendor_schema is not None):
+      analysis_element["vendor_schema"] = vendor_schema
+
+    self.analysis.append(analysis_element)
+
   def dumps(self) -> str:
     """
     Dump the vCon as a JSON string.
@@ -230,6 +286,13 @@ class Vcon():
     #      we will need to check the format as to whether it is signed or
     #      not and deconstruct the loaded object.
 
+    # TODO: load differently based upon the contents of the JSON
+    """
+    Decision as to what json to be deserialized is:
+    1) vcon must have a vcon and one or more of the following elements: parties, dialog, analysis, attachments
+    2) JWS must have a payload and signatures
+    3) JWE must have a protected and recipients
+    """
     vcon_dict = json.loads(vcon_json)
 
     # validate version

@@ -14,6 +14,7 @@ See the [key note proposal for vCons](https://blog.tadsummit.com/2021/12/08/stro
     * [Example vCon signing](#example-vcon-signing)
     * [Example Verification of Signed vCon](#example-verification-of-signed-vcon)
 * [Test Certficates](#test-certificates)
+* [Layers for AWS Lambda Functions](#layers-for-aws-lambda-functions)
 
 ## Example Code
 
@@ -74,7 +75,7 @@ ca_list = ["ca.crt"]
 signed_vcon.verify(ca_list)
 ```
 
-## Test Certifcates
+## Test Certificates
 A set of certifcates have been created for the purpose of testing the signing and verification of vCons using the vcon python package.  The certifcates and their private keys can be found [here](certs).  DO NOT USE THESE CERTIFICATES OR KEYS IN PRODUCTION.  They are for TESTING ONLY!!!!
 
 You can substitue the following values in the variables in the above examples, if you would like to use the test certs and keys:
@@ -82,5 +83,10 @@ You can substitue the following values in the variables in the above examples, i
 cert_chain_file_names = ["certs/fake_grp.crt", "certs/fake_div.crt", "ca_root.crt"]
 private_key_file_name = "certs/fake_grp.key"
 ca_list = ["certs/fake_ca_root.crt"]
+```
+## Layers for AWS Lambda Functions
+If you would like to use the python vcon package in an AWS lambda function, a layer for the vcon package and each of its dependencies can be created using the following command:
+```
+make layers
 ```
 

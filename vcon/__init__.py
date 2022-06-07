@@ -56,6 +56,11 @@ class Vcon():
     attachments (List[dict]): containing meta data about as well as the documents exchanged during the conversation
 
   """
+
+  # Some commonly used MIME types for convenience
+  MIMETYPE_WAV = "audio/x-wav"
+
+  # Dict keys
   VCON_VERSION = "vcon"
   PARTIES = "parties"
   DIALOG = "dialog"
@@ -265,7 +270,60 @@ class Vcon():
             Number of bytes read from body.
     """
 
-    return(-1)
+    new_dialog = {}
+    new_dialog['type'] = "recording"
+    new_dialog['start'] = start_time
+    new_dialog['duration'] = duration
+    new_dialog['parties'] = parties
+    new_dialog['url'] = external_url
+    if(mime_type is not None):
+      new_dialog['mimetype'] = mime_type
+    if(file_name is not None):
+      new_dialog['filename'] = file_name
+
+    key, signature = security.lm_one_time_signature(body)
+    new_dialog['key'] = key
+    new_dialog['signature'] = signature
+    new_dialog['alg'] = "lm-ots"
+
+    self.dialog.append(new_dialog)
+
+    return(len(body))
+
+
+  def verify_dialog_external_recording(self, dialog_index : int, body : bytes) -> None:
+    """
+    Verify the given body of the externally stored recording for the indicted dialog.
+    Using the signature and public key stored in the dialog, the content of the body
+    of the recording is verifyed.
+
+    Parameters:
+      dialog_index (int): index of the dialog to be verified
+
+      body (bytes): the contents of the recording which is stored external to this vCon
+
+    Returns: none
+
+    Raises exceptions if the signature and public key fail to verify the body.
+    """
+
+    dialog = self.dialog[dialog_index]
+
+    if(dialog['type'] != "recording"):
+      raise AttributeError("dialog[{}] is of type: {} not recording".format(dialog_index, dialog['type']))
+
+    if(dialog['alg'] != 'lm-ots'):
+      raise AttributeError("dialog[{}] alg: {} not supported.  Must be lm-ots".format(dialog_index, dialog['alg']))
+
+    if(len(dialog['key']) < 1 ):
+      raise AttributeError("dialog[{}] key: {} not set.  Must be for lm-ots".format(dialog_index, dialog['key']))
+
+    if(len(dialog['signature']) < 1 ):
+      raise AttributeError("dialog[{}] signature: {} not set.  Must be for lm-ots".format(dialog_index, dialog['signature']))
+
+    security.verify_lm_one_time_signature(body,
+      dialog['signature'],
+      dialog['key'])
 
   def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
     """

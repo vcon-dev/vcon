@@ -1,5 +1,6 @@
 """ security helper functions for the Vcon package """
 
+import os
 import typing
 import cryptography.hazmat.backends.openssl.backend
 import cryptography.x509
@@ -7,6 +8,11 @@ import cryptography.x509
 import base64
 import jose
 import datetime
+import hsslms
+
+
+# =============================== JWS, JWK Helper Functions ===========================
+#              JOSE JSON Web Key and JSON Web Signature RFC7515, RFC7517
 
 class InvalidCertDate(Exception):
   """ Cert not_valid_before or not_valid_after dates don't include today """
@@ -237,4 +243,41 @@ def verify_cert(cert_to_verify : cryptography.x509.Certificate, issuer_cert : cr
       cert_to_verify.not_valid_before))
 
   # TODO need to check revokations as well
+
+
+# =============================== One Time Signature Helper Functions ===========================
+#                            Leighton-Micali One Time Signature (RFC8554)
+
+def lm_one_time_signature(data : bytes) -> typing.Tuple[str, str]:
+  """
+  Sign data bytes using Leighton-Micali One Time Signature (RFC8554) method
+
+  Returns:
+    Tuple(str, str): public key and signature strings
+  """
+  one_time_private_key = hsslms.LM_OTS_Priv(
+    hsslms.LMOTS_ALGORITHM_TYPE.LMOTS_SHA256_N32_W8, os.urandom(16), 0, os.urandom(32))
+
+  signature = jose.utils.base64url_encode(one_time_private_key.sign(data)).decode('utf-8')
+
+  public_key = jose.utils.base64url_encode(one_time_private_key.gen_pub().pubkey).decode('utf-8')
+
+  print("public_key: {}".format(public_key))
+  print("sig: {}".format(signature))
+
+  return(public_key, signature)
+
+def verify_lm_one_time_signature(data : bytes, signature : str, public_key : str) -> None:
+  """
+  Verify data bytes with signature and key using Leighton-Micali One Time Signature (RFC8554) method
+
+  Raises: exceptions if the signature fails to verify
+  """
+  public_key_bytes = jose.utils.base64url_decode(bytes(public_key, 'utf-8'))
+
+  public_key_object = hsslms.LM_OTS_Pub(public_key_bytes)
+
+  signature_bytes = jose.utils.base64url_decode(bytes(signature, 'utf-8'))
+
+  public_key_object.verify(data, signature_bytes)
 

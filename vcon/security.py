@@ -262,8 +262,8 @@ def lm_one_time_signature(data : bytes) -> typing.Tuple[str, str]:
 
   public_key = jose.utils.base64url_encode(one_time_private_key.gen_pub().pubkey).decode('utf-8')
 
-  print("public_key: {}".format(public_key))
-  print("sig: {}".format(signature))
+  #print("public_key: {}".format(public_key))
+  #print("sig: {}".format(signature))
 
   return(public_key, signature)
 

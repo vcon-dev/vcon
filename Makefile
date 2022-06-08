@@ -15,7 +15,7 @@ layers/%.zip:
 	@(cd /tmp; mkdir -p ${LAYER_PATH}; pip3 install $* -t ${LAYER_PATH} > /dev/null; zip $*.zip -r ${LAYER_PATH_ROOT} > /dev/null; rm -rf ${LAYER_PATH_ROOT})
 	@mv /tmp/$*.zip layers
 
-layers/vcon.zip: vcon vcon/__init__.py
+layers/vcon.zip: vcon vcon/__init__.py vcon/security.py
 	@echo "Making $@"
 	@if [ ! -d "layers" ]; then mkdir layers; fi
 	@mkdir -p /tmp/${LAYER_PATH}

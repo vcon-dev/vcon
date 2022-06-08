@@ -3,6 +3,7 @@ Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
 import typing
+import vcon.security
 import json
 import jose.utils
 import enum
@@ -281,7 +282,7 @@ class Vcon():
     if(file_name is not None):
       new_dialog['filename'] = file_name
 
-    key, signature = security.lm_one_time_signature(body)
+    key, signature = vcon.security.lm_one_time_signature(body)
     new_dialog['key'] = key
     new_dialog['signature'] = signature
     new_dialog['alg'] = "lm-ots"
@@ -321,7 +322,7 @@ class Vcon():
     if(len(dialog['signature']) < 1 ):
       raise AttributeError("dialog[{}] signature: {} not set.  Must be for lm-ots".format(dialog_index, dialog['signature']))
 
-    security.verify_lm_one_time_signature(body,
+    vcon.security.verify_lm_one_time_signature(body,
       dialog['signature'],
       dialog['key'])
 
@@ -440,7 +441,7 @@ class Vcon():
     Returns: none
     """
 
-    header, signing_jwk = security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
+    header, signing_jwk = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
 
     # dot separated JWS token.  First part is the payload, second part is the signature (both base64url encoded)
     jws_token = jose.jws.sign(self._vcon_dict, signing_jwk, headers=header, algorithm=signing_jwk["alg"])
@@ -494,7 +495,7 @@ class Vcon():
     # Load an array of CA certficate objects to use to verify acceptable cert chains
     ca_cert_object_list = []
     for ca in ca_cert_pem_file_names:
-      ca_cert_object_list.append(security.load_pem_cert(ca)[0])
+      ca_cert_object_list.append(vcon.security.load_pem_cert(ca)[0])
 
     last_exception = Exception("Internal error in Vcon.verify this exception should never be thrown")
     chain_count = 0
@@ -504,7 +505,7 @@ class Vcon():
           x5c = signature['header']['x5c']
           chain_count += 1
 
-          cert_chain_objects = security.der_to_certs(x5c)
+          cert_chain_objects = vcon.security.der_to_certs(x5c)
 
           # TODO: some of this should be move to the security submodule
           # e.g. the iterating over CAs
@@ -514,12 +515,12 @@ class Vcon():
           # even all of the failures.
 
           try:
-            security.verify_cert_chain(cert_chain_objects)
+            vcon.security.verify_cert_chain(cert_chain_objects)
 
             # We have a valid chain, check if its from one of the accepted CAs
             for ca_object in ca_cert_object_list:
               try:
-                security.verify_cert(cert_chain_objects[len(cert_chain_objects) - 1], ca_object)
+                vcon.security.verify_cert(cert_chain_objects[len(cert_chain_objects) - 1], ca_object)
 
                 # IF we get here, we have a valid chain: cert_chain_objects issued from one of our accepted
                 # CAs: ca_object.

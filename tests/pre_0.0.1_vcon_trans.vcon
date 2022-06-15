@@ -1,0 +1,35 @@
+{
+  "vcon": "0.0.1",
+  "parties": [
+    {
+      "tel": "+19175887311"
+    },
+    {
+      "tel": "11361"
+    }
+  ],
+  "dialog": [
+    {
+      "type": "recording",
+      "start": "Wed, 18 May 2022 23:05:05 -0000",
+      "duration": 4.72,
+      "parties": [
+        0,
+        1
+      ],
+      "mimetype": "audio/x-wav",
+      "filename": "1158873105109151310.WAV",
+      "encoding": "base64url",
+      "body": "UklGRioeAABXQVZFZm10IBQ"
+    }
+  ],
+  "analysis": [
+    {
+      "type": "transcript",
+      "dialog": 0,
+      "transcript": { "a": "b", "c": 3 },
+      "vendor": "DeepGram"
+    }
+  ],
+  "attachments": []
+}

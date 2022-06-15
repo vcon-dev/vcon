@@ -193,8 +193,8 @@ def test_transcript(two_party_tel_vcon : vcon.Vcon):
   assert(len(vCon.analysis) == 1)
   assert(vCon.analysis[0]['type'] == "transcript")
   assert(vCon.analysis[0]['dialog'] == dialog_index)
-  assert(vCon.analysis[0]['transcript'] == transcript)
+  assert(vCon.analysis[0]['body'] == transcript)
+  assert(vCon.analysis[0]['encoding'] == "json")
   assert(vCon.analysis[0]['vendor'] == vendor)
   assert(vCon.analysis[0]['vendor_schema'] == vendor_schema)
-
 

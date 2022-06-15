@@ -341,7 +341,8 @@ class Vcon():
     analysis_element["type"] = "transcript"
     # TODO should validate dialog_index??
     analysis_element["dialog"] = dialog_index
-    analysis_element["transcript"] = transcript
+    analysis_element["body"] = transcript
+    analysis_element["encoding"] = "json"
     analysis_element["vendor"] = vendor
     if(vendor_schema is not None):
       analysis_element["vendor_schema"] = vendor_schema
@@ -420,7 +421,7 @@ class Vcon():
       if(version_string != "0.0.1"):
         raise UnsupportedVconVersion("loads of JSON vcon version: \"{}\" not supported".format(version_string))
 
-      self._vcon_dict = vcon_dict
+      self._vcon_dict = self.migrate_0_0_1_vcon(vcon_dict)
 
     # Unknown
     else:
@@ -539,13 +540,15 @@ class Vcon():
                 # If we get here, the payload was verified
                 #print("verified payload: {}".format(verified_payload))
                 #print("verified payload type: {}".format(type(verified_payload)))
-                self._vcon_dict = json.loads(verified_payload.decode('utf-8'))
+                vcon_dict = json.loads(verified_payload.decode('utf-8'))
+                self._vcon_dict = self.migrate_0_0_1_vcon(vcon_dict)
+
                 self._state = VconStates.VERIFIED
 
                 return(None)
 
               # This valid chain, is not issued from the CA for this ca_objjwk
-              except Exception as e: 
+              except Exception as e:
                 last_exception = e
                 # Keep trying other CAs until we run out or succeed
 
@@ -558,4 +561,32 @@ class Vcon():
       raise InvalidVconSignature("None of the signatures contain the x5c chain, which this implementation currenlty requires.")
 
     raise last_exception
+
+  @staticmethod
+  def migrate_0_0_1_vcon(old_vcon : dict) -> dict:
+    """
+    Migrate/translate an an older deprecated vCon to the current version.
+
+    Parameters:
+      old_vcon old format 0.0.1 vCon
+
+    Returns:
+      the modified old_vcon in the new format
+    """
+
+    # Translate transcriptions to body for consistency with dialog and attachments
+    for index, analysis in enumerate(old_vcon["analysis"]):
+      if(analysis['type'] == "transcript"):
+        if("transcript" in analysis):
+          analysis['body'] = analysis.pop('transcript')
+
+          if(isinstance(analysis['body'], dict)):
+            analysis['encoding'] = "json"
+          elif(isinstance(analysis['body'], str)):
+            analysis['encoding'] = "none"
+
+          else:
+            raise Exception("body type: {} in analysis[{}] not recognized".format(type(analysis['body']), index))
+
+    return(old_vcon)
 

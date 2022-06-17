@@ -189,7 +189,7 @@ class Vcon():
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
     start_time (str, int, float): Date, time of the start of the recording.
-               string containing RFC 2822 date time stamp or int/float
+               string containing RFC 2822 or RFC3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
     parties (int, List[int], List[List[int]]): party indices speaking in each
@@ -206,7 +206,7 @@ class Vcon():
 
     new_dialog = {}
     new_dialog['type'] = "recording"
-    new_dialog['start'] = start_time
+    new_dialog['start'] = vcon.utils.cannonize_date(start_time)
     new_dialog['duration'] = duration
     new_dialog['parties'] = parties
     new_dialog['mimetype'] = mime_type
@@ -259,7 +259,7 @@ class Vcon():
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
     start_time (str, int, float): Date, time of the start of the recording.
-               string containing RFC 2822 date time stamp or int/float
+               string containing RFC 2822 or RFC 3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
     parties (int, List[int], List[List[int]]): party indices speaking in each
@@ -274,7 +274,7 @@ class Vcon():
 
     new_dialog = {}
     new_dialog['type'] = "recording"
-    new_dialog['start'] = start_time
+    new_dialog['start'] = vcon.utils.cannonize_date(start_time)
     new_dialog['duration'] = duration
     new_dialog['parties'] = parties
     new_dialog['url'] = external_url

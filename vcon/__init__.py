@@ -3,6 +3,7 @@ Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
 import typing
+import vcon.utils
 import vcon.security
 import json
 import jose.utils
@@ -573,6 +574,11 @@ class Vcon():
     Returns:
       the modified old_vcon in the new format
     """
+
+    # Fix dates in older dialogs
+    for index, dialog in enumerate(old_vcon["dialog"]):
+      if("start" in dialog):
+        dialog['start'] = vcon.utils.cannonize_date(dialog['start'])
 
     # Translate transcriptions to body for consistency with dialog and attachments
     for index, analysis in enumerate(old_vcon["analysis"]):

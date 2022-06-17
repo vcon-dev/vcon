@@ -18,7 +18,8 @@ def test_migrate_0_0_1():
   assert(migrated_vcon.analysis[0]["body"]['a'] == "b")
   assert(migrated_vcon.analysis[0]["body"]['c'] == 3)
 
-
+  # Should be converted to RFC3339 format date
+  assert(migrated_vcon.dialog[0]['start'] == "2022-05-18T23:05:05.000+00:00")
 
 
 

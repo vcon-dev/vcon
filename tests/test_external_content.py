@@ -15,6 +15,7 @@ call_data = {
       "destination" : "2117",
       "source" : "+19144345359",
       "rfc2822" : "Sat, 14 May 2022 18:16:19 -0000",
+      "rfc3339" : "2022-05-14T18:16:19.000+00:00",
       "file_extension" : "WAV",
       "duration" : 94.84,
       "channels" : 1
@@ -88,7 +89,7 @@ def test_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(new_vcon.dialog[0]['type'] == "recording")
   assert(new_vcon.dialog[0]['url'] == url)
   assert(new_vcon.dialog[0]['parties'] == 0)
-  assert(new_vcon.dialog[0]['start'] == call_data["rfc2822"])
+  assert(new_vcon.dialog[0]['start'] == call_data["rfc3339"])
   assert(new_vcon.dialog[0]['duration'] == call_data["duration"])
   assert(new_vcon.dialog[0]['mimetype'] == "audio/x-wav")
   assert(new_vcon.dialog[0]['filename'] == file_name)

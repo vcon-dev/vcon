@@ -7,6 +7,7 @@ import vcon.utils
 import vcon.security
 import json
 import jose.utils
+import jose.jws
 import enum
 
 class VconStates(enum.Enum):

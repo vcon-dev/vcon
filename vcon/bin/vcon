@@ -1,12 +1,30 @@
 #!/usr/bin/python3
 
+import pathlib
+import sys
 
+def get_mime_type(file_name):
+  path = pathlib.PurePath(file_name)
+  extension = path.suffix.lower()
+
+  print("extension: {}".format(extension), file=sys.stderr)
+
+  if(extension == ".wav"):
+    mimetype = vcon.Vcon.MIMETYPE_WAV
+
+  else:
+    raise UnrecognizedMimeType("MIME type not defined for extension: {}".format(extension))
+
+  return(mimetype)
+
+
+  
 if(__name__ == '__main__'):
 
   import argparse
-  import sys
   import vcon
-  import pathlib
+  import json
+  import sox
  
   parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion")
   parser.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
@@ -17,9 +35,16 @@ if(__name__ == '__main__'):
   subparsers_command = parser.add_subparsers(dest="command")
 
   addparser = subparsers_command.add_parser("add")
-  subparsers_add = addparser.add_subparsers()
-  add_inline_subparsers = subparsers_add.add_parser("inline")
-  add_external_subparsers = subparsers_add.add_parser("external")
+  subparsers_add = addparser.add_subparsers(dest="add_command")
+  add_in_recording_subparsers = subparsers_add.add_parser("in-recording")
+  add_in_recording_subparsers.add_argument("recfile", metavar='recording_file', nargs=1, type=pathlib.Path, default=None)
+  add_in_recording_subparsers.add_argument("start", metavar='start_time', nargs=1, type=str, default=None)
+  add_in_recording_subparsers.add_argument("parties", metavar='parties', nargs=1, type=str, default=None)
+  add_ex_recording_subparsers = subparsers_add.add_parser("ex-recording")
+  add_ex_recording_subparsers.add_argument("recfile", metavar='recording_file', nargs=1, type=pathlib.Path, default=None)
+  add_ex_recording_subparsers.add_argument("start", metavar='start_time', nargs=1, type=str, default=None)
+  add_ex_recording_subparsers.add_argument("parties", metavar='parties', nargs=1, type=str, default=None)
+  add_ex_recording_subparsers.add_argument("url", metavar='url', nargs=1, type=str, default=None)
 
  
   sign_parser = subparsers_command.add_parser("sign")
@@ -35,22 +60,27 @@ if(__name__ == '__main__'):
  
   print("command: {}".format(args.command), file=sys.stderr)
 
-  print("priv key files: {}".format(len(args.privkey)), file=sys.stderr) 
-  if(args.privkey[0].exists()):
-    print("priv key: {} exists".format(str(args.privkey[0])), file=sys.stderr)
-  else:
-    print("priv key: {} does NOT exist".format(str(args.privkey[0])), file=sys.stderr)
+  if(args.command == "sign"):
+    print("priv key files: {}".format(len(args.privkey)), file=sys.stderr) 
+    if(args.privkey[0].exists()):
+      print("priv key: {} exists".format(str(args.privkey[0])), file=sys.stderr)
+    else:
+      print("priv key: {} does NOT exist".format(str(args.privkey[0])), file=sys.stderr)
 
-  print("pub key files: {}".format(len(args.pubkey)), file=sys.stderr) 
-  
+    print("pub key files: {}".format(len(args.pubkey)), file=sys.stderr) 
+ 
+  if(args.command == "add"):
+    print("add: {}".format(args.add_command), file=sys.stderr) 
+
   """
+  Options: 
+    -i <file_name>
   
-    --in <file_name>
-  
-    --out <file_name>
-  
-    add inline dialog
-    add external dialog
+    -o <file_name>
+ 
+  Commands:
+    add in-recording <file_name> <start_date> <parties>
+    add ex-recording <file_name> <start_date> <parties> <url>
   
     sign private_key x5c1[, x5c2]... 
   
@@ -74,6 +104,29 @@ if(__name__ == '__main__'):
   if(args.command == "sign"):
     in_vcon.sign(args.privkey[0], args.pubkey)
   
+  elif(args.command == "add"):
+    if(args.add_command == "in-recording" or args.add_command == "ex-recording"):
+      if(not args.recfile[0].exists()):
+        raise Exception("Recording file: {} does not exist".format(args.recfile[0]))
+
+      sox_info = sox.file_info.info(str(args.recfile[0]))
+      duration = sox_info["duration"]
+      mimetype = get_mime_type(args.recfile[0])
+
+      with open(args.recfile[0], 'rb') as file_handle:
+        body = file_handle.read()
+
+      parties_object = json.loads(args.parties[0])
+
+      if(args.add_command == "in-recording"):
+        in_vcon.add_dialog_inline_recording(body, args.start[0], duration, parties_object,
+          mimetype, str(args.recfile[0]))
+
+      elif(args.add_command == "ex-recording"):
+        in_vcon.add_dialog_external_recording(body, args.start[0], duration, parties_object,
+          args.url[0], mimetype, str(args.recfile[0]))
+
+  #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
   out_vcon_json = in_vcon.dumps()
   args.outfile.write(out_vcon_json)
 

@@ -1,0 +1,80 @@
+#!/usr/bin/python3
+
+
+if(__name__ == '__main__'):
+
+  import argparse
+  import sys
+  import vcon
+  import pathlib
+ 
+  parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion")
+  parser.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+  
+  parser.add_argument("-o", "--outfile", metavar='outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
+ 
+  #parser.add_argument("command", choices=["add", "sign"], default=None)
+  subparsers_command = parser.add_subparsers(dest="command")
+
+  addparser = subparsers_command.add_parser("add")
+  subparsers_add = addparser.add_subparsers()
+  add_inline_subparsers = subparsers_add.add_parser("inline")
+  add_external_subparsers = subparsers_add.add_parser("external")
+
+ 
+  sign_parser = subparsers_command.add_parser("sign")
+  #sign_parser.add_argument("privkey", metavar='private_key_file', nargs=1, type=argparse.FileType('r'), default=None)
+  sign_parser.add_argument("privkey", metavar='private_key_file', nargs=1, type=pathlib.Path, default=None)
+  #sign_parser.add_argument("pubkey", metavar='public_key_file', nargs='+', type=argparse.FileType('r'), default=None)
+  sign_parser.add_argument("pubkey", metavar='public_key_file', nargs='+', type=pathlib.Path, default=None)
+ 
+  args = parser.parse_args()
+  
+  print("args: {}".format(args), file=sys.stderr)
+  print("args dir: {}".format(dir(args)), file=sys.stderr)
+ 
+  print("command: {}".format(args.command), file=sys.stderr)
+
+  print("priv key files: {}".format(len(args.privkey)), file=sys.stderr) 
+  if(args.privkey[0].exists()):
+    print("priv key: {} exists".format(str(args.privkey[0])), file=sys.stderr)
+  else:
+    print("priv key: {} does NOT exist".format(str(args.privkey[0])), file=sys.stderr)
+
+  print("pub key files: {}".format(len(args.pubkey)), file=sys.stderr) 
+  
+  """
+  
+    --in <file_name>
+  
+    --out <file_name>
+  
+    add inline dialog
+    add external dialog
+  
+    sign private_key x5c1[, x5c2]... 
+  
+    verify ca_cert
+  
+    encrypt x5c1[, x5c2]... signing_private_key
+  
+    decrypt private_key, ca_cert
+  
+  """
+
+  print("reading", file=sys.stderr)
+
+  print("out: {}".format(type(args.outfile)), file=sys.stderr)
+  print("in: {}".format(type(args.infile)), file=sys.stderr)
+  in_vcon_json = args.infile.read()
+  in_vcon = vcon.Vcon()
+  if(in_vcon_json is not None and len(in_vcon_json) > 0):
+    in_vcon.loads(in_vcon_json)
+
+  if(args.command == "sign"):
+    in_vcon.sign(args.privkey[0], args.pubkey)
+  
+  out_vcon_json = in_vcon.dumps()
+  args.outfile.write(out_vcon_json)
+
+  

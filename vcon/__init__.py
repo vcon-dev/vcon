@@ -287,7 +287,7 @@ class Vcon():
     key, signature = vcon.security.lm_one_time_signature(body)
     new_dialog['key'] = key
     new_dialog['signature'] = signature
-    new_dialog['alg'] = "lm-ots"
+    new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
 
     self.dialog.append(new_dialog)
 
@@ -315,14 +315,14 @@ class Vcon():
     if(dialog['type'] != "recording"):
       raise AttributeError("dialog[{}] is of type: {} not recording".format(dialog_index, dialog['type']))
 
-    if(dialog['alg'] != 'lm-ots'):
-      raise AttributeError("dialog[{}] alg: {} not supported.  Must be lm-ots".format(dialog_index, dialog['alg']))
+    if(dialog['alg'] != 'LMOTS_SHA256_N32_W8'):
+      raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
 
     if(len(dialog['key']) < 1 ):
-      raise AttributeError("dialog[{}] key: {} not set.  Must be for lm-ots".format(dialog_index, dialog['key']))
+      raise AttributeError("dialog[{}] key: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['key']))
 
     if(len(dialog['signature']) < 1 ):
-      raise AttributeError("dialog[{}] signature: {} not set.  Must be for lm-ots".format(dialog_index, dialog['signature']))
+      raise AttributeError("dialog[{}] signature: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['signature']))
 
     vcon.security.verify_lm_one_time_signature(body,
       dialog['signature'],
@@ -580,6 +580,14 @@ class Vcon():
     for index, dialog in enumerate(old_vcon["dialog"]):
       if("start" in dialog):
         dialog['start'] = vcon.utils.cannonize_date(dialog['start'])
+
+      if("alg" in dialog):
+        if( dialog['alg'] == "lm-ots"):
+          dialog['alg'] = "LMOTS_SHA256_N32_W8"
+        elif( dialog['alg'] == "LMOTS_SHA256_N32_W8"):
+          pass
+        else:
+          raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
 
     # Translate transcriptions to body for consistency with dialog and attachments
     for index, analysis in enumerate(old_vcon["analysis"]):

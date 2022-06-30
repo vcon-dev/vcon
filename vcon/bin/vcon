@@ -46,6 +46,11 @@ if(__name__ == '__main__'):
   add_ex_recording_subparsers.add_argument("parties", metavar='parties', nargs=1, type=str, default=None)
   add_ex_recording_subparsers.add_argument("url", metavar='url', nargs=1, type=str, default=None)
 
+  extractparser = subparsers_command.add_parser("extract")
+  subparsers_extract = extractparser.add_subparsers(dest="extract_command")
+  extract_dialog_subparsers = subparsers_extract.add_parser("dialog")
+  extract_dialog_subparsers.add_argument("index", metavar='dialog_index', nargs=1, type=int, default=None)
+
  
   sign_parser = subparsers_command.add_parser("sign")
   #sign_parser.add_argument("privkey", metavar='private_key_file', nargs=1, type=argparse.FileType('r'), default=None)
@@ -101,6 +106,9 @@ if(__name__ == '__main__'):
   if(in_vcon_json is not None and len(in_vcon_json) > 0):
     in_vcon.loads(in_vcon_json)
 
+  # By default we output the vCon at the end
+  stdout_vcon = True
+
   if(args.command == "sign"):
     in_vcon.sign(args.privkey[0], args.pubkey)
   
@@ -126,8 +134,25 @@ if(__name__ == '__main__'):
         in_vcon.add_dialog_external_recording(body, args.start[0], duration, parties_object,
           args.url[0], mimetype, str(args.recfile[0]))
 
+  elif(args.command == "extract"):
+    if(args.extract_command == "dialog"):
+      if(not isinstance(args.index[0], int)):
+        raiseAttributeError("Dialog index should be type int, not {}".format(type(args.index[0])))
+
+      dialog_index = args.index[0]
+      num_dialogs = len(in_vcon.dialog)
+      if(dialog_index > num_dialogs):
+        raise AttributeError("Dialog index: {} must be less than the number of dialog in the vCon: {}".format(dialog_index, num_dialogs))
+  
+      recording_bytes = in_vcon.decode_dialog_inline_recording(dialog_index)
+      stdout_vcon = False
+      args.outfile.buffer.write(recording_bytes)
+  
+
+
   #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
-  out_vcon_json = in_vcon.dumps()
-  args.outfile.write(out_vcon_json)
+  if(stdout_vcon):
+    out_vcon_json = in_vcon.dumps()
+    args.outfile.write(out_vcon_json)
 
   

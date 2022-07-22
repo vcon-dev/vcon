@@ -127,7 +127,7 @@ def build_signing_jwk_from_pem_files(private_key_pem_file_name : str, cert_chain
         - JWK including private key info for signing a JWS
 
   """
-  # Load the cert cahin into a x5c compatible array
+  # Load the cert chain into a x5c compatible array
   x5c = load_x5c_from_pem_certs(cert_chain_pem_file_names)
 
   algorithm = "RS256"

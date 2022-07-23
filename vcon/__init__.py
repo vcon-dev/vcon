@@ -444,6 +444,12 @@ class Vcon():
     Returns: none
     """
 
+    if(self._state == VconStates.SIGNED):
+      raise InvalidVconState("Vcon was already signed.")
+
+    if(self._state != VconStates.UNSIGNED):
+      raise InvalidVconState("Vcon not in valid state to be signed: {}.".format(self._state))
+
     header, signing_jwk = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
 
     # dot separated JWS token.  First part is the payload, second part is the signature (both base64url encoded)

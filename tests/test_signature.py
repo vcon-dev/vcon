@@ -264,13 +264,22 @@ def test_sign_vcon(two_party_tel_vcon : vcon.Vcon) -> None:
   two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
 
   try:
+    two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
+    raise Exception("Should have thrown an exception as this vcon was already signed")
+
+  except vcon.InvalidVconState as already_signed_error:
+    if(already_signed_error.args[0].find("should") != -1):
+      raise already_signed_error
+
+  try:
     two_party_tel_vcon.verify([CA_CERT])
     raise Exception("Should have thrown an exception as this vcon was signed locally")
 
-  except vcon.InvalidVconState as already_signed_error:
+  except vcon.InvalidVconState as locally_signed_error:
     # Expected to get here because vCon was signed locally
     # Its already verified
-    pass
+    if(locally_signed_error.args[0].find("should") != -1):
+      raise locally_signed_error
 
   vcon_json = two_party_tel_vcon.dumps()
   #print("Signed vcon: {}".format(vcon_json))

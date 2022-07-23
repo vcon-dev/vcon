@@ -2,11 +2,15 @@
 
 import pytest
 import vcon
+import vcon.security
 import json
 import typing
 
+CA_CERT = "certs/fake_ca_root.crt"
 DIVISION_CERT = "certs/fake_div.crt"
 DIVISION_PRIVATE_KEY = "certs/fake_div.key"
+GROUP_CERT = "certs/fake_grp.crt"
+GROUP_PRIVATE_KEY = "certs/fake_grp.key"
 
 call_data = {
       "epoch" : "1652552179",
@@ -36,71 +40,6 @@ def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
 import jose.jwe
 import secrets
 import cryptography.x509
-
-def build_encryption_jwk_from_pem_file(cert_pem_file_name : str) -> dict:
-
-  pem_string = vcon.security.load_string_from_file(cert_pem_file_name)
-
-  public_key_object = cryptography.x509.load_pem_x509_certificate(bytes(pem_string, "utf-8"))
-
-  #algorithm = "RS256"
-  #algorithm = "RSA1_5"
-  algorithm = "RSA-OAEP"
-
-  encryption_key = {}
-  encryption_key["kty"] = "RSA"
-  encryption_key["alg"] = algorithm
-  encryption_key["n"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(public_key_object.public_key().public_numbers().n)).decode('utf-8')
-  encryption_key["e"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(public_key_object.public_key().public_numbers().e)).decode('utf-8')
-  encryption_key["kid"] = public_key_object.subject.get_attributes_for_oid(cryptography.x509.NameOID.COMMON_NAME)[0].value
-
-  return(encryption_key)
-
-def jwe_compact_token_to_complete_serialization(jwe_token : str, enc : str = "", x5c : typing.List[str] = []) -> dict:
-  """
-  Convert a JWE dot separated token to a JWE complete serialization
-
-  Returns:
-    dict containing Complete JWE JSON Serialization Representation
-  """
-
-  (protected, content_encrypted_key, iv, cyphertext, authentication_tag) = jwe_token.split('.')
-  #(header, encrypted_key, recip_iv, recip_cyphertext, recip_authentication_tag) = jwe_token.split('.')
-
-  jwe_complete_serialization = {}
-  jwe_complete_serialization["protected"] = protected
-  jwe_complete_serialization["iv"] =  iv
-  jwe_complete_serialization["cyphertext"] =  cyphertext
-  jwe_complete_serialization["tag"] =  authentication_tag
-  jwe_complete_serialization["recipients"] =  []
-
-  recipient = {}
-
-  header = {}
-  if(len(enc)):
-    header['enc'] = enc
-  if(len(x5c)):
-    header['x5c'] = x5c
-  if(len(header)):
-    recipient["header"] = header
-
-  recipient["encrypted_key"] = content_encrypted_key
-  jwe_complete_serialization["recipients"].append(recipient)
-
-  return(jwe_complete_serialization)
-
-def jwe_complete_serialization_to_compact_token(jwe_complete_serialization : dict) -> str:
-
-  jwe_vector = []
-  jwe_vector.append(jwe_complete_serialization["protected"])
-  jwe_vector.append(jwe_complete_serialization["recipients"][0]["encrypted_key"])
-  jwe_vector.append(jwe_complete_serialization["iv"])
-  jwe_vector.append(jwe_complete_serialization["cyphertext"])
-  jwe_vector.append(jwe_complete_serialization["tag"])
-
-  jwe_compact_token = ".".join(jwe_vector)
-
-  return(jwe_compact_token)
 
 def test_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   plaintext = two_party_tel_vcon.dumps()
@@ -145,7 +84,7 @@ def test_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   #encryption = "A256GCM"
   encryption = "A256CBC-HS512"
 
-  encryption_key = build_encryption_jwk_from_pem_file(DIVISION_CERT)
+  encryption_key = vcon.security.build_encryption_jwk_from_pem_file(DIVISION_CERT)
   print("encryption_key: {}".format(json.dumps(encryption_key, indent=2)))
 
   # Either of these work
@@ -185,7 +124,7 @@ def test_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
 def test_x5c_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   plaintext = two_party_tel_vcon.dumps()
 
-  encryption_key = build_encryption_jwk_from_pem_file(DIVISION_CERT)
+  encryption_key = vcon.security.build_encryption_jwk_from_pem_file(DIVISION_CERT)
   print("encryption_key: {}".format(json.dumps(encryption_key, indent=2)))
 
   # both of these work
@@ -194,10 +133,10 @@ def test_x5c_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
 
   jwe_compact_token = jose.jwe.encrypt(plaintext, encryption_key, encryption, encryption_key['alg']).decode('utf-8')
 
-  jwe_complete_serialization = jwe_compact_token_to_complete_serialization(jwe_compact_token, enc = encryption, x5c = [])
+  jwe_complete_serialization = vcon.security.jwe_compact_token_to_complete_serialization(jwe_compact_token, enc = encryption, x5c = [])
   print("JWE complete serialization: {}".format(json.dumps(jwe_complete_serialization, indent=2)))
 
-  jwe_compact_token_reconstructed = jwe_complete_serialization_to_compact_token(jwe_complete_serialization)
+  jwe_compact_token_reconstructed = vcon.security.jwe_complete_serialization_to_compact_token(jwe_complete_serialization)
 
   assert(jwe_compact_token == jwe_compact_token_reconstructed)
 
@@ -208,5 +147,42 @@ def test_x5c_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
 
   assert(plaintext == plaintext_decrypted)
 
+def test_encrypt_decrypt(two_party_tel_vcon : vcon.Vcon) -> None:
+  try:
+    two_party_tel_vcon.encrypt(DIVISION_CERT)
+    raise Exception("Should have thrown an exception as this vcon was not yet signed")
 
+  except vcon.InvalidVconState as not_signed_error:
+    if(not_signed_error.args[0].find("should") != -1):
+      raise not_signed_error
+
+  two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
+
+  two_party_tel_vcon.encrypt(DIVISION_CERT)
+
+  encrypted_serialized_vcon = two_party_tel_vcon.dumps()
+  print(encrypted_serialized_vcon)
+
+  assert(two_party_tel_vcon._state == vcon.VconStates.ENCRYPTED)
+
+  reconstituted_vcon = vcon.Vcon()
+  reconstituted_vcon.loads(encrypted_serialized_vcon)
+  assert(reconstituted_vcon._state == vcon.VconStates.ENCRYPTED)
+
+  try:
+    reconstituted_vcon.verify([CA_CERT])
+    raise Exception("Should have thrown an exception as this vcon is still encrypted")
+
+  except vcon.InvalidVconState as encrypted_not_signed_error:
+    if(encrypted_not_signed_error.args[0].find("should") != -1):
+      raise encrypted_not_signed_error
+
+  reconstituted_vcon.decrypt(DIVISION_PRIVATE_KEY, DIVISION_CERT)
+  assert(reconstituted_vcon._state == vcon.VconStates.UNVERIFIED)
+
+  reconstituted_vcon.verify([CA_CERT])
+  assert(reconstituted_vcon._state == vcon.VconStates.VERIFIED)
+
+  assert(reconstituted_vcon.parties[0]['tel'] == call_data['source'])
+  assert(reconstituted_vcon.parties[1]['tel'] == call_data['destination'])
 

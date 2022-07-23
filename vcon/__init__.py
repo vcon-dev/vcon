@@ -17,6 +17,9 @@ class VconStates(enum.Enum):
   SIGNED = 2
   UNVERIFIED = 3
   VERIFIED = 4
+  ENCRYPTED = 5
+  DECRYPTED = 6
+
 
 class UnsupportedVconVersion(Exception):
   """ Thrown if vcon version string is not of set of versions supported by this package"""
@@ -107,6 +110,7 @@ class Vcon():
   def __init__(self):
     self._state = VconStates.UNSIGNED
     self._jws_dict = None
+    self._jwe_dict = None
 
     self._vcon_dict = {}
     self._vcon_dict[Vcon.VCON_VERSION] = "0.0.1"
@@ -369,6 +373,9 @@ class Vcon():
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
       return(json.dumps(self._jws_dict))
 
+    if(self._state in [VconStates.ENCRYPTED, VconStates.DECRYPTED]):
+      return(json.dumps(self._jwe_dict))
+
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
 
   def loads(self, vcon_json : str) -> None:
@@ -408,6 +415,15 @@ class Vcon():
 
       self._state = VconStates.UNVERIFIED
       self._jws_dict = vcon_dict
+
+    # encrypted vCon (JWE)
+    elif(("cyphertext" in vcon_dict) and
+      ("recipients" in vcon_dict)
+      ):
+      self._vcon_dict = {}
+
+      self._state = VconStates.ENCRYPTED
+      self._jwe_dict = vcon_dict
 
     # Unsigned vCon has to have vcon version and
     elif(('vcon' in vcon_dict) and (
@@ -569,6 +585,76 @@ class Vcon():
       raise InvalidVconSignature("None of the signatures contain the x5c chain, which this implementation currenlty requires.")
 
     raise last_exception
+
+
+  def encrypt(self, cert_pem_file_name : str) -> None:
+    """
+    encrypt a Signed vcon using the given public key from the give certificate.
+
+    vcon must be signed first.
+
+    Parameters:
+    cert_pem_file_name (str): the public key/cert to use for encrypting the vcon.
+
+    Returns: none
+    """
+
+    if(self._state != VconStates.SIGNED):
+      raise InvalidVconState("Vcon must be signed before it can be encerypted")
+
+    if(len(self._jws_dict) < 2):
+      raise InvalidVconState("Vcon signature does not seem valid: {}".format(self._jws_dict))
+
+    # both of these work
+    #encryption = "A256GCM"
+    encryption = "A256CBC-HS512"
+
+    encryption_key = vcon.security.build_encryption_jwk_from_pem_file(cert_pem_file_name)
+
+    plaintext = json.dumps(self._jws_dict)
+
+    jwe_compact_token = jose.jwe.encrypt(plaintext, encryption_key, encryption, encryption_key['alg']).decode('utf-8')
+    jwe_complete_serialization = vcon.security.jwe_compact_token_to_complete_serialization(jwe_compact_token, enc = encryption, x5c = [])
+    self._jwe_dict = jwe_complete_serialization
+    self._state = VconStates.ENCRYPTED
+
+  def decrypt(self, private_key_pem_file_name : str, cert_pem_file_name : str) -> None:
+    """
+    Decrypt a vCon using private and public key file.
+  
+    vCOn must be in encrypted state and will be in signed state after decryption.
+
+    Parameters:
+    cert_pem_file_name (str): the public key/cert to use for decrypting the vcon.
+
+    private_key_pem_file_name (str): the private key to use for decrypting the vcon.
+
+    Returns: none
+    """
+
+    if(self._state != VconStates.ENCRYPTED):
+      raise InvalidVconState("Vcon is not encerypted")
+
+    if(len(self._jwe_dict) < 2):
+      raise InvalidVconState("Vcon JWE does not seem valid: {}".format(self._jws_dict))
+
+    jwe_compact_token_reconstructed = vcon.security.jwe_complete_serialization_to_compact_token(self._jwe_dict)
+
+    (header, signing_key) = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, [cert_pem_file_name])
+    #signing_key['alg'] = encryption_key['alg']
+
+    plaintext_decrypted = jose.jwe.decrypt(jwe_compact_token_reconstructed, signing_key).decode('utf-8')
+    # let loads figure out if this is an encrypted JWS vCon or just a vCon
+    current_state = self._state
+    # Fool loads into thinking this is a raw vCon and its safe to load.  Save state incase we barf.
+    self._state = VconStates.UNSIGNED
+    try:
+      self.loads(plaintext_decrypted)
+
+    except Exception as e:
+      # restore state
+      self._state = current_state
+      raise e
 
   @staticmethod
   def migrate_0_0_1_vcon(old_vcon : dict) -> dict:

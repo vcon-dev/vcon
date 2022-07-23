@@ -244,6 +244,72 @@ def verify_cert(cert_to_verify : cryptography.x509.Certificate, issuer_cert : cr
 
   # TODO need to check revokations as well
 
+# =============================== JOSE JWE Helper Functions ===========================
+
+def build_encryption_jwk_from_pem_file(cert_pem_file_name : str) -> dict:
+
+  pem_string = load_string_from_file(cert_pem_file_name)
+
+  public_key_object = cryptography.x509.load_pem_x509_certificate(bytes(pem_string, "utf-8"))
+
+  #algorithm = "RS256"
+  #algorithm = "RSA1_5"
+  algorithm = "RSA-OAEP"
+
+  encryption_key = {}
+  encryption_key["kty"] = "RSA"
+  encryption_key["alg"] = algorithm
+  encryption_key["n"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(public_key_object.public_key().public_numbers().n)).decode('utf-8')
+  encryption_key["e"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(public_key_object.public_key().public_numbers().e)).decode('utf-8')
+  encryption_key["kid"] = public_key_object.subject.get_attributes_for_oid(cryptography.x509.NameOID.COMMON_NAME)[0].value
+
+  return(encryption_key)
+
+def jwe_compact_token_to_complete_serialization(jwe_token : str, enc : str = "", x5c : typing.List[str] = []) -> dict:
+  """
+  Convert a JWE dot separated token to a JWE complete serialization
+
+  Returns:
+    dict containing Complete JWE JSON Serialization Representation
+  """
+
+  (protected, content_encrypted_key, iv, cyphertext, authentication_tag) = jwe_token.split('.')
+  #(header, encrypted_key, recip_iv, recip_cyphertext, recip_authentication_tag) = jwe_token.split('.')
+
+  jwe_complete_serialization = {}
+  jwe_complete_serialization["protected"] = protected
+  jwe_complete_serialization["iv"] =  iv
+  jwe_complete_serialization["cyphertext"] =  cyphertext
+  jwe_complete_serialization["tag"] =  authentication_tag
+  jwe_complete_serialization["recipients"] =  []
+
+  recipient = {}
+
+  header = {}
+  if(len(enc)):
+    header['enc'] = enc
+  if(len(x5c)):
+    header['x5c'] = x5c
+  if(len(header)):
+    recipient["header"] = header
+
+  recipient["encrypted_key"] = content_encrypted_key
+  jwe_complete_serialization["recipients"].append(recipient)
+
+  return(jwe_complete_serialization)
+
+def jwe_complete_serialization_to_compact_token(jwe_complete_serialization : dict) -> str:
+
+  jwe_vector = []
+  jwe_vector.append(jwe_complete_serialization["protected"])
+  jwe_vector.append(jwe_complete_serialization["recipients"][0]["encrypted_key"])
+  jwe_vector.append(jwe_complete_serialization["iv"])
+  jwe_vector.append(jwe_complete_serialization["cyphertext"])
+  jwe_vector.append(jwe_complete_serialization["tag"])
+
+  jwe_compact_token = ".".join(jwe_vector)
+
+  return(jwe_compact_token)
 
 # =============================== One Time Signature Helper Functions ===========================
 #                            Leighton-Micali One Time Signature (RFC8554)

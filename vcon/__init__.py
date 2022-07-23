@@ -8,6 +8,7 @@ import vcon.security
 import json
 import jose.utils
 import jose.jws
+import jose.jwe
 import enum
 
 class VconStates(enum.Enum):
@@ -599,8 +600,8 @@ class Vcon():
     Returns: none
     """
 
-    if(self._state != VconStates.SIGNED):
-      raise InvalidVconState("Vcon must be signed before it can be encerypted")
+    if(self._state not in [VconStates.SIGNED, VconStates.UNVERIFIED]):
+      raise InvalidVconState("Vcon must be signed before it can be encrypted")
 
     if(len(self._jws_dict) < 2):
       raise InvalidVconState("Vcon signature does not seem valid: {}".format(self._jws_dict))

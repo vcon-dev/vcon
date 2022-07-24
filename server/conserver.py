@@ -1,14 +1,24 @@
 import os
 from tokenize import String
-from fastapi import FastAPI, Body, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import status
+from fastapi.requests import Request
+from fastapi.exceptions import HTTPException
+from fastapi.applications import FastAPI
+from fastapi.param_functions import Body
+from starlette.responses import JSONResponse, HTMLResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, EmailStr
 from bson import ObjectId
 from typing import Optional, List
 import motor.motor_asyncio
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
+
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
 client = motor.motor_asyncio.AsyncIOMotorClient(os.environ["MONGODB_URL"])
 db = client.conserver
 
@@ -43,11 +53,11 @@ class VconModel(BaseModel):
 
 
 class UpdateVconModel(BaseModel):
-    name: Optional[str]
-    email: Optional[EmailStr]
-    course: Optional[str]
-    gpa: Optional[float]
-
+    parties: List[dict] = []
+    dialog: List[dict] = []
+    analysis: List[dict] = []
+    attachments: List[dict] = []
+    
     class Config:
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
@@ -60,8 +70,12 @@ class UpdateVconModel(BaseModel):
             }
         }
 
+@app.get("/", response_class=HTMLResponse)
+async def homepage(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/", response_description="Add new vcon", response_model=VconModel)
+
+@app.post("/vcon", response_description="Add new vcon", response_model=VconModel)
 async def create_vcon(vcon: VconModel = Body(...)):
     vcon = jsonable_encoder(vcon)
     new_vcon = await db["vcons"].insert_one(vcon)
@@ -70,7 +84,7 @@ async def create_vcon(vcon: VconModel = Body(...)):
 
 
 @app.get(
-    "/", response_description="List all vcons", response_model=List[VconModel]
+    "/vcon", response_description="List all vcons", response_model=List[VconModel]
 )
 async def list_vcons():
     vcons = await db["vcons"].find().to_list(1000)
@@ -78,7 +92,7 @@ async def list_vcons():
 
 
 @app.get(
-    "/{id}", response_description="Get a single vcon", response_model=VconModel
+    "/vcon/{id}", response_description="Get a single vcon", response_model=VconModel
 )
 async def show_vcon(id: str):
     if (vcon := await db["vcons"].find_one({"_id": ObjectId(id)})) is not None:
@@ -87,26 +101,7 @@ async def show_vcon(id: str):
     raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
 
 
-@app.put("/{id}", response_description="Update a vcon", response_model=VconModel)
-async def update_vcon(id: str, vcon: UpdateVconModel = Body(...)):
-    vcon = {k: v for k, v in vcon.dict().items() if v is not None}
-
-    if len(vcon) >= 1:
-        update_result = await db["vcons"].update_one({"_id": id}, {"$set": vcon})
-
-        if update_result.modified_count == 1:
-            if (
-                updated_vcon := await db["vcons"].find_one({"_id": id})
-            ) is not None:
-                return updated_vcon
-
-    if (existing_vcon := await db["vcons"].find_one({"_id": id})) is not None:
-        return existing_vcon
-
-    raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
-
-
-@app.delete("/{id}", response_description="Delete a vcon")
+@app.delete("/vcon/{id}", response_description="Delete a vcon")
 async def delete_vcon(id: str):
     delete_result = await db["vcons"].delete_one({"_id": id})
 

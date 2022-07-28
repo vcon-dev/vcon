@@ -72,7 +72,9 @@ class UpdateVconModel(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    vcons = await db["vcons"].find().to_list(20)
+    print(vcons[0].keys())
+    return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
 
 
 @app.post("/vcon", response_description="Add new vcon", response_model=VconModel)

@@ -1,9 +1,45 @@
-<html>
-<head>
-    <title>Item Details</title>
-    <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
-</head>
-<body>
-    <h1>Hello</h1>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <title>Hello, world!</title>
+  </head>
+  <body>
+    <h1>Existing vCons</h1>
+    <table class="table">
+        <tr>
+            <th>ID</th>
+            <th>Version</th>
+            <th>To</th>
+            <th>From</th>
+            <th>Type</th>
+            <th>Start</th>
+            <th>Duration</th>
+        </tr>
+        {% for vcon in vCons %} 
+        <tr>
+          <td>{{ vcon._id }}</td>
+          <td>{{ vcon.vcon }}</td>          
+          <td> 
+            {{ vcon.parties[0]['tel'] }}
+          </td>
+          <td>
+            {{ vcon.parties[1]['tel'] }}
+          </td>
+            <td>{{ vcon.dialog[0].type }}</td>
+            <td>{{ vcon.dialog[0].start }}</td>
+            <td>{{ vcon.dialog[0].duration }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script>
+      console.log("Hello", {{vCons}})
+    </script>
+  </body>
 </html>

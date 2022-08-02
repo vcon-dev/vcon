@@ -186,3 +186,50 @@ def test_encrypt_decrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(reconstituted_vcon.parties[0]['tel'] == call_data['source'])
   assert(reconstituted_vcon.parties[1]['tel'] == call_data['destination'])
 
+def test_encrypt_decrypt_serialization(two_party_tel_vcon : vcon.Vcon) -> None:
+
+  two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
+  assert(two_party_tel_vcon._state == vcon.VconStates.SIGNED)
+
+  signed_serialized_vcon = two_party_tel_vcon.dumps()
+
+  # Verify the signed vcon can be deserialized and verified
+  reconstituted_signed_vcon = vcon.Vcon()
+  reconstituted_signed_vcon.loads(signed_serialized_vcon)
+  assert(reconstituted_signed_vcon._state == vcon.VconStates.UNVERIFIED)
+  reconstituted_signed_vcon.verify([CA_CERT])
+  assert(reconstituted_signed_vcon._state == vcon.VconStates.VERIFIED)
+
+  assert(reconstituted_signed_vcon.parties[0]['tel'] == call_data['source'])
+  assert(reconstituted_signed_vcon.parties[1]['tel'] == call_data['destination'])
+
+  two_party_tel_vcon.encrypt(DIVISION_CERT)
+  assert(two_party_tel_vcon._state == vcon.VconStates.ENCRYPTED)
+
+  serialized_encrypted_vcon = two_party_tel_vcon.dumps()
+
+  reconstituted_encrypted_vcon = vcon.Vcon()
+  reconstituted_encrypted_vcon.loads(serialized_encrypted_vcon)
+  assert(reconstituted_encrypted_vcon._state == vcon.VconStates.ENCRYPTED)
+
+  reconstituted_encrypted_vcon.decrypt(DIVISION_PRIVATE_KEY, DIVISION_CERT)
+  assert(reconstituted_encrypted_vcon._state == vcon.VconStates.UNVERIFIED)
+
+  serialized_decrypted_signed_vcon = reconstituted_encrypted_vcon.dumps()
+
+  reconstituted_decrypted_signed_vcon = vcon.Vcon()
+  reconstituted_decrypted_signed_vcon.loads(serialized_decrypted_signed_vcon)
+  assert(reconstituted_decrypted_signed_vcon._state == vcon.VconStates.UNVERIFIED)
+
+  reconstituted_decrypted_signed_vcon.verify([CA_CERT])
+  assert(reconstituted_decrypted_signed_vcon._state == vcon.VconStates.VERIFIED)
+
+  assert(reconstituted_decrypted_signed_vcon.parties[0]['tel'] == call_data['source'])
+  assert(reconstituted_decrypted_signed_vcon.parties[1]['tel'] == call_data['destination'])
+
+  reconstituted_encrypted_vcon.verify([CA_CERT])
+  assert(reconstituted_encrypted_vcon._state == vcon.VconStates.VERIFIED)
+
+  assert(reconstituted_encrypted_vcon.parties[0]['tel'] == call_data['source'])
+  assert(reconstituted_encrypted_vcon.parties[1]['tel'] == call_data['destination'])
+

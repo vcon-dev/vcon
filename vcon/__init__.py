@@ -356,11 +356,16 @@ class Vcon():
 
     self.analysis.append(analysis_element)
 
-  def dumps(self) -> str:
+  def dumps(self, signed = True) -> str:
     """
     Dump the vCon as a JSON string.
 
-    Parameters: none
+    Parameters: 
+
+    signed (Boolean): If the vCon is signed locally or verfied, 
+        True: serialize the signed version
+        False: serialize the unsigned version
+
     Returns:
              String containing JSON representation of the vCon.
     """
@@ -372,9 +377,13 @@ class Vcon():
       return(json.dumps(self._vcon_dict))
 
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
+      if(signed is False and self._state != VconStates.UNVERIFIED):
+        return(json.dumps(self._vcon_dict))
       return(json.dumps(self._jws_dict))
 
     if(self._state in [VconStates.ENCRYPTED, VconStates.DECRYPTED]):
+      if(signed is False):
+        raise AttributeError("not supported: unsigned JSON output for encrypted vCon")
       return(json.dumps(self._jwe_dict))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))

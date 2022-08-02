@@ -233,3 +233,11 @@ def test_encrypt_decrypt_serialization(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(reconstituted_encrypted_vcon.parties[0]['tel'] == call_data['source'])
   assert(reconstituted_encrypted_vcon.parties[1]['tel'] == call_data['destination'])
 
+  unsigned_decrypted_verified_vcon = reconstituted_encrypted_vcon.dumps(signed=False)
+
+  reconstituted_unsigned_vcon = vcon.Vcon()
+  reconstituted_unsigned_vcon.loads(unsigned_decrypted_verified_vcon)
+  assert(reconstituted_unsigned_vcon._state == vcon.VconStates.UNSIGNED)
+
+  assert(reconstituted_unsigned_vcon.parties[0]['tel'] == call_data['source'])
+  assert(reconstituted_unsigned_vcon.parties[1]['tel'] == call_data['destination'])

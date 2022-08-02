@@ -134,6 +134,9 @@ if(__name__ == '__main__'):
   if(in_vcon_json is not None and len(in_vcon_json) > 0):
     in_vcon.loads(in_vcon_json)
 
+  # Use default serialization for state of vCon
+  signed_json = True
+
   # By default we output the vCon at the end
   stdout_vcon = True
 
@@ -143,6 +146,10 @@ if(__name__ == '__main__'):
   elif(args.command == "verify"):
     print("state: {}".format(in_vcon._state), file=sys.stderr)
     in_vcon.verify(args.pubkey)
+
+    # Assuming that generally if someone is verifying the vCon, they want the
+    # unsigned JSON version as output.
+    signed_json = False
 
   elif(args.command == "encrypt"):
     print("state: {}".format(in_vcon._state), file=sys.stderr)
@@ -192,7 +199,7 @@ if(__name__ == '__main__'):
 
   #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
   if(stdout_vcon):
-    out_vcon_json = in_vcon.dumps()
+    out_vcon_json = in_vcon.dumps(signed=signed_json)
     args.outfile.write(out_vcon_json)
 
   

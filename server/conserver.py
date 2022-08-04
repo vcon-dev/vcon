@@ -73,7 +73,6 @@ class UpdateVconModel(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     vcons = await db["vcons"].find().to_list(20)
-    print(vcons[0].keys())
     return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
 
 

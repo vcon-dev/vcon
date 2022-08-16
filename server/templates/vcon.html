@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <title>Conserver, the vCon Server!</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Conserver: vCon Detail </title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js" integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+      h1.ui.center.header {
+        margin-top: 3em;
+      }
+    </style>
+
+  </head>
+  <body>
+    <main id="main">
+      <h1 class="ui center aligned header">Conversation</h1>
+      <div class="ui container">
+        <table class="ui celled table">
+          <thead>
+            <tr>
+              <th>To</th>
+              <th>From</th>
+              <th>Start</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{ vcon.parties[0]['tel'] }}</td>
+              <td>{{ vcon.parties[1]['tel'] }}</td>
+              <td>{{ vcon.dialog[0].start }}</td>
+              <td>{{ vcon.dialog[0].duration }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="4"></th>
+            </tr>
+          </tfoot>
+        </table>
+        <h3>
+          vCon Details
+        </h3>
+        <button class="ui button" onclick="playFile()">
+          Play
+        </button>
+    </div>
+    </main>
+    {% block javascript %}
+    <script>
+      var player = new Howl({
+        src: ['/static/{{ vcon._id }}.mp3'],
+        loop: true,
+        volume: 0.5,
+        onend: function() {
+          console.log('Finished!');
+        },
+        onLoad: function() {
+         console.log('Sound file Loaded!')
+        },
+        onloaderror: function(id, error) {
+         console.log('Error loading sound file!', id, error)
+        },
+        onplayerror: function() {
+         console.log('Error playing sound file!')
+        },
+        onplay: function() {
+         console.log('Playing sound file!')
+        },
+      });
+        function playFile() {
+        console.log("Let the players play!");
+        player.play();
+      }
+    </script>
+  {% endblock %}
+  </body>
+</html>

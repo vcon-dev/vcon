@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap CSS -->
-    <title>Hello, world!</title>
+    <title>Conserver, the vCon Server!</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
@@ -25,7 +25,7 @@
   </head>
   <body>
     <main id="main">
-      <h1 class="ui center aligned header">{{ heading }}</h1>
+      <h1 class="ui center aligned header">Latest Conversations</h1>
       <div class="ui container">
         <table class="ui celled table">
           <thead>
@@ -43,6 +43,14 @@
                 <td>{{ vcon.parties[1]['tel'] }}</td>
                 <td>{{ vcon.dialog[0].start }}</td>
                 <td>{{ vcon.dialog[0].duration }}</td>
+                <td> 
+                  <a href="/vcon/{{ vcon._id }}">
+                    <button class="ui button">Raw vCon</button>
+                  </a>
+                  <a href="/details/{{ vcon._id }}">
+                    <button class="ui button">Details</button>
+                  </a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>

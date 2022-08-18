@@ -1,49 +1,42 @@
+
 import os
 import sys
-
 import logging
-
-
-from bson import ObjectId
 from typing import Optional, List
 import json
 import urllib.request
 import asyncio
-from threading import Timer
-from tokenize import String
 from fastapi import status
 from fastapi.requests import Request
 from fastapi.exceptions import HTTPException
 from fastapi.applications import FastAPI
-from fastapi.param_functions import Body
-from fastapi.encoders import jsonable_encoder
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from deepgram import Deepgram
-
 from starlette.responses import JSONResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from pydub import AudioSegment
-
-from pydantic import BaseModel, Field, EmailStr
-
-
+from deepgram import Deepgram
 import motor.motor_asyncio
-sys.path.append("..")
-import vcon
 import json
 import jose.utils
 import jose.jws
+from bson import ObjectId
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, List
 
+from pydantic_models import VconModel, PyObjectId
 
+# Our local modules
+sys.path.append("..")
+import vcon
+
+# Load FastAPI app
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 logger = logging.getLogger("ui")
-
 origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -52,61 +45,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("Middleware added")
 
+# Start third-party services
 client = motor.motor_asyncio.AsyncIOMotorClient(os.environ["MONGODB_URL"])
 db = client.conserver
 loop = asyncio.get_event_loop()
 
+# Environment variables
 VCON_VERSION = "0.1.1"
 DEEPGRAM_KEY = os.environ["DEEPGRAM_KEY"]
 MIMETYPE="audio/wav"
-
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid objectid")
-        return ObjectId(v)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
-
-
-class VconModel(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    vcon: str
-    parties: List[dict] = []
-    dialog: List[dict] = []
-    analysis: List[dict] = []
-    attachments: List[dict] = []
-    
-    class Config:
-        json_encoders = {ObjectId: str}
-
-
-class UpdateVconModel(BaseModel):
-    parties: List[dict] = []
-    dialog: List[dict] = []
-    analysis: List[dict] = []
-    attachments: List[dict] = []
-    
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        schema_extra = {
-            "example": {
-                "name": "Jane Doe",
-                "email": "jdoe@example.com",
-                "course": "Experiments, Science, and Fashion in Nanophotonics",
-                "gpa": "3.0",
-            }
-        }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -114,10 +62,9 @@ async def homepage(request: Request):
     vcons = await db["vcons"].find().to_list(100)
     return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
 
-@app.get("/test", response_class=HTMLResponse)
-async def test(request: Request):
-    return templates.TemplateResponse("test.html", {"request": request})
 
+# This is the endpoint for the vcon creation that comes from
+# the SNS topic
 @app.post("/vcon", response_class=HTMLResponse)
 async def post_vcon(request: Request):
     ingress_vcon = await request.json()
@@ -164,8 +111,6 @@ async def post_vcon(request: Request):
 @app.get(
     "/vcon", response_description="List all vcons", response_model=List[VconModel]
 )
-
-
 async def list_vcons():
     vcons = await db["vcons"].find().to_list(100)
     return vcons
@@ -221,34 +166,13 @@ async def show_vcon(request: Request, id: PyObjectId):
     vcon['analysis'] = []
     vcon['analysis'].append(analysis_element)
     print(transcription)
-        
+
     return templates.TemplateResponse("vcon.html", {"request": request, "id": id, "vcon": vcon, "transcription": transcription})
 
 
-@app.get("/vcon/{id}.html", response_class=HTMLResponse)
-async def vcon_detail(request: Request, id: str):
-    vcon = await db["vcons"].find_one({"_id": id})
-    return templates.TemplateResponse("vcon.html", {"request": request, "id": id, "vcon": vcon})
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+@app.get("/vcon/{id}", response_class=JSONResponse)
 async def get_vcon(id: PyObjectId, version: str = "latest"):
     if version == "latest":
         vcon = await db["vcons"].find_one({"_id": id})

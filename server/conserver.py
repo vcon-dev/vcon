@@ -8,8 +8,8 @@ from bson import ObjectId
 from typing import Optional, List
 import json
 import urllib.request
-
-
+import asyncio
+from threading import Timer
 from tokenize import String
 from fastapi import status
 from fastapi.requests import Request
@@ -19,7 +19,7 @@ from fastapi.param_functions import Body
 from fastapi.encoders import jsonable_encoder
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-
+from deepgram import Deepgram
 
 from starlette.responses import JSONResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -56,8 +56,11 @@ print("Middleware added")
 
 client = motor.motor_asyncio.AsyncIOMotorClient(os.environ["MONGODB_URL"])
 db = client.conserver
+loop = asyncio.get_event_loop()
 
 VCON_VERSION = "0.1.1"
+DEEPGRAM_KEY = os.environ["DEEPGRAM_KEY"]
+MIMETYPE="audio/wav"
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -104,6 +107,7 @@ class UpdateVconModel(BaseModel):
                 "gpa": "3.0",
             }
         }
+
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
@@ -177,16 +181,48 @@ async def show_vcon(request: Request, id: PyObjectId):
 @app.get("/details/{id}", response_description="Web site vCon", response_class="text/html")
 async def show_vcon(request: Request, id: PyObjectId):
     vcon = await db["vcons"].find_one({"_id": id})
-    print(vcon['_id'])
     _id = str(vcon['_id'])
     dialog = vcon['dialog'][0]
-    print(dialog.keys())
+    wav_filename = "static/{}.wav".format(_id)
+    mp3_filename = "static/{}.mp3".format(_id)
     decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-    f = open("static/{}.wav".format(_id), "wb")
+    f = open(wav_filename, "wb")
     f.write(decoded_body)
     f.close()
-    print("Wrote test.wav")
-    return templates.TemplateResponse("vcon.html", {"request": request, "id": id, "vcon": vcon})
+
+    print(vcon)
+
+    # convert mp3 file to wav file
+    sound = AudioSegment.from_wav(wav_filename)
+    sound.export(mp3_filename, format="mp3")
+
+    # Transcribe it
+    dg_client = Deepgram(DEEPGRAM_KEY)
+    audio = open(wav_filename, 'rb')
+    source = {
+      'buffer': audio,
+      'mimetype': MIMETYPE
+    }
+    transcription = await dg_client.transcription.prerecorded(source, 
+        {   'punctuate': True,
+            'multichannel': False,
+            'language': 'en',
+            'model': 'general',
+            'punctuate': True,
+            'tier':'enhanced',
+        })
+
+    analysis_element = {}
+    analysis_element["type"] = "transcript"
+    analysis_element["dialog"] = 0
+    analysis_element["body"] = transcription
+    analysis_element["encoding"] = "json"
+    analysis_element["vendor"] = "deepgram"
+    vcon['analysis'] = []
+    vcon['analysis'].append(analysis_element)
+    print(transcription)
+        
+    return templates.TemplateResponse("vcon.html", {"request": request, "id": id, "vcon": vcon, "transcription": transcription})
 
 
 @app.get("/vcon/{id}.html", response_class=HTMLResponse)

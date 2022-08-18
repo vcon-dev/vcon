@@ -1,3 +1,10 @@
 layers
 venv
 **/__pycache__
+server/static/*.wav
+server/static/*.mp3
+.DS_Store
+server/.DS_Store
+
+
+

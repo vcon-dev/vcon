@@ -59,6 +59,12 @@
           Play
         </button>
     </div>
+    <div>
+      <h3>
+        Transcription
+      </h3>
+      {{ vcon["analysis"][0]['body']['results']['channels'][0]['alternatives'][0]['transcript'] }}
+    </div>
     </main>
     {% block javascript %}
     <script>

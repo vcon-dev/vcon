@@ -5,7 +5,13 @@ import logging
 from typing import Optional, List
 import json
 import urllib.request
+from urllib.error import HTTPError
+import datetime
+import dateutil
+
 import asyncio
+import boto3
+
 from fastapi import status
 from fastapi.requests import Request
 from fastapi.exceptions import HTTPException
@@ -35,6 +41,7 @@ import vcon
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
 logger = logging.getLogger("ui")
 origins = ["*"]
 app.add_middleware(
@@ -55,20 +62,33 @@ loop = asyncio.get_event_loop()
 VCON_VERSION = "0.1.1"
 DEEPGRAM_KEY = os.environ["DEEPGRAM_KEY"]
 MIMETYPE="audio/wav"
+AWS_KEY_ID = os.environ["AWS_KEY_ID"]
+AWS_SECRET_KEY = os.environ["AWS_SECRET_KEY"]
+AWS_BUCKET = os.environ["AWS_BUCKET"]
 
+# Home page route
 
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    vcons = await db["vcons"].find().to_list(100)
+    vcons = await db["vcons"].find().sort("created_at",-1 ).to_list(100)
     return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
+
+# Conversation Route
+@app.get("/conversations/{page}", response_class=HTMLResponse)
+async def conversations(request: Request, page: int):
+    # Paginate the vCons
+    length = 10
+    print(f"request.query_params: {request.query_params}")
+    vcons = await db["vcons"].find().sort("created_at",-1 ).skip(page*length).limit(length).to_list(length)
+    return templates.TemplateResponse("conversations.html", {"request": request, "vCons": vcons, "page": page, "length": length})
 
 
 # This is the endpoint for the vcon creation that comes from
 # the SNS topic
 @app.post("/vcon", response_class=HTMLResponse)
 async def post_vcon(request: Request):
-    ingress_vcon = await request.json()
-    print(json.dumps(ingress_vcon, indent=4, sort_keys=True))
+    ingress_msg = await request.json()
+    ingress_vcon = json.loads(ingress_msg["Message"])
 
     # Construct empty vCon
     vCon = vcon.Vcon()
@@ -85,31 +105,47 @@ async def post_vcon(request: Request):
     # The file name is the last part of the URL
     recording_filename = host.split("/")[-1]
 
-    # Add a recording of the call
-    print("Reading recording from", recording_url)
+    try:
+        recording_bytes = urllib.request.urlopen(recording_url).read()
+        vCon.add_dialog_inline_recording(
+        recording_bytes,
+        ingress_vcon["payload"]["cdr"]["starttime"],
+        ingress_vcon["payload"]["cdr"]["duration"],
+        [0, 1], # parties recorded
+        "audio/x-wav", # MIME type
+        recording_filename)
 
-    recording_bytes = urllib.request.urlopen(recording_url).read()
-    vCon.add_dialog_inline_recording(
-    recording_bytes,
-    ingress_vcon["payload"]["cdr"]["starttime"],
-    ingress_vcon["payload"]["cdr"]["duration"],
-    [0, 1], # parties recorded
-    "audio/x-wav", # MIME type
-    recording_filename)
+    except urllib.error.HTTPError as err:
+        print("Error retrieving recording from", recording_url)
+        print(err.code)
+        print("Attaching URL to the vCon instead")
+        error_msg = "Error retrieving recording from " + recording_url
+        error_type = "HTTPError"
+        error_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
 
     # Save the original RingPlan JSON in the vCon
     vCon.attachments.append(ingress_vcon)
 
+
     # Save the vCon to the database
-    print(type(vCon))
     json_string = vCon.dumps()
     vcon_dict = json.loads(json_string)
-    vCon_id = await db["vcons"].insert_one(vcon_dict)
-    print(vCon_id)
+    insert_one_result = await db["vcons"].insert_one(vcon_dict)
+
+    # Save the vCon to S3
+    s3 = boto3.resource(
+    's3',
+    region_name='us-east-1',
+    aws_access_key_id=AWS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_KEY
+    )
+    s3.Bucket(AWS_BUCKET).put_object(Key=str(insert_one_result.inserted_id), Body=json_string)
+
     return JSONResponse(status_code=status.HTTP_200_OK)
 
 @app.get(
-    "/vcon", response_description="List all vcons", response_model=List[VconModel]
+    "/conversations", response_description="List all vcons", response_model=List[VconModel]
 )
 async def list_vcons():
     vcons = await db["vcons"].find().to_list(100)
@@ -123,51 +159,66 @@ async def show_vcon(request: Request, id: PyObjectId):
     vcon = await db["vcons"].find_one({"_id": id})
     return vcon  
 
-@app.get("/details/{id}", response_description="Web site vCon", response_class="text/html")
-async def show_vcon(request: Request, id: PyObjectId):
+@app.get("/details/{id}", response_class=HTMLResponse)
+async def show_vcon(request: Request, id: str):
+    print("Hello!")
     vcon = await db["vcons"].find_one({"_id": id})
-    _id = str(vcon['_id'])
-    dialog = vcon['dialog'][0]
-    wav_filename = "static/{}.wav".format(_id)
-    mp3_filename = "static/{}.mp3".format(_id)
-    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-    f = open(wav_filename, "wb")
-    f.write(decoded_body)
-    f.close()
+    if vcon is None:
+        raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
 
-    print(vcon)
+        
+    for index, dialog in enumerate(vcon['dialog']): 
+        wav_filename = "static/{}_{}.wav".format(id, index)
+        mp3_filename = "static/{}_{}.mp3".format(id, index)
+        ogg_filename = "static/{}_{}.ogg".format(id, index)
+        unknown_filename = "static/{}_{}".format(id, index)
+        decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+        f = open(unknown_filename, "wb")
+        f.write(decoded_body)
+        f.close()
+        # convert mp3 file to wav file
+        sound = AudioSegment.from_file(unknown_filename)
+        sound.export(mp3_filename, format="mp3")
+        sound.export(wav_filename, format="wav")
+        sound.export(ogg_filename, format="ogg")
 
-    # convert mp3 file to wav file
-    sound = AudioSegment.from_wav(wav_filename)
-    sound.export(mp3_filename, format="mp3")
+        # Check to see if we have a transcript, create one if not
+        need_transcript = True
+        for analysis in vcon['analysis']:
+            if analysis['type'] == 'transcript':
+                need_transcript = False
+                break
+        if need_transcript:
+            # Transcribe it
+            dg_client = Deepgram(DEEPGRAM_KEY)
+            audio = open(wav_filename, 'rb')
+            source = {
+            'buffer': audio,
+            'mimetype': MIMETYPE
+            }
+            transcription = await dg_client.transcription.prerecorded(source, 
+                {   'punctuate': True,
+                    'multichannel': False,
+                    'language': 'en',
+                    'model': 'general',
+                    'punctuate': True,
+                    'tier':'enhanced',
+                })
 
-    # Transcribe it
-    dg_client = Deepgram(DEEPGRAM_KEY)
-    audio = open(wav_filename, 'rb')
-    source = {
-      'buffer': audio,
-      'mimetype': MIMETYPE
-    }
-    transcription = await dg_client.transcription.prerecorded(source, 
-        {   'punctuate': True,
-            'multichannel': False,
-            'language': 'en',
-            'model': 'general',
-            'punctuate': True,
-            'tier':'enhanced',
-        })
+            analysis_element = {}
+            analysis_element["type"] = "transcript"
+            analysis_element["dialog"] = index
+            analysis_element["body"] = transcription
+            analysis_element["encoding"] = "json"
+            analysis_element["vendor"] = "deepgram"
+            vcon['analysis'] = []
+            vcon['analysis'].append(analysis_element)
+            await db["vcons"].update_one({"_id": id}, {"$push": { 'analysis': analysis_element}})
+            print("Transcription complete")
+        else:
+            print("Transcription already exists")
 
-    analysis_element = {}
-    analysis_element["type"] = "transcript"
-    analysis_element["dialog"] = 0
-    analysis_element["body"] = transcription
-    analysis_element["encoding"] = "json"
-    analysis_element["vendor"] = "deepgram"
-    vcon['analysis'] = []
-    vcon['analysis'].append(analysis_element)
-    print(transcription)
-
-    return templates.TemplateResponse("vcon.html", {"request": request, "id": id, "vcon": vcon, "transcription": transcription})
+    return templates.TemplateResponse("vcon.html", {"request": request, "vcon": vcon})
 
 
 
@@ -202,3 +253,4 @@ async def delete_vcon(id: str):
         return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 
     raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
+

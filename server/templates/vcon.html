@@ -1,98 +1,135 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
+{% block title %}vCon Details{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js" integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock %}
 
-    <!-- Bootstrap CSS -->
-    <title>Conserver, the vCon Server!</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Conserver: vCon Detail </title>
+{% block content %}
+{{ super() }}
 
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css"
-    />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js" integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- This example requires Tailwind CSS v2.0+ -->
+<div>
+  <h3 class="text-lg leading-6 font-medium text-strolidblue text-center">vCon Details</h3>
+</div>
+<div class="flex flex-row">
+  <div class="basis-1/2 justify-start"> <!-- First Column -->
+    <div class="mt-1 max-w-2xl text-sm text-gray-500 ">vcon ID: {{vcon._id}} </div>
+  </div>
+  <div class="basis-1/2 text-right">
+    <button type="button" onclick="playFile()" class="w-10 h-10 font-medium  hover:text-strolidyellow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-strolidyellow">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+      </svg>
+    </button>
+    <button type="button" onclick="stopFile()" class="w-10 h-10 font-medium hover:text-strolidyellow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-strolidyellow">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+      </svg>
+    </button>      
+  </div>
+</div>
 
-    <style>
-      h1.ui.center.header {
-        margin-top: 3em;
-      }
-    </style>
-
-  </head>
-  <body>
-    <main id="main">
-      <h1 class="ui center aligned header">Conversation</h1>
-      <div class="ui container">
-        <table class="ui celled table">
-          <thead>
-            <tr>
-              <th>To</th>
-              <th>From</th>
-              <th>Start</th>
-              <th>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{{ vcon.parties[0]['tel'] }}</td>
-              <td>{{ vcon.parties[1]['tel'] }}</td>
-              <td>{{ vcon.dialog[0].start }}</td>
-              <td>{{ vcon.dialog[0].duration }}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="4"></th>
-            </tr>
-          </tfoot>
-        </table>
-        <h3>
-          vCon Details
-        </h3>
-        <button class="ui button" onclick="playFile()">
-          Play
-        </button>
+<div class="mt-5 border-t border-gray-200">
+  <dl class="divide-y divide-gray-200">
+    {% for party in vcon['parties'] %}
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Party</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{party['tel']}}</span>
+        </dd>
+      </div>
+    {% endfor %}
+    {% for dialog in vcon['dialog'] %}
+        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 ">
+          <dt class="text-sm text-gray-500 font-semibold">Dialog {{loop.index}} </dt>
+          <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+            <span class="flex-grow">{{dialog.start}}</span>
+          </dd>
+          </div>
+        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Start Time</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{dialog.start}}</span>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Duration</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{dialog.duration}}</span>
+        </dd>
+      </div>
+        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Start Time</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{dialog.start}}</span>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Duration</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{dialog.duration}} seconds</span>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Type</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{dialog.type}}, {{dialog.mimetype}}</span>
+        </dd>
+      </div>
+    {% endfor %}
+    {% for analysis in vcon["analysis"] %}
+      <div class="py-4 sm:grid sm:py-5 sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-gray-500">Transcript</dt>
+        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="flex-grow">{{ analysis['body']['results']['channels'][0]['alternatives'][0]['transcript']  }} </span>
+          <span class="ml-4 flex-shrink-0">
+            <button type="button" class="bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Update</button>
+          </span>
+        </dd>
+      </div>
+    {% endfor %}
+    {% if vcon[analysis]|length == 0 %}
+    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+      <dt class="text-sm font-medium text-gray-500">Analysis</dt>
+      <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+        <span class="flex-grow">None</span>
+      </dd>
     </div>
-    <div>
-      <h3>
-        Transcription
-      </h3>
-      {{ vcon["analysis"][0]['body']['results']['channels'][0]['alternatives'][0]['transcript'] }}
-    </div>
-    </main>
-    {% block javascript %}
-    <script>
-      var player = new Howl({
-        src: ['/static/{{ vcon._id }}.mp3'],
-        loop: true,
-        volume: 0.5,
-        onend: function() {
-          console.log('Finished!');
-        },
-        onLoad: function() {
-         console.log('Sound file Loaded!')
-        },
-        onloaderror: function(id, error) {
-         console.log('Error loading sound file!', id, error)
-        },
-        onplayerror: function() {
-         console.log('Error playing sound file!')
-        },
-        onplay: function() {
-         console.log('Playing sound file!')
-        },
-      });
-        function playFile() {
-        console.log("Let the players play!");
-        player.play();
-      }
-    </script>
-  {% endblock %}
-  </body>
-</html>
+  {% endif %}
+
+  </dl>
+</div>
+
+<script>
+  var player = new Howl({
+    src: ['/static/{{ vcon._id }}_0.mp3'],
+    loop: true,
+    volume: 0.5,
+    onend: function() {
+      console.log('Finished!');
+    },
+    onLoad: function() {
+     console.log('Sound file Loaded!')
+    },
+    onloaderror: function(id, error) {
+     console.log('Error loading sound file!', id, error)
+    },
+    onplayerror: function() {
+     console.log('Error playing sound file!')
+    },
+    onplay: function() {
+     console.log('Playing sound file!')
+    },
+  });
+    function playFile() {
+    console.log("Let the players play!");
+    player.play();
+  }
+  function stopFile() {
+    console.log("Let the players stop!");
+    player.stop();
+  }
+  console.log("Loaded")
+</script>
+{% endblock %}

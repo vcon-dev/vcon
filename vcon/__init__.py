@@ -9,6 +9,9 @@ import json
 import jose.utils
 import jose.jws
 import enum
+import uuid
+from datetime import datetime
+
 
 class VconStates(enum.Enum):
   """ Vcon states WRT signing and verification """
@@ -72,6 +75,8 @@ class Vcon():
   DIALOG = "dialog"
   ANALYSIS = "analysis"
   ATTACHMENTS = "attachments"
+  CREATED_AT = "created_at"
+  ID = "_id"
 
   parties = VconDictList()
   dialog = VconDictList()
@@ -118,6 +123,9 @@ class Vcon():
     self._vcon_dict[Vcon.DIALOG] = []
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
+    self._vcon_dict[Vcon.CREATED_AT] = datetime.now().strftime("%a, %d %b %Y %H:%M:%S %z")
+    self._vcon_dict[Vcon.ID] = str(uuid.uuid4())
+
 
   def __add_new_party(self, index : int) -> int:
     """

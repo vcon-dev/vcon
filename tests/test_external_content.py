@@ -9,6 +9,8 @@ import pytest
 import vcon
 import vcon.security
 import hsslms
+import hashlib
+import jose.utils
 
 call_data = {
       "epoch" : "1652552179",
@@ -61,7 +63,75 @@ def test_lm_ots_sign() -> None:
     # Expect this to be raised as we have modified signature
     pass
 
-def test_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
+def test_external_recording_lm_ots(two_party_tel_vcon : vcon.Vcon) -> None:
+  data_size = 4096
+  data = os.urandom(data_size)
+
+  url = "https://example.com?q=\"ddd\"&y=\'!\'"
+  #print("url: {}".format(url))
+
+  file_name = "my_rec.wav"
+
+  assert(vcon.Vcon.MIMETYPE_WAV == "audio/x-wav")
+
+  two_party_tel_vcon.add_dialog_external_recording(data,
+    call_data["rfc2822"],
+    call_data["duration"],
+    0,
+    url,
+    vcon.Vcon.MIMETYPE_WAV,
+    file_name,
+    sign_type="LM-OTS")
+
+  vcon_json = two_party_tel_vcon.dumps()
+
+  new_vcon = vcon.Vcon()
+  new_vcon.loads(vcon_json)
+
+  assert(len(new_vcon.dialog) == 1)
+  assert(new_vcon.dialog[0]['type'] == "recording")
+  assert(new_vcon.dialog[0]['url'] == url)
+  assert(new_vcon.dialog[0]['parties'] == 0)
+  assert(new_vcon.dialog[0]['start'] == call_data["rfc3339"])
+  assert(new_vcon.dialog[0]['duration'] == call_data["duration"])
+  assert(new_vcon.dialog[0]['mimetype'] == "audio/x-wav")
+  assert(new_vcon.dialog[0]['filename'] == file_name)
+  assert(new_vcon.dialog[0]['alg'] == 'LMOTS_SHA256_N32_W8')
+  assert(len(new_vcon.dialog[0]['key']) > 1)
+  assert("body" not in new_vcon.dialog[0])
+
+  new_vcon.verify_dialog_external_recording(0, data)
+
+  try:
+    # Change the data so that validation should fail
+    new_vcon.verify_dialog_external_recording(0, data[1:])
+    raise Exception("Should have raised exception here as data is missin the first byte")
+
+  except hsslms.utils.INVALID as invalid_error:
+    # Expect to get this exception
+    pass
+
+def test_sha512():
+  data1 = b"test some text stuff as binary"
+  data_size = 4096
+  data2 = os.urandom(data_size)
+
+  hasher = hashlib.sha512()
+
+  hasher.update(data1)
+  hasher.update(data2)
+
+  sig_hash = jose.utils.base64url_encode(hasher.digest())
+
+  validater = hashlib.sha512()
+
+  validater.update(data1 + data2)
+
+  validate_hash = jose.utils.base64url_encode(validater.digest())
+
+  assert(sig_hash == validate_hash)
+
+def test_external_recording_sha_512(two_party_tel_vcon : vcon.Vcon) -> None:
   data_size = 4096
   data = os.urandom(data_size)
 
@@ -82,8 +152,10 @@ def test_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
 
   vcon_json = two_party_tel_vcon.dumps()
 
+  print("original: {}".format(vcon_json))
   new_vcon = vcon.Vcon()
   new_vcon.loads(vcon_json)
+  print("deserialized: {}".format(new_vcon.dumps()))
 
   assert(len(new_vcon.dialog) == 1)
   assert(new_vcon.dialog[0]['type'] == "recording")
@@ -93,7 +165,9 @@ def test_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(new_vcon.dialog[0]['duration'] == call_data["duration"])
   assert(new_vcon.dialog[0]['mimetype'] == "audio/x-wav")
   assert(new_vcon.dialog[0]['filename'] == file_name)
+  assert(new_vcon.dialog[0]['alg'] == 'SHA-512')
   assert("body" not in new_vcon.dialog[0])
+  assert("key" not in new_vcon.dialog[0])
 
   new_vcon.verify_dialog_external_recording(0, data)
 
@@ -102,7 +176,6 @@ def test_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
     new_vcon.verify_dialog_external_recording(0, data[1:])
     raise Exception("Should have raised exception here as data is missin the first byte")
 
-  except hsslms.utils.INVALID as invalid_error:
+  except vcon.InvalidVconHash as invalid_error:
     # Expect to get this exception
     pass
-

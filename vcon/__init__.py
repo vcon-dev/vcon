@@ -10,6 +10,7 @@ import jose.utils
 import jose.jws
 import jose.jwe
 import enum
+import sys
 
 class VconStates(enum.Enum):
   """ Vcon states WRT signing and verification """
@@ -33,6 +34,9 @@ class InvalidVconState(Exception):
 
 class InvalidVconJson(Exception):
   """ JSON not valid for Vcon """
+
+class InvalidVconHash(Exception):
+  """ Hash does not match the content/body """
 
 class VconDictList:
   """ descriptor for Lists of dicts in vcon """
@@ -256,11 +260,13 @@ class Vcon():
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     external_url: str,
-    mime_type : str =None,
-    file_name : str =None) -> int:
+    mime_type : str = None,
+    file_name : str = None,
+    sign_type : str = "SHA-512") -> int:
     """
     Add a recording of a portion of the conversation, as a reference via the given
-    URL, to the dialog and generate a signature and key for the content.
+    URL, to the dialog and generate a signature and key for the content.  This
+    method has the limitation that the entire recording must be passed in in-memory.
 
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
@@ -273,10 +279,14 @@ class Vcon():
     external_url (string): https URL where the body is stored securely
     mime_type (str): mime type of the recording (optional)
     file_name (str): file name of the recording (optional)
+    sign_type (str): signature type to create for external signature
+                     default= "SHA-512" use SHA 512 bit hash (RFC6234)
+                     "LM-OTS" use Leighton-Micali One Time Signature (RFC8554
 
     Returns:
             Number of bytes read from body.
     """
+    # TODO: need a streaming/chunk version of this so that we don't have to have the whole file in memory.
 
     new_dialog = {}
     new_dialog['type'] = "recording"
@@ -289,10 +299,20 @@ class Vcon():
     if(file_name is not None):
       new_dialog['filename'] = file_name
 
-    key, signature = vcon.security.lm_one_time_signature(body)
-    new_dialog['key'] = key
-    new_dialog['signature'] = signature
-    new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
+    if(sign_type == "LM-OTS"):
+      print("Warning: \"LM-OTS\" may be depricated", file=sys.stderr)
+      key, signature = vcon.security.lm_one_time_signature(body)
+      new_dialog['key'] = key
+      new_dialog['signature'] = signature
+      new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
+
+    elif(sign_type == "SHA-512"):
+      sig_hash = vcon.security.sha_512_hash(body)
+      new_dialog['signature'] = sig_hash
+      new_dialog['alg'] = "SHA-512"
+
+    else:
+      raise AttributeError("Unsupported signature type: {}.  Please use \"SHA-512\" or \"LM-OTS\"".format(sign_type))
 
     self.dialog.append(new_dialog)
 
@@ -320,18 +340,26 @@ class Vcon():
     if(dialog['type'] != "recording"):
       raise AttributeError("dialog[{}] is of type: {} not recording".format(dialog_index, dialog['type']))
 
-    if(dialog['alg'] != 'LMOTS_SHA256_N32_W8'):
-      raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
-
-    if(len(dialog['key']) < 1 ):
-      raise AttributeError("dialog[{}] key: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['key']))
-
     if(len(dialog['signature']) < 1 ):
       raise AttributeError("dialog[{}] signature: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['signature']))
 
-    vcon.security.verify_lm_one_time_signature(body,
-      dialog['signature'],
-      dialog['key'])
+    if(dialog['alg'] == 'LMOTS_SHA256_N32_W8'):
+      if(len(dialog['key']) < 1 ):
+        raise AttributeError("dialog[{}] key: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['key']))
+
+      vcon.security.verify_lm_one_time_signature(body,
+        dialog['signature'],
+        dialog['key'])
+
+    elif(dialog['alg'] == 'SHA-512'):
+      sig_hash = vcon.security.sha_512_hash(body)
+      if( dialog['signature'] != sig_hash):
+        print("dialog[\"signature\"]: {} hash: {}".format(dialog['signature'], sig_hash))
+        print("dialog: {}".format(json.dumps(dialog, indent=2)))
+        raise InvalidVconHash("SHA-512 hash in signature does not match the given body for dialog[{}]".format(dialog_index))
+
+    else:
+      raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
 
   def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
     """
@@ -360,9 +388,9 @@ class Vcon():
     """
     Dump the vCon as a JSON string.
 
-    Parameters: 
+    Parameters:
 
-    signed (Boolean): If the vCon is signed locally or verfied, 
+    signed (Boolean): If the vCon is signed locally or verfied,
         True: serialize the signed version
         False: serialize the unsigned version
 
@@ -393,6 +421,11 @@ class Vcon():
     Load the vCon from a JSON string.
     Assumes that this vCon is an empty vCon as it is not cleared.
 
+    Decision as to what json form to be deserialized is:
+    1) unsigned vcon must have a vcon and one or more of the following elements: parties, dialog, analysis, attachments
+    2) JWS vCon must have a payload and signatures
+    3) JWE vCon must have a cyphertext and recipients
+
     Parameters:
       vcon_json (str): string containing JSON representation of a vCon
 
@@ -400,13 +433,6 @@ class Vcon():
     """
 
     #TODO: Should check unsafe stuff is not loaded
-
-    """
-    Decision as to what json to be deserialized is:
-    1) vcon must have a vcon and one or more of the following elements: parties, dialog, analysis, attachments
-    2) JWS must have a payload and signatures
-    3) JWE must have a protected and recipients
-    """
 
     if(self._state != VconStates.UNSIGNED):
       raise InvalidVconState("Cannot load Vcon unless current state is UNSIGNED.  Current state: {}".format(self._state))
@@ -453,7 +479,7 @@ class Vcon():
 
     # Unknown
     else:
-      raise InvalidVconJson("Not recognized as a unsigned or signed JSON vCon")
+      raise InvalidVconJson("Not recognized as a unsigned, signed or encrypted JSON vCon")
 
 
   def sign(self, private_key_pem_file_name : str, cert_chain_pem_file_names : typing.List[str]) -> None:
@@ -686,10 +712,10 @@ class Vcon():
       if("alg" in dialog):
         if( dialog['alg'] == "lm-ots"):
           dialog['alg'] = "LMOTS_SHA256_N32_W8"
-        elif( dialog['alg'] == "LMOTS_SHA256_N32_W8"):
+        elif( dialog['alg'] in ["SHA-512", "LMOTS_SHA256_N32_W8"]):
           pass
         else:
-          raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
+          raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
 
     # Translate transcriptions to body for consistency with dialog and attachments
     for index, analysis in enumerate(old_vcon["analysis"]):

@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="bg-white shadow overflow-hidden sm:rounded-md">
-  <ul role="list" class="divide-y divide-gray-200">
+  <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     {% for vcon in vCons %}
       <li>
         <a href="/details/{{vcon._id}}" class="block hover:bg-gray-50">

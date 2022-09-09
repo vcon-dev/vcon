@@ -7,7 +7,6 @@ import json
 import urllib.request
 from urllib.error import HTTPError
 import datetime
-import dateutil
 
 import asyncio
 import boto3
@@ -30,10 +29,12 @@ import jose.jws
 from bson import ObjectId
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
-
 from pydantic_models import VconModel, PyObjectId
 
-# Our local modules
+
+import settings
+
+# Our local modules``
 sys.path.append("..")
 import vcon
 
@@ -60,11 +61,7 @@ loop = asyncio.get_event_loop()
 
 # Environment variables
 VCON_VERSION = "0.1.1"
-DEEPGRAM_KEY = os.environ["DEEPGRAM_KEY"]
 MIMETYPE="audio/wav"
-AWS_KEY_ID = os.environ["AWS_KEY_ID"]
-AWS_SECRET_KEY = os.environ["AWS_SECRET_KEY"]
-AWS_BUCKET = os.environ["AWS_BUCKET"]
 
 # Home page route
 
@@ -77,8 +74,7 @@ async def homepage(request: Request):
 @app.get("/conversations/{page}", response_class=HTMLResponse)
 async def conversations(request: Request, page: int):
     # Paginate the vCons
-    length = 10
-    print(f"request.query_params: {request.query_params}")
+    length = 12
     vcons = await db["vcons"].find().sort("created_at",-1 ).skip(page*length).limit(length).to_list(length)
     return templates.TemplateResponse("conversations.html", {"request": request, "vCons": vcons, "page": page, "length": length})
 
@@ -90,9 +86,8 @@ async def post_vcon(request: Request):
     ingress_msg = await request.json()
     ingress_vcon = json.loads(ingress_msg["Message"])
 
-    # Construct empty vCon
+    # Construct empty vCon, set meta data
     vCon = vcon.Vcon()
-
     # Add some basic call META data
     caller = ingress_vcon["payload"]["cdr"]["src"]
     called = ingress_vcon["payload"]["cdr"]["dst"]
@@ -106,6 +101,8 @@ async def post_vcon(request: Request):
     recording_filename = host.split("/")[-1]
 
     try:
+        # Download the recording
+        print("Downloading recording from: ", recording_url)
         recording_bytes = urllib.request.urlopen(recording_url).read()
         vCon.add_dialog_inline_recording(
         recording_bytes,
@@ -114,11 +111,9 @@ async def post_vcon(request: Request):
         [0, 1], # parties recorded
         "audio/x-wav", # MIME type
         recording_filename)
+        print("Recording downloaded")
 
     except urllib.error.HTTPError as err:
-        print("Error retrieving recording from", recording_url)
-        print(err.code)
-        print("Attaching URL to the vCon instead")
         error_msg = "Error retrieving recording from " + recording_url
         error_type = "HTTPError"
         error_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
@@ -133,6 +128,7 @@ async def post_vcon(request: Request):
     vcon_dict = json.loads(json_string)
     insert_one_result = await db["vcons"].insert_one(vcon_dict)
 
+    print("Saving to S3")
     # Save the vCon to S3
     s3 = boto3.resource(
     's3',
@@ -141,16 +137,9 @@ async def post_vcon(request: Request):
     aws_secret_access_key=AWS_SECRET_KEY
     )
     s3.Bucket(AWS_BUCKET).put_object(Key=str(insert_one_result.inserted_id), Body=json_string)
+    print("Saved to S3")
 
     return JSONResponse(status_code=status.HTTP_200_OK)
-
-@app.get(
-    "/conversations", response_description="List all vcons", response_model=List[VconModel]
-)
-async def list_vcons():
-    vcons = await db["vcons"].find().to_list(100)
-    return vcons
-
 
 @app.get(
     "/vcon/{id}", response_description="Computer Readable vCon", response_model=VconModel
@@ -214,6 +203,8 @@ async def show_vcon(request: Request, id: str):
             vcon['analysis'] = []
             vcon['analysis'].append(analysis_element)
             await db["vcons"].update_one({"_id": id}, {"$push": { 'analysis': analysis_element}})
+
+            # Update S3
             print("Transcription complete")
         else:
             print("Transcription already exists")

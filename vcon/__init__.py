@@ -11,6 +11,11 @@ import jose.jws
 import jose.jwe
 import enum
 import sys
+import uuid6
+import time
+import hashlib
+
+_last_v8_timestamp = None
 
 class VconStates(enum.Enum):
   """ Vcon states WRT signing and verification """
@@ -73,6 +78,7 @@ class Vcon():
 
   # Dict keys
   VCON_VERSION = "vcon"
+  UUID = "uuid"
   PARTIES = "parties"
   DIALOG = "dialog"
   ANALYSIS = "analysis"
@@ -691,6 +697,91 @@ class Vcon():
       # restore state
       self._state = current_state
       raise e
+
+  def add_uuid(self, domain_name: str) -> str:
+    """
+    Generate a UUID for this vCon and set the parameter
+
+    Parameters:
+      domain_name: a DNS domain name string, should generally be a fully qualified host
+          name.
+
+    Returns:
+      UUID version 8 string
+      (vCon uuid parameter is also set)
+
+    """
+
+    uuid = self.uuid8_domain_name(domain_name)
+
+    self._vcon_dict[Vcon.UUID] = uuid
+
+    return(uuid)
+
+  @staticmethod
+  def uuid8_domain_name(domain_name: str) -> str:
+    """
+    Generate a version 8 (custom) UUID using the upper 62 bits of the SHA-1 hash
+    for the given DNS domain name string for custom_c and generating
+    custom_a and custom_b the same way as unix_ts_ms and rand_a respectively
+    for UUID version 7 (per IETF I-D draft-peabody-dispatch-new-uuid-format-04).
+
+    Parameters:
+      domain_name: a DNS domain name string, should generally be a fully qualified host
+          name.
+
+    Returns:
+      UUID version 8 string
+    """
+
+    sha1_hasher = hashlib.sha1()
+    sha1_hasher.update(bytes(domain_name, "utf-8"))
+    dn_sha1 = sha1_hasher.digest()
+
+    hash_upper_64 = dn_sha1[0:8]
+    int64 = int.from_bytes(hash_upper_64, byteorder="big")
+
+    uuid8_domain = Vcon.uuid8_time(int64)
+
+    return(uuid8_domain)
+
+  @staticmethod
+  def uuid8_time(custom_c_62_bits: int) -> str:
+    """
+    Generate a version 8 (custom) UUID using the given custom_c and generating
+    custom_a and custom_b the same way as unix_ts_ms and rand_a respectively
+    for UUID version 7 (per IETF I-D draft-peabody-dispatch-new-uuid-format-04).
+
+    Parameters:
+      custom_c_62_bits: the 62 bit value as an integer to be used for custom_b
+           portion of UUID version 8.
+
+    Returns:
+      UUID version 8 string
+    """
+    # This is partially from uuid6.uuid7 implementation:
+    global _last_v8_timestamp
+
+    nanoseconds = time.time_ns()
+    if _last_v8_timestamp is not None and nanoseconds <= _last_v8_timestamp:
+        nanoseconds = _last_v8_timestamp + 1
+    _last_v7_timestamp = nanoseconds
+    timestamp_ms, timestamp_ns = divmod(nanoseconds, 10**6)
+    subsec = uuid6._subsec_encode(timestamp_ns)
+
+    # This is not what is in the vCon I-D.  It says random bits
+    # not bits from the time stamp.  May want to change this
+    subsec_a = subsec >> 8
+    uuid_int = (timestamp_ms & 0xFFFFFFFFFFFF) << 80
+    uuid_int |= subsec_a << 64
+    uuid_int |= custom_c_62_bits
+
+    # We lie about the version and then correct it afterwards
+    uuid_str = str(uuid6.UUID(int=uuid_int, version=7))
+    assert(uuid_str[14] == '7')
+    uuid_str =  uuid_str[:14] +'8' + uuid_str[15:]
+
+    return(uuid_str)
 
   @staticmethod
   def migrate_0_0_1_vcon(old_vcon : dict) -> dict:

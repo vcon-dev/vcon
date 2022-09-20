@@ -53,8 +53,11 @@ class VconDictList:
     #print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
     # TODO: once signed, this should return a read only list
 
-    if(instance_object._state == VconStates.UNVERIFIED):
+    if(instance_object._state in [VconStates.UNVERIFIED, VconStates.DECRYPTED]):
       raise UnverifiedVcon("vCon is signed, but not verified. Call verify before reading data.")
+
+    if(instance_object._state in [VconStates.ENCRYPTED]):
+      raise UnverifiedVcon("vCon is encrypted. Call decrypt and verify before reading data.")
 
     return(instance_object._vcon_dict.get(self.name, None))
 

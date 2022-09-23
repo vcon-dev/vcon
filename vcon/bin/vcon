@@ -2,6 +2,7 @@
 
 import pathlib
 import sys
+import socket
 
 def get_mime_type(file_name):
   path = pathlib.PurePath(file_name)
@@ -199,6 +200,8 @@ if(__name__ == '__main__'):
 
   #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
   if(stdout_vcon):
+    if(in_vcon.uuid is None or len(in_vcon.uuid) < 1):
+      in_vcon.add_uuid(socket.gethostname() + ".vcon.dev")
     out_vcon_json = in_vcon.dumps(signed=signed_json)
     args.outfile.write(out_vcon_json)
 

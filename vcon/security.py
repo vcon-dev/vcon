@@ -332,7 +332,7 @@ def sha_512_hash(data : bytes) -> str:
 
   sig_hash = jose.utils.base64url_encode(hasher.digest()).decode('utf-8')
 
-  print("sha_512_hash: {}".format(sig_hash))
+  #print("sha_512_hash: {}".format(sig_hash))
   return(sig_hash)
 
 # =============================== One Time Signature Helper Functions ===========================

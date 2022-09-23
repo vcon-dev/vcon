@@ -51,11 +51,11 @@ class VconAttribute:
       self.__doc__ = doc
 
   def __set_name__(self, owner_class, name):
-    print("defining new Vcon{}: {}".format(self._type_name, name))
+    #print("defining new Vcon{}: {}".format(self._type_name, name))
     self.name = name
 
   def __get__(self, instance_object, class_type = None):
-    print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
+    #print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
     # TODO: once signed, this should return a read only attribute
     # This may be done by overloading the __get__ method in derived classes
 

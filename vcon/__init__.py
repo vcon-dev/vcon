@@ -43,15 +43,21 @@ class InvalidVconJson(Exception):
 class InvalidVconHash(Exception):
   """ Hash does not match the content/body """
 
-class VconDictList:
-  """ descriptor for Lists of dicts in vcon """
+class VconAttribute:
+  """ descriptor base class for attributes in vcon """
+  def __init__(self, doc : str = None):
+    self._type_name = None
+    if(doc is not None):
+      self.__doc__ = doc
+
   def __set_name__(self, owner_class, name):
-    #print("defining new VconList: {}".format(name))
+    print("defining new Vcon{}: {}".format(self._type_name, name))
     self.name = name
 
-  def __get__(self, instance_object, class_type = None) -> list:
-    #print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
-    # TODO: once signed, this should return a read only list
+  def __get__(self, instance_object, class_type = None):
+    print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
+    # TODO: once signed, this should return a read only attribute
+    # This may be done by overloading the __get__ method in derived classes
 
     if(instance_object._state in [VconStates.UNVERIFIED, VconStates.DECRYPTED]):
       raise UnverifiedVcon("vCon is signed, but not verified. Call verify before reading data.")
@@ -61,8 +67,28 @@ class VconDictList:
 
     return(instance_object._vcon_dict.get(self.name, None))
 
-  def __set__(self, instance_object, value : dict) -> None:
-    raise AttributeError("not allowed to replace {} List".format(self.name))
+  def __set__(self, instance_object, value : str) -> None:
+    raise AttributeError("not allowed to replace {} {}".format(self.name, self._type_name))
+
+class VconString(VconAttribute):
+  """ descriptor for String attributes in vcon """
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "String"
+
+class VconDict(VconAttribute):
+  """ descriptor for Lists of dicts in vcon """
+
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "Dict"
+
+class VconDictList(VconAttribute):
+  """ descriptor for Lists of dicts in vcon """
+
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "DictList"
 
 class Vcon():
   """
@@ -77,20 +103,37 @@ class Vcon():
   """
 
   # Some commonly used MIME types for convenience
-  MIMETYPE_WAV = "audio/x-wav"
+  MIMETYPE_TEXT_PLAIN = "text/plain"
+  MIMETYPE_AUDIO_WAV = "audio/x-wav"
+  MIMETYPE_AUDIO_MP3 = "audio/x-mp3"
+  MIMETYPE_AUDIO_MP4 = "audio/x-mp4"
+  MIMETYPE_VIDEO_MP4 = "video/x-mp4"
+  MIMETYPE_VIDEO_OGG = "video/ogg"
 
   # Dict keys
   VCON_VERSION = "vcon"
   UUID = "uuid"
+  SUBJECT = "subject"
+  REDACTED = "redacted"
+  APPENDED = "appended"
+  GROUP = "group"
   PARTIES = "parties"
   DIALOG = "dialog"
   ANALYSIS = "analysis"
   ATTACHMENTS = "attachments"
 
-  parties = VconDictList()
-  dialog = VconDictList()
-  analysis = VconDictList()
-  attachments = VconDictList()
+  vcon = VconString(doc = "vCon version string attribute")
+  uuid = VconString(doc = "vCon UUID string attribute")
+  subject = VconString(doc = "vCon subject string attribute")
+
+  redacted = VconDict(doc = "redacted Dict for reference or inclusion of less redacted signed or encrypted version of this vCon")
+  appended = VconDict(doc = "appended Dict for reference or includsion of signed or encrypted vCon to which this vCon appends data")
+  
+  group = VconDictList(doc = "List of Dicts referencing or including other vCons to be aggregated by this vCon")
+  parties = VconDictList(doc = "List of Dicts, one for each party to this conversation")
+  dialog = VconDictList(doc = "List of Dicts referencing or including the capture of text, audio or video (original form of communication) segments for this conversation")
+  analysis = VconDictList(doc = "List of Dicts referencing or includeing analysis data for this conversation")
+  attachments = VconDictList(doc = "List of Dicts referencing or including ancillary documents to this conversation")
 
   # TODO:  work out states the vcon can be in.  For example:
   """
@@ -411,6 +454,9 @@ class Vcon():
     # not throw if it not signed.
 
     if(self._state == VconStates.UNSIGNED):
+      if(self.uuid is None or len(self.uuid) < 1):
+        raise InvalidVconState("vCon has no UUID set.  Use add_uuid method.")
+
       return(json.dumps(self._vcon_dict))
 
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
@@ -471,7 +517,7 @@ class Vcon():
       self._jwe_dict = vcon_dict
 
     # Unsigned vCon has to have vcon version and
-    elif(('vcon' in vcon_dict) and (
+    elif((self.VCON_VERSION in vcon_dict) and (
       # one of the following arrays
       ('parties' in vcon_dict) or
       ('dialog' in vcon_dict) or
@@ -480,7 +526,7 @@ class Vcon():
       )):
 
       # validate version
-      version_string = vcon_dict.get('vcon', "not set")
+      version_string = vcon_dict.get(self.VCON_VERSION, "not set")
       if(version_string != "0.0.1"):
         raise UnsupportedVconVersion("loads of JSON vcon version: \"{}\" not supported".format(version_string))
 
@@ -510,6 +556,9 @@ class Vcon():
 
     if(self._state != VconStates.UNSIGNED):
       raise InvalidVconState("Vcon not in valid state to be signed: {}.".format(self._state))
+
+    if(self.uuid is None or len(self.uuid) < 1):
+      raise InvalidVconState("vCon has no UUID set.  Use add_uuid method before signing.")
 
     header, signing_jwk = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
 

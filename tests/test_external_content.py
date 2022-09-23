@@ -35,6 +35,7 @@ def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   vCon = empty_vcon
   first_party = vCon.set_party_tel_url(call_data['source'])
   second_party = vCon.set_party_tel_url(call_data['destination'])
+  vCon.add_uuid("vcon.dev")
   return(vCon)
 
 def test_lm_ots_sign() -> None:
@@ -72,14 +73,14 @@ def test_external_recording_lm_ots(two_party_tel_vcon : vcon.Vcon) -> None:
 
   file_name = "my_rec.wav"
 
-  assert(vcon.Vcon.MIMETYPE_WAV == "audio/x-wav")
+  assert(vcon.Vcon.MIMETYPE_AUDIO_WAV == "audio/x-wav")
 
   two_party_tel_vcon.add_dialog_external_recording(data,
     call_data["rfc2822"],
     call_data["duration"],
     0,
     url,
-    vcon.Vcon.MIMETYPE_WAV,
+    vcon.Vcon.MIMETYPE_AUDIO_WAV,
     file_name,
     sign_type="LM-OTS")
 
@@ -140,14 +141,14 @@ def test_external_recording_sha_512(two_party_tel_vcon : vcon.Vcon) -> None:
 
   file_name = "my_rec.wav"
 
-  assert(vcon.Vcon.MIMETYPE_WAV == "audio/x-wav")
+  assert(vcon.Vcon.MIMETYPE_AUDIO_WAV == "audio/x-wav")
 
   two_party_tel_vcon.add_dialog_external_recording(data,
     call_data["rfc2822"],
     call_data["duration"],
     0,
     url,
-    vcon.Vcon.MIMETYPE_WAV,
+    vcon.Vcon.MIMETYPE_AUDIO_WAV,
     file_name)
 
   vcon_json = two_party_tel_vcon.dumps()

@@ -23,7 +23,7 @@ def test_uuid8_domain_name() -> None:
 
 def test_vcon_uuid() -> None:
   new_vcon = vcon.Vcon()
-  new_vcon.add_uuid("example.com")
+  new_vcon.set_uuid("example.com")
   print("{} len: {}".format(new_vcon._vcon_dict["uuid"], len(new_vcon._vcon_dict[vcon.Vcon.UUID])))
   assert(len(new_vcon._vcon_dict[vcon.Vcon.UUID]) == 36)
 

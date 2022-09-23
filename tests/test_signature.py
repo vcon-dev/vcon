@@ -268,7 +268,7 @@ def test_sign_vcon(two_party_tel_vcon : vcon.Vcon) -> None:
   except vcon.InvalidVconState as e:
     pass
 
-  two_party_tel_vcon.add_uuid("vcon.dev")
+  two_party_tel_vcon.set_uuid("vcon.dev")
   uuid = two_party_tel_vcon.uuid
   # Now this should work as we have set a UUID
   two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])

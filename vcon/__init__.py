@@ -455,7 +455,7 @@ class Vcon():
 
     if(self._state == VconStates.UNSIGNED):
       if(self.uuid is None or len(self.uuid) < 1):
-        raise InvalidVconState("vCon has no UUID set.  Use add_uuid method.")
+        raise InvalidVconState("vCon has no UUID set.  Use set_uuid method.")
 
       return(json.dumps(self._vcon_dict))
 
@@ -558,7 +558,7 @@ class Vcon():
       raise InvalidVconState("Vcon not in valid state to be signed: {}.".format(self._state))
 
     if(self.uuid is None or len(self.uuid) < 1):
-      raise InvalidVconState("vCon has no UUID set.  Use add_uuid method before signing.")
+      raise InvalidVconState("vCon has no UUID set.  Use set_uuid method before signing.")
 
     header, signing_jwk = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
 
@@ -750,7 +750,7 @@ class Vcon():
       self._state = current_state
       raise e
 
-  def add_uuid(self, domain_name: str) -> str:
+  def set_uuid(self, domain_name: str) -> str:
     """
     Generate a UUID for this vCon and set the parameter
 

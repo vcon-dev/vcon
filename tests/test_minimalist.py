@@ -102,7 +102,7 @@ def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
     # We expect this exception for UUID not set
     pass
 
-  vCon.add_uuid("vcon.dev")
+  vCon.set_uuid("vcon.dev")
   # should work now that UUID is set
   vcon_json = vCon.dumps()
 
@@ -117,7 +117,7 @@ def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
   assert_dict_array_size(vcon_dict, "attachments", 0)
   
 def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
-  two_party_tel_vcon.add_uuid("vcon.dev")
+  two_party_tel_vcon.set_uuid("vcon.dev")
   vcon_json = two_party_tel_vcon.dumps()
   empty_vcon.loads(vcon_json)
 
@@ -127,7 +127,7 @@ def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
 def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
   """ Test add of a recording file inline to ensure base64 encode and decode are properly done. """
   vCon = two_party_tel_vcon
-  vCon.add_uuid("vcon.dev")
+  vCon.set_uuid("vcon.dev")
   deserialized_vcon = empty_vcon
   random_size = 4096
   fake_recording_file = os.urandom(random_size)

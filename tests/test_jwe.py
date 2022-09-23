@@ -35,7 +35,7 @@ def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   vCon = empty_vcon
   first_party = vCon.set_party_tel_url(call_data['source'])
   second_party = vCon.set_party_tel_url(call_data['destination'])
-  vCon.add_uuid("vcon.dev")
+  vCon.set_uuid("vcon.dev")
   return(vCon)
 
 import jose.jwe

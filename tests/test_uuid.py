@@ -32,6 +32,15 @@ def test_vcon_uuid() -> None:
   copy_vcon.loads(new_vcon.dumps())
   assert(len(copy_vcon._vcon_dict[vcon.Vcon.UUID]) == 36)
   assert(copy_vcon._vcon_dict[vcon.Vcon.UUID] == new_vcon._vcon_dict[vcon.Vcon.UUID])
+  assert(copy_vcon.uuid == new_vcon._vcon_dict[vcon.Vcon.UUID])
+
+  try:
+    copy_vcon.uuid = "foo"
+    raise Exception("Failed to prevent setting of uuid attribute")
+
+  except AttributeError as e:
+    # expected exception as uuid is read only attribute
+    pass
 
 
 

@@ -41,8 +41,8 @@ def empty_vcon() -> vcon.Vcon:
 def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   """ construct vCon with two tel URL """
   vCon = empty_vcon
-  first_party = vCon.set_party_tel_url(call_data['source'])
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
   return(vCon)
 
 @pytest.fixture()

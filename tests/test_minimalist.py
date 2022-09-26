@@ -48,8 +48,10 @@ def empty_vcon() -> vcon.Vcon:
 def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   """ construct vCon with two tel URL """
   vCon = empty_vcon
-  first_party = vCon.set_party_tel_url(call_data['source'])
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
+  assert(first_party == 0)
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
+  assert(second_party == 1)
   return(vCon)
 
 def test_tel(empty_vcon : vcon.Vcon):
@@ -66,6 +68,11 @@ def test_tel(empty_vcon : vcon.Vcon):
   assert_vcon_array_size(vCon, "attachments", 0)
 
 
+  existing_party_index = vCon.set_party_parameter("tel", call_data['source'] + "2", party_index)
+  assert(existing_party_index == party_index)
+  assert(vCon._vcon_dict[VCON_PARTIES][party_index]['tel'] == call_data['source'] + "2")
+  assert_vcon_array_size(vCon, VCON_PARTIES, 1)
+
 def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
   """ Test two party call with tel urls """
   vCon = empty_vcon
@@ -75,13 +82,13 @@ def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
   assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   assert_vcon_array_size(vCon, "analysis", 0)
   assert_vcon_array_size(vCon, "attachments", 0)
-  first_party = vCon.set_party_tel_url(call_data['source'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
   assert(first_party == 0)
   assert(vCon._vcon_dict[VCON_PARTIES][first_party]['tel'] == call_data['source'])
   assert_vcon_array_size(vCon, VCON_PARTIES, 1)
 
   # 2nd party:
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
   assert(second_party== 1)
   assert(vCon._vcon_dict[VCON_PARTIES][second_party]['tel'] == call_data['destination'])
   # make sure 1st party did not get modified

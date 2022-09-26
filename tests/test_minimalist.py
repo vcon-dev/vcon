@@ -54,7 +54,17 @@ def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   assert(second_party == 1)
   return(vCon)
 
-def test_tel(empty_vcon : vcon.Vcon):
+def test_party_parameters(empty_vcon : vcon.Vcon):
+  try:
+    empty_vcon.set_party_parameter("foo", "bar")
+    Exception("Should not allow setting of foo parameter on a Party")
+
+  except AttributeError as e:
+    pass
+
+  assert(len(empty_vcon.parties) == 0)
+
+def test_party_tel(empty_vcon : vcon.Vcon):
   """ Test adding first party with a tel url to create simple vCon """
 
   vCon = empty_vcon

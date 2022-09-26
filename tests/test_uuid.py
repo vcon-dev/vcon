@@ -27,6 +27,17 @@ def test_vcon_uuid() -> None:
   print("{} len: {}".format(new_vcon._vcon_dict["uuid"], len(new_vcon._vcon_dict[vcon.Vcon.UUID])))
   assert(len(new_vcon._vcon_dict[vcon.Vcon.UUID]) == 36)
 
+  try:
+    new_vcon.set_uuid("example.com")
+    raise Exception("Expected an exception to be thrown for UUID alread set")
+
+  except AttributeError as e:
+    # Expected this as UUID is already set
+    pass
+
+  # This should allow UUID to be updated
+  new_vcon.set_uuid("example.com", replace=True)
+
   # Test serialization
   copy_vcon = vcon.Vcon()
   copy_vcon.loads(new_vcon.dumps())

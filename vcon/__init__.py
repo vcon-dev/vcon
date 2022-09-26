@@ -750,7 +750,19 @@ class Vcon():
       self._state = current_state
       raise e
 
-  def set_uuid(self, domain_name: str) -> str:
+  def set_subject(self, subject: str) -> None:
+    """
+    Set the subject parameter of the vCon.
+
+    Parameters:
+      subject - String value to assign to the vCon subject parameter.
+
+    Returns: None
+    """
+
+    self._vcon_dict[Vcon.SUBJECT] = subject
+
+  def set_uuid(self, domain_name: str, replace: bool= False) -> str:
     """
     Generate a UUID for this vCon and set the parameter
 
@@ -763,6 +775,9 @@ class Vcon():
       (vCon uuid parameter is also set)
 
     """
+
+    if(self.uuid is not None and replace == False and len(self.uuid) > 0):
+      raise AttributeError("uuid parameter already set")
 
     uuid = self.uuid8_domain_name(domain_name)
 

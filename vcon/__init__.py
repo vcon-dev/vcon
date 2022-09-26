@@ -14,8 +14,36 @@ import sys
 import uuid6
 import time
 import hashlib
+import inspect
+import functools
+import warnings
 
 _last_v8_timestamp = None
+
+def deprecated(reason : str):
+  """
+  Decorator for marking and emmiting warnings on deprecated methods and classes
+  """
+
+  def decorator(func):
+    if inspect.isclass(func):
+      msg = "Call to deprecated class {{}} ({}).".format(reason)
+    else:
+      msg = "Call to deprecated function {{}} ({}).".format(reason)
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+      warnings.simplefilter('always', DeprecationWarning)
+      warnings.warn(
+        msg.format(func.__name__),
+        category=DeprecationWarning,
+        stacklevel=2)
+      warnings.simplefilter('default', DeprecationWarning)
+      return func(*args, **kwargs)
+
+    return new_func
+
+  return decorator
 
 class VconStates(enum.Enum):
   """ Vcon states WRT signing and verification """
@@ -219,6 +247,34 @@ class Vcon():
     # has defininte joine time for each party, but is not captured in the vcon.
     raise Exception("not implemented")
 
+  def set_party_parameter(self, parameter_name : str, parameter_value : str, party_index : int =-1) -> int:
+    """
+    Set the named parameter for the given party index.  If the index is not provided,
+    add a new party to the vCon Parties Object array.
+
+    Parameters:
+    parameter_name
+                  Must beone of the following: ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+    parameter_value
+    party_index (int): index of party to set tel url on
+                  (-1 indicates a new party should be added)
+
+    Returns:
+    int: if success, opsitive int index of party in list
+    """
+
+    parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+    if(parameter_name not in parties_object_string_parameters):
+      raise AttributeError("Not supported: setting of Parties Object parameter: {}".format(parameter_name))
+
+    party_index = self.__add_new_party(party_index)
+
+    # TODO parameter specific validation
+    self._vcon_dict[Vcon.PARTIES][party_index][parameter_name] = parameter_value
+
+    return(party_index)
+
+  @deprecated("use Vcon.set_party_parameter")
   def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
     """
     Set tel URL for a party.
@@ -232,13 +288,7 @@ class Vcon():
     int: if success, opsitive int index of party in list
     """
 
-    # TODO: should label as caller or called
-
-    party_index = self.__add_new_party(party_index)
-
-    self._vcon_dict[Vcon.PARTIES][party_index]['tel'] = tel_url
-
-    return(party_index)
+    return(self.set_party_parameter("tel", tel_url, party_index))
 
   def add_dialog_inline_text(self, body : bytes,
     start_time : typing.Union[str, int, float],

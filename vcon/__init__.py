@@ -265,7 +265,7 @@ class Vcon():
 
     parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
     if(parameter_name not in parties_object_string_parameters):
-      raise AttributeError("Not supported: setting of Parties Object parameter: {}".format(parameter_name))
+      raise AttributeError("Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".format(parameter_name, parties_object_string_parameters))
 
     party_index = self.__add_new_party(party_index)
 

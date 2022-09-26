@@ -109,6 +109,7 @@ class Vcon():
   MIMETYPE_AUDIO_MP4 = "audio/x-mp4"
   MIMETYPE_VIDEO_MP4 = "video/x-mp4"
   MIMETYPE_VIDEO_OGG = "video/ogg"
+  MIMETYPE_MULTIPART = "multipart/mixed"
 
   # Dict keys
   VCON_VERSION = "vcon"
@@ -239,6 +240,52 @@ class Vcon():
 
     return(party_index)
 
+  def add_dialog_inline_text(self, body : bytes,
+    start_time : typing.Union[str, int, float],
+    duration : typing.Union[int, float],
+    party : int,
+    mime_type : str,
+    file_name : str = None) -> int:
+    """
+    Add a dialog segment for a text chat or email thread.
+
+    Parameters:
+    body (bytes): bytes for the text communicaiton (e.g. text or multipart MIME body).
+    start_time (str, int, float): Date, time of the start time the sender started typing
+               or if unavailable, the time it was sent.
+               String containing RFC 2822 or RFC3339 date time stamp or int/float
+               containing epoch time (since 1970) in seconds.
+    duration (int or float): duration in time the sender completed typing in seconds.
+               Should be zero if unknown.
+    party (int) index into parties object array as to which party sent the text communication.
+    mime_type (str): mime type of the body (usually MIMETYPE_TEXT_PLAIN or MIMETYPE_MULTIPART)
+    file_name (str): file name of the body if applicable (optional)
+
+    Returns:
+            Number of bytes read from body.
+    """
+
+    new_dialog = {}
+    new_dialog['type'] = "text"
+    new_dialog['start'] = vcon.utils.cannonize_date(start_time)
+    new_dialog['duration'] = duration
+    new_dialog['parties'] = party
+    new_dialog['mimetype'] = mime_type
+    if(file_name is not None and len(file_name) > 0):
+      new_dialog['filename'] = file_name
+
+    if(mime_type == MIMETYPE_TEXT_PLAIN):
+      new_dialog['encoding'] = "None"
+      new_dialog['body'] = body
+    else:
+      new_dialog['encoding'] = "base64url"
+      encoded_body = jose.utils.base64url_encode(body).decode('utf-8')
+      new_dialog['body'] = encoded_body
+
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
+
+    return(len(self.dialog))
+
   def add_dialog_inline_recording(self, body : bytes,
     start_time : typing.Union[str, int, float],
     duration : typing.Union[int, float],
@@ -272,7 +319,7 @@ class Vcon():
     new_dialog['duration'] = duration
     new_dialog['parties'] = parties
     new_dialog['mimetype'] = mime_type
-    if(file_name is not None):
+    if(file_name is not None and len(file_name) > 0):
       new_dialog['filename'] = file_name
 
     new_dialog['encoding'] = "base64url"

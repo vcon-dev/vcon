@@ -253,10 +253,10 @@ class Vcon():
     add a new party to the vCon Parties Object array.
 
     Parameters:
-    parameter_name
+      parameter_name (String) name of the Party Object parameter to be set.
                   Must beone of the following: ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
-    parameter_value
-    party_index (int): index of party to set tel url on
+      parameter_value (String) new value to set for the named parameter
+      party_index (int): index of party to set tel url on
                   (-1 indicates a new party should be added)
 
     Returns:
@@ -280,15 +280,37 @@ class Vcon():
     Set tel URL for a party.
 
     Parameters:
-    tel_url
-    party_index (int): index of party to set tel url on
+      tel_url
+      party_index (int): index of party to set tel url on
                   (-1 indicates a new party should be added)
 
     Returns:
-    int: if success, opsitive int index of party in list
+      int: if success, opsitive int index of party in list
     """
 
     return(self.set_party_parameter("tel", tel_url, party_index))
+
+  def find_parties_by_parameter(self, parameter_name : str, parameter_value_substr : str) -> typing.List[int]:
+    """
+    Find the list of parties which have string parameters of the given name and value 
+    which contains the given substring.
+
+    Parameters:
+      parameter_name (String) name of the Party Object parameter to be searched.
+      paramter_value_substr(String) substring to check if it is contained in the value of the given 
+              parameter name
+
+    Returns:
+      List of indices into the parties object array for which the given parameter name's value
+      contains a match for the given substring.
+    """
+    found = []
+    for party_index, party in enumerate(self.parties):
+      value = party.get(parameter_name, "")
+      if(parameter_value_substr in value):
+        found.append(party_index)
+
+    return(found)
 
   def add_dialog_inline_text(self, body : bytes,
     start_time : typing.Union[str, int, float],

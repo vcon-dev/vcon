@@ -24,12 +24,12 @@ def epoch_to_rfc3339(time : typing.Union[int, float]) -> str:
   date_string = date_time.isoformat('T', timespec='milliseconds')
   return(date_string)
 
-def cannonize_date(date : typing.Union[int, float, str]) -> str:
+def cannonize_date(date : typing.Union[int, float, str, datetime.datetime]) -> str:
   """
   Convert date to cannonical RFC3339 date format string
 
   Parameters:
-    date Union[int, float, str]: date to be cannonized.
+    date Union[int, float, str, datetime.datetime]: date to be cannonized.
     int or float are seconds since epoch.  String form can be RFC2822 or RFC3339 date string
   """
   if(isinstance(date, (int, float))):
@@ -66,6 +66,13 @@ def cannonize_date(date : typing.Union[int, float, str]) -> str:
 
     date_string = epoch_to_rfc3339(epoch_time)
 
+  elif(isinstance(date, datetime.datetime)):
+    epoch = datetime.datetime(1970, 1, 1)
+    epoch = epoch.replace(tzinfo = datetime.timezone.utc)
+    epoch = epoch.astimezone(datetime.timezone.utc)
+    
+    epoch_time = (date - epoch).total_seconds()
+    date_string = epoch_to_rfc3339(epoch_time)
   else:
     raise AttributeError("unsupported type: {} value: {} for date".format(type(date), date))
 

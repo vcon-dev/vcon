@@ -17,6 +17,7 @@ import hashlib
 import inspect
 import functools
 import warnings
+import datetime
 
 _last_v8_timestamp = None
 
@@ -312,8 +313,8 @@ class Vcon():
 
     return(found)
 
-  def add_dialog_inline_text(self, body : bytes,
-    start_time : typing.Union[str, int, float],
+  def add_dialog_inline_text(self, body : str,
+    start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     party : int,
     mime_type : str,
@@ -322,19 +323,19 @@ class Vcon():
     Add a dialog segment for a text chat or email thread.
 
     Parameters:
-    body (bytes): bytes for the text communicaiton (e.g. text or multipart MIME body).
-    start_time (str, int, float): Date, time of the start time the sender started typing
-               or if unavailable, the time it was sent.
+      body (str): bytes for the text communication (e.g. text or multipart MIME body).
+      start_time (str, int, float, datetime.datetime): Date, time of the start time the
+               sender started typing or if unavailable, the time it was sent.
                String containing RFC 2822 or RFC3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
-    duration (int or float): duration in time the sender completed typing in seconds.
+      duration (int or float): duration in time the sender completed typing in seconds.
                Should be zero if unknown.
-    party (int) index into parties object array as to which party sent the text communication.
-    mime_type (str): mime type of the body (usually MIMETYPE_TEXT_PLAIN or MIMETYPE_MULTIPART)
-    file_name (str): file name of the body if applicable (optional)
+      party (int) index into parties object array as to which party sent the text communication.
+      mime_type (str): mime type of the body (usually MIMETYPE_TEXT_PLAIN or MIMETYPE_MULTIPART)
+      file_name (str): file name of the body if applicable (optional)
 
     Returns:
-            Number of bytes read from body.
+      Index of the new dialog in the Dialog Object array parameter.
     """
 
     new_dialog = {}
@@ -346,20 +347,15 @@ class Vcon():
     if(file_name is not None and len(file_name) > 0):
       new_dialog['filename'] = file_name
 
-    if(mime_type == MIMETYPE_TEXT_PLAIN):
-      new_dialog['encoding'] = "None"
-      new_dialog['body'] = body
-    else:
-      new_dialog['encoding'] = "base64url"
-      encoded_body = jose.utils.base64url_encode(body).decode('utf-8')
-      new_dialog['body'] = encoded_body
+    new_dialog['encoding'] = "None"
+    new_dialog['body'] = body
 
     self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
     return(len(self.dialog))
 
   def add_dialog_inline_recording(self, body : bytes,
-    start_time : typing.Union[str, int, float],
+    start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     mime_type : str,
@@ -369,7 +365,8 @@ class Vcon():
 
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
-    start_time (str, int, float): Date, time of the start of the recording.
+    start_time (str, int, float, datetime.datetime): Date, time of the start of
+               the recording. 
                string containing RFC 2822 or RFC3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
@@ -381,6 +378,8 @@ class Vcon():
     Returns:
             Number of bytes read from body.
     """
+    # TODO should return dialog index not byte count
+
     # TODO: do we want to know the number of channels?  e.g. to verify party list length
 
     # TODO: should we validate the start time?
@@ -427,7 +426,7 @@ class Vcon():
     return(decoded_body)
 
   def add_dialog_external_recording(self, body : bytes,
-    start_time : typing.Union[str, int, float],
+    start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     external_url: str,
@@ -441,7 +440,8 @@ class Vcon():
 
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
-    start_time (str, int, float): Date, time of the start of the recording.
+    start_time (str, int, float, datetime.datetime): Date, time of the start of
+               the recording.
                string containing RFC 2822 or RFC 3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
@@ -457,6 +457,8 @@ class Vcon():
     Returns:
             Number of bytes read from body.
     """
+    # TODO should return dialog index not byte count
+
     # TODO: need a streaming/chunk version of this so that we don't have to have the whole file in memory.
 
     new_dialog = {}

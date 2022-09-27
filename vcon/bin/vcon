@@ -3,6 +3,9 @@
 import pathlib
 import sys
 import socket
+import email
+import email.utils
+import time
 
 def get_mime_type(file_name):
   path = pathlib.PurePath(file_name)
@@ -28,7 +31,9 @@ if(__name__ == '__main__'):
   import sox
  
   parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion")
-  parser.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+  input_group = parser.add_mutually_exclusive_group()
+  input_group.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+  input_group.add_argument("-n", "--newvcon", action="store_true")
   
   parser.add_argument("-o", "--outfile", metavar='outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
  
@@ -40,11 +45,17 @@ if(__name__ == '__main__'):
   add_in_recording_subparsers.add_argument("recfile", metavar='recording_file', nargs=1, type=pathlib.Path, default=None)
   add_in_recording_subparsers.add_argument("start", metavar='start_time', nargs=1, type=str, default=None)
   add_in_recording_subparsers.add_argument("parties", metavar='parties', nargs=1, type=str, default=None)
+
   add_ex_recording_subparsers = subparsers_add.add_parser("ex-recording")
   add_ex_recording_subparsers.add_argument("recfile", metavar='recording_file', nargs=1, type=pathlib.Path, default=None)
   add_ex_recording_subparsers.add_argument("start", metavar='start_time', nargs=1, type=str, default=None)
   add_ex_recording_subparsers.add_argument("parties", metavar='parties', nargs=1, type=str, default=None)
   add_ex_recording_subparsers.add_argument("url", metavar='url', nargs=1, type=str, default=None)
+
+  add_in_email_subparsers = subparsers_add.add_parser("in-email")
+  add_in_email_subparsers.add_argument("emailfile", metavar='email_file', nargs=1, type=pathlib.Path, default=None)
+  add_in_email_subparsers.add_argument("start", metavar='start_time', nargs="?", type=str, default=None)
+  add_in_email_subparsers.add_argument("parties", metavar='parties', nargs="?", type=str, default=None)
 
   extractparser = subparsers_command.add_parser("extract")
   subparsers_extract = extractparser.add_subparsers(dest="extract_command")
@@ -130,10 +141,14 @@ if(__name__ == '__main__'):
 
   print("out: {}".format(type(args.outfile)), file=sys.stderr)
   print("in: {}".format(type(args.infile)), file=sys.stderr)
-  in_vcon_json = args.infile.read()
+  print("new in {}".format(args.newvcon), file=sys.stderr)
   in_vcon = vcon.Vcon()
-  if(in_vcon_json is not None and len(in_vcon_json) > 0):
-    in_vcon.loads(in_vcon_json)
+  if(args.newvcon == False):
+    in_vcon_json = args.infile.read()
+    if(in_vcon_json is not None and len(in_vcon_json) > 0):
+      in_vcon.loads(in_vcon_json)
+  else:
+    pass
 
   # Use default serialization for state of vCon
   signed_json = True
@@ -182,10 +197,66 @@ if(__name__ == '__main__'):
         in_vcon.add_dialog_external_recording(body, args.start[0], duration, parties_object,
           args.url[0], mimetype, str(args.recfile[0]))
 
+    elif(args.add_command == "in-email"):
+      if(not args.emailfile[0].exists()):
+        raise Exception("Email file: {} does not exist".format(args.emailfile[0]))
+
+      email_message = email.message_from_file(args.emailfile[0].open("r"))
+
+      # Set subject if its not already set
+      if(in_vcon.subject is None or len(in_vcon.subject) == 0):
+        subject = email_message.get("subject")
+        in_vcon.set_subject(subject)
+
+      # Get tuple(s) of (name, email_uri) for sender and recipients
+      sender = email.utils.parseaddr(email_message.get("from"))
+      recipients = email.utils.getaddresses(email_message.get_all("to", []) +
+        email_message.get_all("cc", []) +
+        email_message.get_all("recent-to", []) +
+        email_message.get_all("recent-cc", []))
+
+      party_indices = []
+      for email_address in [sender] + recipients:
+        print("email name: {} mailto: {}".format(email_address[0], email_address[1]), file=sys.stderr)
+        parties_found = in_vcon.find_parties_by_parameter("mailto", email_address[1])
+        if(len(parties_found) == 0):
+          parties_found = in_vcon.find_parties_by_parameter("name", email_address[0])
+
+        if(len(parties_found) == 0):
+          party_index = in_vcon.set_party_parameter("mailto", email_address[1])
+          in_vcon.set_party_parameter("name", email_address[0], party_index)
+          parties_found = [party_index]
+
+        party_indices.extend(parties_found)
+
+        if(len(parties_found) > 1):
+          print("Warning: multiple parties found matching {}: at indices: {}".format(email_address, parties_found), file=sys.stderr)
+
+      content_type = email_message.get("content-type")
+      file_name = email_message.get_filename()
+      #date = time.mktime(email.utils.parsedate(email_message.get("date")))
+      date = email.utils.parsedate_to_datetime(email_message.get("date"))
+
+      email_body = ""
+
+      if(email_message.is_multipart()):
+        body_start = False
+        for line in str(email_message).splitlines():
+          if(body_start):
+            email_body = email_body + line + "\n\r"
+
+          elif(len(line) == 0):
+            body_start = True
+
+      else:
+        email_body = email_message.get_payload()[0]
+
+      in_vcon.add_dialog_inline_text(email_body, date, 0, party_indices, content_type, file_name)
+
   elif(args.command == "extract"):
     if(args.extract_command == "dialog"):
       if(not isinstance(args.index[0], int)):
-        raiseAttributeError("Dialog index should be type int, not {}".format(type(args.index[0])))
+        raise AttributeError("Dialog index should be type int, not {}".format(type(args.index[0])))
 
       dialog_index = args.index[0]
       num_dialogs = len(in_vcon.dialog)

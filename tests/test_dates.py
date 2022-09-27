@@ -3,6 +3,7 @@ Unit test for date conversions
 """
 
 import vcon.utils
+import datetime
 
 date_int = 1652552179
 date_float = 1652552179.0001
@@ -43,4 +44,10 @@ def test_cannonize_date():
   except AttributeError as e:
     # Expect to catch exception here
     pass
+
+  datetime_val = datetime.datetime(2022, 9, 27, 14, 23, 38, 938223)
+  datetime_val = datetime_val.replace(tzinfo = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo)
+  cannonized = vcon.utils.cannonize_date(datetime_val)
+  #print(cannonized)
+  assert(cannonized == "2022-09-27T18:23:38.938+00:00")
 

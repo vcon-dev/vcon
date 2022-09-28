@@ -403,7 +403,11 @@ class Vcon():
 
     return(len(body))
 
+  @deprecated("use Vcon.decode_dialog_inline_body")
   def decode_dialog_inline_recording(self, dialog_index : int) -> bytes:
+    return(self.decode_dialog_inline_body(dialog_index))
+
+  def decode_dialog_inline_body(self, dialog_index : int) -> typing.Union[str, bytes]:
     """
     Get the dialog recording at the given index, decoding it and returning the raw bytes.
 
@@ -414,14 +418,23 @@ class Vcon():
       (bytes): the bytes for the recording file
     """
     dialog = self.dialog[dialog_index]
-    if(dialog["type"] != "recording"):
-      raise AttributeError("dialog[{}] is not a recording file")
+    if(dialog["type"] not in ["text", "recording"]):
+      raise AttributeError("dialog[{}] type: {} is not supported".format(dailog_index, dialog["type"]))
     if(dialog.get("body") is None):
-      raise AttributeError("dialog[{}] does not contain an inline recording file")
+      raise AttributeError("dialog[{}] does not contain an inline body/file".format(dailog_index))
 
-    # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
-    # this is a bug in jose.baseurl_decode
-    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+    encoding = dialog.get("encoding", "None").lower()
+    if(encoding == "base64url"):
+      # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
+      # this is a bug in jose.baseurl_decode
+      decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+
+    # No encoding
+    elif(encoding == "none"):
+      decoded_body = dialog["body"]
+
+    else:
+      raise UnsupportedVconVersion("dialog[{}] body encoding: {} not supported".format(dialog_index, dialog["encoding"]))
 
     return(decoded_body)
 

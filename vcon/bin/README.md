@@ -41,9 +41,9 @@ Create a new empty vCon with just the vcon and uuid paramters set:
 
     vcon -n
 
-Read in a vcon from a file named **a.vcon** and add an inline dialog for the recording file **recording.wav**:
+Read in a vcon from a file named **a.vcon** and add an inline dialog for the recording file **recording.wav** with the recording start time where the single channel recording captures the parties identified in the parties Object array at index 0 and 1:
 
-    vcon -i a.vcon add in-recording recording.wav
+    vcon -i a.vcon add in-recording recording.wav 2022-06-21T13:53:26-04:00 "[0,1]"
 
 Read in a vcon from a file named **a.vcon** and sign it with the private key in the file **my.key** which is in the key chain contained in the files **c.crt**, **b.crt** and **a.crt**:
 

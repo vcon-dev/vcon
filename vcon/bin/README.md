@@ -35,4 +35,22 @@ vcon [I/O Options] [Operations]
 
 &nbsp;&nbsp;&nbsp;&nbsp;**decrypt KEY CERT** decrypt the input encrypted vCon using the private key and certificate in the given file names.
 
- 
+## Examples
+
+Create a new empty vCon with just the vcon and uuid paramters set:
+
+    vcon -n
+
+Read in a vcon from a file named a.vcon and add an inline dialog for the recording file recording.wav:
+
+    vcon -i a.vcon add in-recording recording.wav
+
+Read in a vcon from a file named a.vcon and sign it with the private key in the file my.key which is in the key chain contained in the files c.crt, b.crt and a.crt:
+
+    vcon -i a.vcon sign my.key c.crt b.crt a.crt
+
+Read in the signed vCon from the file signed.vcon and output the verified vCon in unsigned form, verifying the key chain in the x5c parameter has the certificate contained in the file named auth.crt as a certificate of authority:
+
+    vcon -i signed.vcon verify auth.crt
+
+

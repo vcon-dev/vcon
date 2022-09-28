@@ -174,7 +174,13 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   assert(decoded_file == fake_recording_file)
 
   # Test real accessor
+  # this method depreicated
   decoded_body = vCon.decode_dialog_inline_recording(0)
+  assert(len(decoded_file) == len(decoded_body))
+  assert(decoded_file == decoded_body)
+
+  # Test real accessor
+  decoded_body = vCon.decode_dialog_inline_body(0)
   assert(len(decoded_file) == len(decoded_body))
   assert(decoded_file == decoded_body)
 

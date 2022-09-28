@@ -29,6 +29,8 @@ vcon [I/O Options] [Operations]
 
 &nbsp;&nbsp;&nbsp;&nbsp;**sign KEY [CERT ...]** sign the input vCon using the given private key, attaching the given list of certificates as the cert chain in the x5c parameter.  The output is a vCon in the sgined form (JOSE JWS JSON).
 
+&nbsp;&nbsp;&nbsp;&nbsp;**extract dialog INDEX** extract the body from the inline dialog Object at the given index.  The result is provided on stdout.  The output may be ascii or binary.  No vCon JSON is provide as output.
+
 &nbsp;&nbsp;&nbsp;&nbsp;**verify CERT** verify the signature of the input signed vCon and verify that the certificate in the given file name is in the key chain contained in the x5c or x5u certificate chain contained in the input vCon
 
 &nbsp;&nbsp;&nbsp;&nbsp;**encrypt CERT** encrypt the input signed vCon using the certificate in the given file name
@@ -37,7 +39,7 @@ vcon [I/O Options] [Operations]
 
 ## Examples
 
-Create a new empty vCon with just the vcon and uuid paramters set:
+Create a new empty vCon with just the vcon and uuid parameters set:
 
     vcon -n
 

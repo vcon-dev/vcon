@@ -41,16 +41,34 @@ Create a new empty vCon with just the vcon and uuid paramters set:
 
     vcon -n
 
-Read in a vcon from a file named a.vcon and add an inline dialog for the recording file recording.wav:
+Read in a vcon from a file named **a.vcon** and add an inline dialog for the recording file **recording.wav**:
 
     vcon -i a.vcon add in-recording recording.wav
 
-Read in a vcon from a file named a.vcon and sign it with the private key in the file my.key which is in the key chain contained in the files c.crt, b.crt and a.crt:
+Read in a vcon from a file named **a.vcon** and sign it with the private key in the file **my.key** which is in the key chain contained in the files **c.crt**, **b.crt** and **a.crt**:
 
     vcon -i a.vcon sign my.key c.crt b.crt a.crt
 
-Read in the signed vCon from the file signed.vcon and output the verified vCon in unsigned form, verifying the key chain in the x5c parameter has the certificate contained in the file named auth.crt as a certificate of authority:
+Read in the signed vCon from the file named **signed.vcon** and output the verified vCon in unsigned form, verifying the key chain in the x5c parameter has the certificate contained in the file named **auth.crt** as a certificate of authority:
 
     vcon -i signed.vcon verify auth.crt
 
+Note: piping the output to the jq command can be useful for extracting specific parameters or creating a pretty print formated JSON output.  For example, the follwing will pretty print the vcon output:
+
+    vcon -n | jw '.'
+
+Output:
+
+    {
+      "vcon": "0.0.1",
+      "parties": [],
+      "dialog": [],
+      "analysis": [],
+      "attachments": [],
+      "uuid": "01838260-d37e-87b3-973a-91e26eb8001b"
+    }
+
+To obtain the value of the uuid parameter from the output vCon:
+
+    vcon -n | jq '.uuid'
 

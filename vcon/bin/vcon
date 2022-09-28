@@ -249,7 +249,7 @@ if(__name__ == '__main__'):
             body_start = True
 
       else:
-        email_body = email_message.get_payload()[0]
+        email_body = email_message.get_payload()
 
       in_vcon.add_dialog_inline_text(email_body, date, 0, party_indices, content_type, file_name)
 

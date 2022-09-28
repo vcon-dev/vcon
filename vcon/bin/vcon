@@ -2,10 +2,7 @@
 
 import pathlib
 import sys
-import socket
-import email
-import email.utils
-import time
+import typing
 
 def get_mime_type(file_name):
   path = pathlib.PurePath(file_name)
@@ -21,14 +18,15 @@ def get_mime_type(file_name):
 
   return(mimetype)
 
-
-  
-if(__name__ == '__main__'):
-
+def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   import argparse
   import vcon
   import json
   import sox
+  import email
+  import email.utils
+  import time
+  import socket
  
   parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion")
   input_group = parser.add_mutually_exclusive_group()
@@ -76,7 +74,7 @@ if(__name__ == '__main__'):
   decrypt_parser.add_argument("privkey", metavar='private_key_file', nargs=1, type=pathlib.Path, default=None)
   decrypt_parser.add_argument("pubkey", metavar='public_key_file', nargs=1, type=pathlib.Path, default=None)
 
-  args = parser.parse_args()
+  args = parser.parse_args(argv)
   
   print("args: {}".format(args), file=sys.stderr)
   print("args dir: {}".format(dir(args)), file=sys.stderr)
@@ -263,11 +261,12 @@ if(__name__ == '__main__'):
       if(dialog_index > num_dialogs):
         raise AttributeError("Dialog index: {} must be less than the number of dialog in the vCon: {}".format(dialog_index, num_dialogs))
   
-      recording_bytes = in_vcon.decode_dialog_inline_recording(dialog_index)
+      recording_bytes = in_vcon.decode_dialog_inline_body(dialog_index)
       stdout_vcon = False
-      args.outfile.buffer.write(recording_bytes)
-  
-
+      if(isinstance(recording_bytes, bytes)):
+        args.outfile.buffer.write(recording_bytes)
+      else:
+        args.outfile.write(recording_bytes)
 
   #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
   if(stdout_vcon):
@@ -276,4 +275,8 @@ if(__name__ == '__main__'):
     out_vcon_json = in_vcon.dumps(signed=signed_json)
     args.outfile.write(out_vcon_json)
 
-  
+  return(0)
+
+if(__name__ == '__main__'):
+  sys.exit(main())
+

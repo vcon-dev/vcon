@@ -6,6 +6,7 @@ script file so that it coould more easily be tested with pytest.
 import sys
 import pathlib
 import typing
+import vcon
 
 def get_mime_type(file_name):
   path = pathlib.PurePath(file_name)
@@ -23,7 +24,6 @@ def get_mime_type(file_name):
 
 def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   import argparse
-  import vcon
   import json
   import sox
   import email
@@ -273,7 +273,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
 
   #print("vcon._vcon_dict: {}".format(in_vcon._vcon_dict))
   if(stdout_vcon):
-    if(in_vcon.uuid is None or len(in_vcon.uuid) < 1):
+    if(in_vcon._state == vcon.VconStates.UNSIGNED and (in_vcon.uuid is None or len(in_vcon.uuid) < 1)):
       in_vcon.set_uuid(socket.gethostname() + ".vcon.dev")
     out_vcon_json = in_vcon.dumps(signed=signed_json)
     args.outfile.write(out_vcon_json)

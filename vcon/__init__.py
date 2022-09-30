@@ -206,6 +206,10 @@ class Vcon():
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
 
+  def _attempting_modify(self) -> None:
+    if(self._state != VconStates.UNSIGNED):
+      raise InvalidVconState("Cannot modify Vcon unless current state is UNSIGNED.  Current state: {}".format(self._state))
+
   def __add_new_party(self, index : int) -> int:
     """
     check if a new party needs to be added to the list
@@ -263,6 +267,8 @@ class Vcon():
     Returns:
     int: if success, opsitive int index of party in list
     """
+
+    self._attempting_modify()
 
     parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
     if(parameter_name not in parties_object_string_parameters):
@@ -338,6 +344,8 @@ class Vcon():
       Index of the new dialog in the Dialog Object array parameter.
     """
 
+    self._attempting_modify()
+
     new_dialog = {}
     new_dialog['type'] = "text"
     new_dialog['start'] = vcon.utils.cannonize_date(start_time)
@@ -349,6 +357,9 @@ class Vcon():
 
     new_dialog['encoding'] = "None"
     new_dialog['body'] = body
+
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
 
     self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
@@ -384,6 +395,8 @@ class Vcon():
 
     # TODO: should we validate the start time?
 
+    self._attempting_modify()
+
     new_dialog = {}
     new_dialog['type'] = "recording"
     new_dialog['start'] = vcon.utils.cannonize_date(start_time)
@@ -398,8 +411,10 @@ class Vcon():
     #print("encoded body type: {}".format(type(encoded_body)))
     new_dialog['body'] = encoded_body
 
-    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
 
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
     return(len(body))
 
@@ -474,6 +489,8 @@ class Vcon():
 
     # TODO: need a streaming/chunk version of this so that we don't have to have the whole file in memory.
 
+    self._attempting_modify()
+
     new_dialog = {}
     new_dialog['type'] = "recording"
     new_dialog['start'] = vcon.utils.cannonize_date(start_time)
@@ -499,6 +516,9 @@ class Vcon():
 
     else:
       raise AttributeError("Unsupported signature type: {}.  Please use \"SHA-512\" or \"LM-OTS\"".format(sign_type))
+
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
 
     self.dialog.append(new_dialog)
 
@@ -558,6 +578,8 @@ class Vcon():
                   for vendors that have more than one format or version.
     """
 
+    self._attempting_modify()
+
     analysis_element = {}
     analysis_element["type"] = "transcript"
     # TODO should validate dialog_index??
@@ -567,6 +589,9 @@ class Vcon():
     analysis_element["vendor"] = vendor
     if(vendor_schema is not None):
       analysis_element["vendor_schema"] = vendor_schema
+
+    if(self.analysis is None):
+      self._vcon_dict[self.ANALYSIS] = []
 
     self.analysis.append(analysis_element)
 
@@ -894,6 +919,8 @@ class Vcon():
     Returns: None
     """
 
+    self._attempting_modify()
+
     self._vcon_dict[Vcon.SUBJECT] = subject
 
   def set_uuid(self, domain_name: str, replace: bool= False) -> str:
@@ -909,6 +936,8 @@ class Vcon():
       (vCon uuid parameter is also set)
 
     """
+
+    self._attempting_modify()
 
     if(self.uuid is not None and replace == False and len(self.uuid) > 0):
       raise AttributeError("uuid parameter already set")
@@ -997,7 +1026,7 @@ class Vcon():
     """
 
     # Fix dates in older dialogs
-    for index, dialog in enumerate(old_vcon["dialog"]):
+    for index, dialog in enumerate(old_vcon.get("dialog", [])):
       if("start" in dialog):
         dialog['start'] = vcon.utils.cannonize_date(dialog['start'])
 
@@ -1010,7 +1039,7 @@ class Vcon():
           raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
 
     # Translate transcriptions to body for consistency with dialog and attachments
-    for index, analysis in enumerate(old_vcon["analysis"]):
+    for index, analysis in enumerate(old_vcon.get("analysis", [])):
       if(analysis['type'] == "transcript"):
         if("transcript" in analysis):
           analysis['body'] = analysis.pop('transcript')

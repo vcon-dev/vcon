@@ -3,23 +3,23 @@ Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
 import typing
-import vcon.utils
-import vcon.security
-import json
-import jose.utils
-import jose.jws
-import jose.jwe
-import enum
 import sys
-import uuid6
+import json
+import enum
 import time
 import hashlib
 import inspect
 import functools
 import warnings
 import datetime
+import uuid6
+import vcon.utils
+import vcon.security
+import jose.utils
+import jose.jws
+import jose.jwe
 
-_last_v8_timestamp = None
+_LAST_V8_TIMESTAMP = None
 
 def deprecated(reason : str):
   """
@@ -72,10 +72,15 @@ class InvalidVconJson(Exception):
 class InvalidVconHash(Exception):
   """ Hash does not match the content/body """
 
+class InvalidVconSignature(Exception):
+  """ Signature does not match the content"""
+
+
 class VconAttribute:
   """ descriptor base class for attributes in vcon """
   def __init__(self, doc : str = None):
-    self._type_name = None
+    self._type_name = ""
+    self.name = None
     if(doc is not None):
       self.__doc__ = doc
 
@@ -158,7 +163,7 @@ class Vcon():
 
   redacted = VconDict(doc = "redacted Dict for reference or inclusion of less redacted signed or encrypted version of this vCon")
   appended = VconDict(doc = "appended Dict for reference or includsion of signed or encrypted vCon to which this vCon appends data")
-  
+
   group = VconDictList(doc = "List of Dicts referencing or including other vCons to be aggregated by this vCon")
   parties = VconDictList(doc = "List of Dicts, one for each party to this conversation")
   dialog = VconDictList(doc = "List of Dicts referencing or including the capture of text, audio or video (original form of communication) segments for this conversation")
@@ -272,7 +277,9 @@ class Vcon():
 
     parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
     if(parameter_name not in parties_object_string_parameters):
-      raise AttributeError("Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".format(parameter_name, parties_object_string_parameters))
+      raise AttributeError(
+        "Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".
+        format(parameter_name, parties_object_string_parameters))
 
     party_index = self.__add_new_party(party_index)
 
@@ -299,12 +306,12 @@ class Vcon():
 
   def find_parties_by_parameter(self, parameter_name : str, parameter_value_substr : str) -> typing.List[int]:
     """
-    Find the list of parties which have string parameters of the given name and value 
+    Find the list of parties which have string parameters of the given name and value
     which contains the given substring.
 
     Parameters:
       parameter_name (String) name of the Party Object parameter to be searched.
-      paramter_value_substr(String) substring to check if it is contained in the value of the given 
+      paramter_value_substr(String) substring to check if it is contained in the value of the given
               parameter name
 
     Returns:
@@ -377,7 +384,7 @@ class Vcon():
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
     start_time (str, int, float, datetime.datetime): Date, time of the start of
-               the recording. 
+               the recording.
                string containing RFC 2822 or RFC3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
@@ -434,9 +441,9 @@ class Vcon():
     """
     dialog = self.dialog[dialog_index]
     if(dialog["type"] not in ["text", "recording"]):
-      raise AttributeError("dialog[{}] type: {} is not supported".format(dailog_index, dialog["type"]))
+      raise AttributeError("dialog[{}] type: {} is not supported".format(dialog_index, dialog["type"]))
     if(dialog.get("body") is None):
-      raise AttributeError("dialog[{}] does not contain an inline body/file".format(dailog_index))
+      raise AttributeError("dialog[{}] does not contain an inline body/file".format(dialog_index))
 
     encoding = dialog.get("encoding", "None").lower()
     if(encoding == "base64url"):
@@ -520,10 +527,9 @@ class Vcon():
     if(self.dialog is None):
       self._vcon_dict[Vcon.DIALOG] = []
 
-    self.dialog.append(new_dialog)
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
     return(len(body))
-
 
   def verify_dialog_external_recording(self, dialog_index : int, body : bytes) -> None:
     """
@@ -591,9 +597,9 @@ class Vcon():
       analysis_element["vendor_schema"] = vendor_schema
 
     if(self.analysis is None):
-      self._vcon_dict[self.ANALYSIS] = []
+      self._vcon_dict[Vcon.ANALYSIS] = []
 
-    self.analysis.append(analysis_element)
+    self._vcon_dict[Vcon.ANALYSIS].append(analysis_element)
 
   def dumps(self, signed = True) -> str:
     """
@@ -808,8 +814,10 @@ class Vcon():
                 verification_jwk["kty"] = "RSA"
                 verification_jwk["use"] = "sig"
                 verification_jwk["alg"] = signature['header']['alg']
-                verification_jwk["e"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(cert_chain_objects[0].public_key().public_numbers().e)).decode('utf-8')
-                verification_jwk["n"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(cert_chain_objects[0].public_key().public_numbers().n)).decode('utf-8')
+                verification_jwk["e"] = jose.utils.base64url_encode(jose.utils.
+                  long_to_bytes(cert_chain_objects[0].public_key().public_numbers().e)).decode('utf-8')
+                verification_jwk["n"] = jose.utils.base64url_encode(jose.utils.
+                  long_to_bytes(cert_chain_objects[0].public_key().public_numbers().n)).decode('utf-8')
 
                 jws_token = signature['protected'] + "." + self._jws_dict['payload'] + "." + signature['signature']
                 verified_payload = jose.jws.verify(jws_token, verification_jwk, verification_jwk["alg"])
@@ -874,7 +882,7 @@ class Vcon():
   def decrypt(self, private_key_pem_file_name : str, cert_pem_file_name : str) -> None:
     """
     Decrypt a vCon using private and public key file.
-  
+
     vCOn must be in encrypted state and will be in signed state after decryption.
 
     Parameters:
@@ -939,7 +947,7 @@ class Vcon():
 
     self._attempting_modify()
 
-    if(self.uuid is not None and replace == False and len(self.uuid) > 0):
+    if(self.uuid is not None and replace is False and len(self.uuid) > 0):
       raise AttributeError("uuid parameter already set")
 
     uuid = self.uuid8_domain_name(domain_name)
@@ -990,11 +998,11 @@ class Vcon():
       UUID version 8 string
     """
     # This is partially from uuid6.uuid7 implementation:
-    global _last_v8_timestamp
+    global _LAST_V8_TIMESTAMP
 
     nanoseconds = time.time_ns()
-    if _last_v8_timestamp is not None and nanoseconds <= _last_v8_timestamp:
-        nanoseconds = _last_v8_timestamp + 1
+    if _LAST_V8_TIMESTAMP is not None and nanoseconds <= _LAST_V8_TIMESTAMP:
+        nanoseconds = _LAST_V8_TIMESTAMP + 1
     _last_v7_timestamp = nanoseconds
     timestamp_ms, timestamp_ns = divmod(nanoseconds, 10**6)
     subsec = uuid6._subsec_encode(timestamp_ns)

@@ -3,10 +3,10 @@
 
 {% block content %}
 <div class="bg-white shadow overflow-hidden sm:rounded-md">
-  <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
     {% for vcon in vCons %}
-      <li>
-        <a href="/details/{{vcon._id}}" class="block hover:bg-gray-50">
+      <div class="border-2 rounded bg-gray-200">
+        <a href="/details/{{vcon._id}}" class="block hover:white">
           <div class="px-4 py-4 sm:px-6">
             <div class="flex items-center justify-between">
               <p class="text-sm font-medium text-indigo-600 truncate">{{vcon.parties[0]['tel']}} called {{vcon.parties[1]['tel']}}</p>
@@ -20,7 +20,7 @@
                 </p>
               </div>
             </div>
-            <div class="mt-2 sm:flex sm:justify-between">
+            <div class="mt-20 sm:flex sm:justify-between">
               <div class="sm:flex">
                 <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
                   <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -56,8 +56,8 @@
             </div>
           </div>
         </a>
-      </li>
+      </div>
     {% endfor %}
-  </ul>
+    </div>
 </div>
 {% endblock %}

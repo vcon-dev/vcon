@@ -10,6 +10,7 @@ import datetime
 
 import asyncio
 import boto3
+import redis
 
 from fastapi import status
 from fastapi.requests import Request
@@ -17,6 +18,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.applications import FastAPI
 from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_utils.tasks import repeat_every
 from starlette.responses import JSONResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -31,8 +33,7 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 from pydantic_models import VconModel, PyObjectId
 
-
-import settings
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGODB_URL
 
 # Our local modules``
 sys.path.append("..")
@@ -179,7 +180,7 @@ async def show_vcon(request: Request, id: str):
                 break
         if need_transcript:
             # Transcribe it
-            dg_client = Deepgram(DEEPGRAM_KEY)
+            dg_client = Deepgram(settings.DEEPGRAM_KEY)
             audio = open(wav_filename, 'rb')
             source = {
             'buffer': audio,
@@ -245,3 +246,20 @@ async def delete_vcon(id: str):
 
     raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
 
+@app.on_event("startup")
+@repeat_every(seconds=1)
+def check_sqs():
+    sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
+    r = redis.Redis(host='localhost', port=6379, db=0)
+    queue_names = r.smembers('queue_names')
+    try:
+        for queue_name in queue_names:
+            q = queue_name.decode("utf-8") 
+            queue = sqs.get_queue_by_name(QueueName=q)
+            for message in queue.receive_messages():
+                print("Message received from ", q)
+                message.delete()
+                r.rpush(q, message.body)
+                print("Pushed into Redis")
+    except Exception as e:
+        print("Error: {}".format(e))

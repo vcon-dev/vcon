@@ -4,51 +4,60 @@
 {% block content %}
 <!-- This example requires Tailwind CSS v2.0+ -->
 <div class="bg-white shadow overflow-hidden sm:rounded-md">
-  <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
     {% for vcon in vCons %}
-      <li class="col-span-1 bg-white rounded-lg shadow divide-y divide-gray-200">
-        <div class="w-full flex items-center justify-between p-6 space-x-6">
-          <div class="flex-1 truncate">
-            <div class="flex items-center space-x-3">
-              <h3 class="text-gray-900 text-sm font-medium truncate">{{vcon.parties[0]['tel']}} called {{vcon.parties[1]['tel']}}</h3>
+      <div class="border-2 rounded bg-gray-200">
+        <a href="/details/{{vcon._id}}" class="block hover:white">
+          <div class="px-4 py-4 sm:px-6">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-medium text-indigo-600 truncate">{{vcon.parties[0]['tel']}} called {{vcon.parties[1]['tel']}}</p>
+              <div class="ml-2 flex-shrink-0 flex">
+                <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                  {% if vcon.dialog|length > 0 %}
+                    {{ vcon.dialog[0].duration}} seconds
+                  {% elif vcon.status == 'ended' %}
+                    No Conversations
+                  {% endif %}
+                </p>
+              </div>
             </div>
-            <p class="mt-1 text-gray-500 text-sm truncate">
-              {% if vcon.dialog|length > 0 %}
-                {{vcon.dialog[0].duration}} seconds
-              {% endif %}          
-            </p>
-            <p class="mt-1 text-gray-500 text-sm truncate">
-              {{ vcon.created_at }}         
-            </p>
-              <span class="flex-shrink-0 inline-block px-2 py-0.5 mt-10 text-xs font-medium rounded-full">
-                {% if vcon.dialog|length == 0 %}
-                  <span class="bg-red-100">NO AUDIO</span> 
-                {% endif %}          
-              </span>
-          </div>
-        </div>
-        <div>
-          <div class="-mt-px flex divide-x divide-gray-200">
-            <div class="w-0 flex-1 flex">
-              <a href="/details/{{vcon._id}}" class="relative -mr-px w-0 flex-1 inline-flex items-center justify-center py-4 text-sm text-gray-700 font-medium border border-transparent rounded-bl-lg hover:text-gray-500">
-                <!-- Heroicon name: solid/mail -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 110-2h4a1 1 0 011 1v4a1 1 0 11-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 112 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 110 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 110-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd" />
+            <div class="mt-20 sm:flex sm:justify-between">
+              <div class="sm:flex">
+                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                  Raw
+                </p>  
+                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                  <!-- Heroicon name: solid/users -->
+                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  Signed
+                </p>
+                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                  <!-- Heroicon name: solid/location-marker -->
+                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                  </svg>                  
+                  Embedded
+                </p>
+              </div>
+              <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                <!-- Heroicon name: solid/calendar -->
+                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
                 </svg>
-                <span class="ml-3">Details</span>
-              </a>
-            </div>
-            <div class="-ml-px w-0 flex-1 flex">
-              <p onclick="copyToClipboard(this)" data-destination="/details/{{vcon._id}}" class="relative w-0 flex-1 inline-flex items-center justify-center py-4 text-sm text-gray-700 font-medium border border-transparent rounded-br-lg hover:text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" />
-                </svg>
-              <span class="ml-3">Share</span>
-              </p>
+                <p>
+                  Start 
+                  <time>{{ vcon.get("dialog[0].start","No Recordings") }}</time>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </li>
+        </a>
+      </div>
     {% endfor %}
   </ul>
 </div>

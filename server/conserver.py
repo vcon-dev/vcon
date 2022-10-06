@@ -7,6 +7,8 @@ import json
 import urllib.request
 from urllib.error import HTTPError
 import datetime
+import importlib
+from anyio import run
 
 import asyncio
 import boto3
@@ -39,6 +41,9 @@ from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGO
 sys.path.append("..")
 import vcon
 
+# Setup redis
+r = redis.Redis(host='localhost', port=6379, db=0)
+
 # Load FastAPI app
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -58,14 +63,15 @@ app.add_middleware(
 # Start third-party services
 client = motor.motor_asyncio.AsyncIOMotorClient(os.environ["MONGODB_URL"])
 db = client.conserver
-loop = asyncio.get_event_loop()
 
 # Environment variables
 VCON_VERSION = "0.1.1"
 MIMETYPE="audio/wav"
 
-# Home page route
 
+# Routes for the web server
+
+# Home page route
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     vcons = await db["vcons"].find().sort("created_at",-1 ).to_list(100)
@@ -250,16 +256,58 @@ async def delete_vcon(id: str):
 @repeat_every(seconds=1)
 def check_sqs():
     sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
-    r = redis.Redis(host='localhost', port=6379, db=0)
     queue_names = r.smembers('queue_names')
     try:
         for queue_name in queue_names:
             q = queue_name.decode("utf-8") 
             queue = sqs.get_queue_by_name(QueueName=q)
             for message in queue.receive_messages():
-                print("Message received from ", q)
                 message.delete()
                 r.rpush(q, message.body)
-                print("Pushed into Redis")
+                print("Pushed message into Redis list ", q)
     except Exception as e:
         print("Error: {}".format(e))
+
+
+background_tasks = set()
+
+@app.on_event("startup")
+async def check_adapters():
+    print("Checking adapters")
+    adapters = os.listdir("adapters")
+    print("Adapters:", adapters)
+    for adapter in adapters:
+        print("Loading adapter:", adapter)
+        try:
+            print("Importing adapter:", adapter)
+            new_adapter = importlib.import_module("adapters."+adapter)
+            print("Starting adapter:", adapter, new_adapter)
+            background_tasks.add(asyncio.create_task(new_adapter.start()))
+            print("Adapter started:", adapter)
+        except Exception as e:
+            print("Error loading adapter:", adapter, e)
+
+@app.on_event("shutdown")
+async def shutdown_background_tasks():
+    print("Shutting down background tasks")
+    for task in background_tasks:
+        task.cancel()
+        await task
+        print("Task shutdown:", task)
+
+
+""" @app.on_event("startup")
+@repeat_every(seconds=60)
+async def check_plugins():
+    print("Checking plugins")
+    plugins = os.listdir("plugins")
+    print("Plugins:", plugins)
+    for plugin in plugins:
+        print("Loading plugin:", plugin)
+        try:
+            exec(f"from plugins import {plugin}")
+        except Exception as e:
+            print(f"Error loading plugin {plugin}: {e}")
+
+ """
+

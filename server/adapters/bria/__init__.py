@@ -23,7 +23,7 @@ async def start():
                 msg['type'] = original_msg['status']["@type"]
                 msg['source'] = "bria"       
                 msg['payload'] = original_msg
-                await r.publish("ingress-events", json.dumps(msg))
+                # await r.publish("ingress-events", json.dumps(msg))
 
         except asyncio.TimeoutError:
             pass

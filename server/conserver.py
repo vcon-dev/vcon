@@ -264,7 +264,6 @@ def check_sqs():
             for message in queue.receive_messages():
                 message.delete()
                 r.rpush(q, message.body)
-                print("Pushed message into Redis list ", q)
     except Exception as e:
         print("Error: {}".format(e))
 
@@ -272,7 +271,7 @@ def check_sqs():
 background_tasks = set()
 
 @app.on_event("startup")
-async def check_adapters():
+async def load_services():
     print("Checking adapters")
     adapters = os.listdir("adapters")
     print("Adapters:", adapters)
@@ -281,11 +280,26 @@ async def check_adapters():
         try:
             print("Importing adapter:", adapter)
             new_adapter = importlib.import_module("adapters."+adapter)
-            print("Starting adapter:", adapter, new_adapter)
+            print("Starting adapter:", adapter)
             background_tasks.add(asyncio.create_task(new_adapter.start()))
             print("Adapter started:", adapter)
         except Exception as e:
             print("Error loading adapter:", adapter, e)
+
+    print("Checking plugins")
+    plugins = os.listdir("plugins")
+    print("plugins:", plugins)
+    for plugin in plugins:
+        print("Loading plugin:", plugin)
+        try:
+            print("Importing plugin:", plugin)
+            new_plugin = importlib.import_module("plugins."+plugin)
+            print("Starting plugin:", plugin)
+            background_tasks.add(asyncio.create_task(new_plugin.start()))
+            print("plugin started:", plugin)
+        except Exception as e:
+            print("Error loading plugin:", plugin, e)
+
 
 @app.on_event("shutdown")
 async def shutdown_background_tasks():

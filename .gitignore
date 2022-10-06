@@ -6,6 +6,8 @@ server/static/*.mp3
 server/static/*.ogg
 .DS_Store
 server/.DS_Store
+**/dump.rdb
+
 
 
 

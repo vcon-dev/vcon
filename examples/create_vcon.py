@@ -3,11 +3,6 @@ sys.path.append("..")
 
 import vcon
 
-# Process the command line arguments
-print(f"Name of the script      : {sys.argv[0]=}")
-print(f"Arguments of the script : {sys.argv[1:]=}")
-
-
 # Construct empty vCon
 vCon = vcon.Vcon()
 
@@ -31,4 +26,4 @@ vCon.add_dialog_inline_recording(
 
 # Serialize the vCon to a JSON format string
 json_string = vCon.dumps()
-#print(json_string)
+print(json_string)

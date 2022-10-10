@@ -1,1 +1,13 @@
+
 layers
+venv
+**/__pycache__
+server/static/*.wav
+server/static/*.mp3
+server/static/*.ogg
+.DS_Store
+server/.DS_Store
+.vscode
+server/.vscode
+dump.rdb
+server/static

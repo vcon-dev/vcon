@@ -21,13 +21,6 @@ async def start():
                 decoded_element = json.loads(element)
                 message = json.loads(decoded_element.get("Message"))
                 body = json.loads(message['default']['body'])
-                msg = {}
-
-                # Create the message in the format that the server expects
-                msg['source'] = "volie"       
-                msg['type'] = "call_completed"
-                msg['payload'] = body
-
                 try:
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
@@ -35,6 +28,14 @@ async def start():
                     called = body["from_number"]
                     vCon.set_party_tel_url(caller)
                     vCon.set_party_tel_url(called)
+                    adapter_meta= {}
+                    adapter_meta['type'] = 'call_completed'
+                    adapter_meta['adapter'] = "volie"
+                    adapter_meta['received_at'] = datetime.datetime.now().isoformat()
+                    adapter_meta['payload'] = body
+                    vCon.attachments.append(adapter_meta)
+
+
                     vCon.attachments.append(body)
                     await r.publish("ingress-events", vCon.dumps())
                     element = await r.lpop("volie-conserver-feed") 

@@ -29,7 +29,12 @@ async def start():
                 called = body["dst"]
                 vCon.set_party_tel_url(caller)
                 vCon.set_party_tel_url(called)
-                vCon.attachments.append(body)
+                adapter_meta= {}
+                adapter_meta['type'] = 'chat_completed'
+                adapter_meta['adapter'] = "quiq"
+                adapter_meta['received_at'] = datetime.datetime.now().isoformat()
+                adapter_meta['payload'] = body
+                vCon.attachments.append(adapter_meta)
                 await r.publish("ingress-events", vCon.dumps())
                 await asyncio.sleep(1)
 

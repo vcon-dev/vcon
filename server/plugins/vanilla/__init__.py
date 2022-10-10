@@ -4,10 +4,7 @@ import async_timeout
 import redis.asyncio as redis
 import json
 import vcon
-import urllib
-import datetime
 import asyncio
-import logging
 import boto3
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGODB_URL
 
@@ -18,6 +15,8 @@ async def manage_ended_call(inbound_vcon, redis_client):
         vCon = vcon.Vcon()
         vCon.loads(json.dumps(inbound_vcon))
 
+        # Add that this plugin has processed this vCon
+        vCon.attachments.append({"plugin": "vanilla"})
 
         # Save the vCon to the database
         print("Saving to S3")
@@ -29,8 +28,9 @@ async def manage_ended_call(inbound_vcon, redis_client):
         aws_access_key_id=AWS_KEY_ID,
         aws_secret_access_key=AWS_SECRET_KEY
         )
-        s3.Bucket(AWS_BUCKET).put_object(Key=str(inbound_vcon["_id"]), Body=json_string)
-        print("Saved to S3 ", str(inbound_vcon["_id"]))
+        S3Path = "plugins/vanilla/" + str(inbound_vcon["_id"]) + ".vcon"
+        s3.Bucket(AWS_BUCKET).put_object(Key=S3Path, Body=json_string)
+        print(f"{S3Path} Saved to S3 ")
 
         # Save the vCon to Redis (for now)
         await redis_client.sadd("vanilla", json_string)

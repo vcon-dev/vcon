@@ -22,11 +22,7 @@ async def start():
 
                 list = list.decode()
                 payload = json.loads(data.decode())
-                msg = {}
                 original_msg = json.loads(payload.get("Message"))
-                msg['type'] = 'call_completed'
-                msg['source'] = "ringplan"       
-                msg['payload'] = original_msg
 
                 # Construct empty vCon, set meta data
                 vCon = vcon.Vcon()
@@ -34,6 +30,13 @@ async def start():
                 called = original_msg["payload"]["cdr"]["dst"]
                 vCon.set_party_tel_url(caller)
                 vCon.set_party_tel_url(called)
+
+                adapter_meta= {}
+                adapter_meta['type'] = 'call_completed'
+                adapter_meta['adapter'] = "ringplan"
+                adapter_meta['received_at'] = datetime.datetime.now().isoformat()
+                adapter_meta['payload'] = original_msg
+                vCon.attachments.append(adapter_meta)
 
                 # Save the original RingPlan JSON in the vCon
                 vCon.attachments.append(original_msg)

@@ -1,0 +1,12 @@
+Collecting python-jose
+  Using cached python_jose-3.3.0-py2.py3-none-any.whl (33 kB)
+Collecting pyasn1
+  Using cached pyasn1-0.4.8-py2.py3-none-any.whl (77 kB)
+Collecting ecdsa!=0.15
+  Using cached ecdsa-0.18.0-py2.py3-none-any.whl (142 kB)
+Collecting rsa
+  Using cached rsa-4.9-py3-none-any.whl (34 kB)
+Collecting six>=1.9.0
+  Using cached six-1.16.0-py2.py3-none-any.whl (11 kB)
+Installing collected packages: pyasn1, six, ecdsa, rsa, python-jose
+Successfully installed ecdsa-0.18.0 pyasn1-0.4.8 python-jose-3.3.0 rsa-4.9 six-1.16.0

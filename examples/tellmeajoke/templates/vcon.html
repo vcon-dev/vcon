@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet"> 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          fontFamily: {
+            serif: ['Comfortaa', 'Montserrat', 'sans-serif'],
+            main: ['Montserrat', 'sans-serif'],
+          },
+          container: {
+            center: true,
+          },
+        }
+      }
+    </script>
+  </head>
+  <body>
+      <h1 class="text-4xl font-bold text-center font-serif text-gray-900">It's a new vCon!</h1>
+      {{ vcon }}
+  </body>
+</html>

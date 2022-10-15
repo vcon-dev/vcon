@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet"> 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          fontFamily: {
+            serif: ['Comfortaa', 'Montserrat', 'sans-serif'],
+            main: ['Montserrat', 'sans-serif'],
+          }
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container mx-auto w-2/3">
+      <div class="flex flex-row">
+        <div class="basis-800">
+        <img src="/static/logo.png" class="w-64 h-16 mb-4">
+        <h1 class="text-4xl font-bold text-left font-serif text-gray-900">TADHack 2022 : vCons</h1>
+        <h1 class="text-4xl font-bold text-left text-gray-900">Tell Me A Joke</h1>
+        <p class="text-lg text-left text-gray-700">Powered by <a href="http://www.strolid.com/about" class="text-blue-500">Strolid</a></p>
+        <div class="m-10">
+      </div>
+        <div class="flex flex-row">
+          <div class="basis-800">
+            <h2 class="text-2xl font-bold text-left font-serif text-gray-900 mt-10"> Introduction to vCons </h2>
+            <p class="text-left font-main text-gray-900 mt-10"> 
+              <a class="font-main text-blue-500 text-bold" href="https://github.com/vcon-dev/vcon/blob/7b7e0ad8890923c120fc3221790d1cc1157afa5a/docs/vCons_%20an%20Open%20Standard%20for%20Conversation%20Data.pdf">
+                What's a vCon? It's like a PDF for conversations.
+              </a>        
+              A vCon is designed to contain, store and share conversations. vCons 
+              are created by communication systems to capture all of the important parts of a conversation: the recordings, the people,
+              the "semantics" of the conversation, and the context of the conversation.  vCons are designed to be shared between communication
+              services, to power artificial intelligence, but most importantly, to enable tools that confirm the contents and the 
+              authenticity of human biometrics as we record them in customer conversations.
+            </p>  
+            <p class="text-left font-main text-gray-900 mt-10"> 
+              <a class="font-main text-blue-500 text-bold" href="https://github.com/vcon-dev/vcon/blob/main/docs/What%20is%20a%20vCon%20.pdf">
+             There are four sections in a vCon.
+            </a>        
+            a vCon has a dialog section to hold the recordings, a parties section to identify the people involved, an analysis section to hold the semantics of the conversation, and a context section to hold the context of the conversation.
+            and an attachment section to carry related files (the context).
+          </div>
+        </div>
+        <div class="flex flex-row">
+          <div class="basis-800 pl-3">
+            <h2 class="text-2xl font-bold text-left font-serif text-gray-900 mt-10">So, what's the hack? </h2>
+            <p class="text-left font-main text-gray-900 mt-10"> 
+              <a class="font-main text-blue-500 text-bold" href="https://github.com/vcon-dev/vcon">
+                We are building the standard vCon library. 
+              </a>        
+              But we are still missing an important piece - the hello world vCon. Can you help us build it?
+              It's a long tradition in signal processing to have 
+              <a class="font-main text-blue-500 text bold" href="https://en.wikipedia.org/wiki/Lenna"> a common sample. 
+              </a>
+              <p class="text-left font-main text-gray-900 mt-10">
+                We would like you to think of a joke, and record it here on the page, and submit it. 
+                We will then use your joke to build the hello world vCon, post it here, and to send
+                it to the judges (and to the world).  During the judging process, we will pick the funniest
+                vCon and use it as the hello world vCon. A story you can tell your grandchildren.
+              </p>
+            </p>  
+          </div> 
+        </div>
+        <div class="flex flex-row">
+          <div class="basis-800 pl-3">
+            <h2 class="text-2xl font-bold text-left font-serif text-gray-900 mt-10"> Instructions </h2>
+            <p class="text-left font-main text-gray-900 mt-10"> 
+              <ol class="font-main text-gray-900 list-decimal">
+                <li> Think of the funniest joke you know that, if you win and your voice becomes the world vCon standard, won't haunt your older self.</li>
+                <li> Record and upload your joke, get yourself a vCon! Make it a 'wav', 'mp3', or 'm4a' file, and short if you can. </li>
+                <li> We will return a brand spanking new vCon, made from your joke. Frame it!</li>
+                <li> Wait for the judges to pick the funniest joke. </li>
+                <li> If you win, your voice will become the world vCon standard. And you buy dinner. </li>
+              </ol>
+            </p>
+            <p class="text-left font-main text-gray-900 mt-10"> 
+              <form action="{{ url_for("index")}}" enctype="multipart/form-data" method="post">
+                  <label for="email">Joker (you) </label>
+                  <input type="text" id="email" name="email" placeholder="email">  
+                  <input type="file" id="myFile" name="filename">
+                  <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" type="submit">Submit</button>
+              </form>    
+            </p>
+          </div>
+        </div>  
+      </div>
+    </div>
+  </body>
+</html>
+
+  

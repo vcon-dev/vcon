@@ -13,6 +13,7 @@ from anyio import run
 import asyncio
 import boto3
 import redis
+import uvicorn
 
 from fastapi import status
 from fastapi.requests import Request
@@ -324,4 +325,7 @@ async def check_plugins():
             print(f"Error loading plugin {plugin}: {e}")
 
  """
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 

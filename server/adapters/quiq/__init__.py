@@ -30,6 +30,7 @@ async def start():
                 vCon.set_party_tel_url(caller)
                 vCon.set_party_tel_url(called)
                 adapter_meta= {}
+                adapter_meta['src'] = 'conserver'
                 adapter_meta['type'] = 'chat_completed'
                 adapter_meta['adapter'] = "quiq"
                 adapter_meta['received_at'] = datetime.datetime.now().isoformat()

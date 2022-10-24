@@ -19,7 +19,6 @@ async def manage_ended_call(inbound_vcon, redis_client):
         vCon.attachments.append({"plugin": "vanilla"})
 
         # Save the vCon to the database
-        print("Saving to S3")
         json_string = vCon.dumps()
         # Save the vCon to S3
         s3 = boto3.resource(
@@ -30,7 +29,6 @@ async def manage_ended_call(inbound_vcon, redis_client):
         )
         S3Path = "plugins/vanilla/" + str(inbound_vcon["_id"]) + ".vcon"
         s3.Bucket(AWS_BUCKET).put_object(Key=S3Path, Body=json_string)
-        print(f"{S3Path} Saved to S3 ")
 
         # Save the vCon to Redis (for now)
         await redis_client.sadd("vanilla", json_string)

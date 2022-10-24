@@ -1,4 +1,3 @@
-""" security helper functions for the Vcon package """
 
 import os
 import typing
@@ -9,6 +8,7 @@ import base64
 import jose
 import datetime
 import hsslms
+import hashlib
 
 
 # =============================== JWS, JWK Helper Functions ===========================
@@ -310,6 +310,30 @@ def jwe_complete_serialization_to_compact_token(jwe_complete_serialization : dic
   jwe_compact_token = ".".join(jwe_vector)
 
   return(jwe_compact_token)
+
+# =============================== SHA-512 Hash Helper Functions ===========================
+#                            SHA-512 Hash (RFC6234)
+
+def sha_512_hash(data : bytes) -> str:
+  """
+  Generate the SHA-512 hash for the single chunk data pased in.
+
+  Parameters:
+    data - binary bytes for which to generate the hash
+
+  Returns:
+    base64 URL encoded SHA-512 hash of bytes argument
+
+  """
+
+  hasher = hashlib.sha512()
+
+  hasher.update(data)
+
+  sig_hash = jose.utils.base64url_encode(hasher.digest()).decode('utf-8')
+
+  #print("sha_512_hash: {}".format(sig_hash))
+  return(sig_hash)
 
 # =============================== One Time Signature Helper Functions ===========================
 #                            Leighton-Micali One Time Signature (RFC8554)

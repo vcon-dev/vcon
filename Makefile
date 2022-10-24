@@ -1,5 +1,5 @@
 
-PIP_LAYER_PACKAGES= python-jose cryptography hsslms vcon
+PIP_LAYER_PACKAGES= python-jose cryptography hsslms vcon uuid6
 
 PIP_LAYER_PACKAGES_ZIPS = $(addprefix layers/,$(PIP_LAYER_PACKAGES:=.zip))
 

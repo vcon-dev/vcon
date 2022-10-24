@@ -41,8 +41,8 @@ def empty_vcon() -> vcon.Vcon:
 def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   """ construct vCon with two tel URL """
   vCon = empty_vcon
-  first_party = vCon.set_party_tel_url(call_data['source'])
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
   return(vCon)
 
 @pytest.fixture()
@@ -261,7 +261,20 @@ def test_expired_cert_chain(expired_cert : typing.Tuple[cryptography.x509.Certif
     pass
 
 def test_sign_vcon(two_party_tel_vcon : vcon.Vcon) -> None:
+  try:
+    two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
+    raise Exception("Expected exception as sign was attempted with UUID not set.")
+
+  except vcon.InvalidVconState as e:
+    pass
+
+  two_party_tel_vcon.set_uuid("vcon.dev")
+  uuid = two_party_tel_vcon.uuid
+  # Now this should work as we have set a UUID
   two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
+
+  # Should still be valid to read UUID
+  assert(uuid == two_party_tel_vcon.uuid)
 
   try:
     two_party_tel_vcon.sign(GROUP_PRIVATE_KEY, [GROUP_CERT, DIVISION_CERT, CA_CERT])
@@ -287,6 +300,13 @@ def test_sign_vcon(two_party_tel_vcon : vcon.Vcon) -> None:
   deserialized_signed_vcon = vcon.Vcon()
   deserialized_signed_vcon.loads(vcon_json)
 
+  try:
+    duuid = deserialized_signed_vcon.uuid
+    raise Exception("Should be an exception thrown here as vCon is signed, but not verified")
+
+  except vcon.UnverifiedVcon as e:
+    pass
+
   vcon_json2 = deserialized_signed_vcon.dumps()
   assert(vcon_json == vcon_json2)
 
@@ -302,4 +322,4 @@ def test_sign_vcon(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(len(deserialized_signed_vcon.parties) == 2)
   assert(deserialized_signed_vcon.parties[0]['tel'] == call_data['source'])
   assert(deserialized_signed_vcon.parties[1]['tel'] == call_data['destination'])
-
+  assert(uuid == deserialized_signed_vcon.uuid)

@@ -3,15 +3,48 @@ Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
 import typing
+import sys
+import json
+import enum
+import time
+import hashlib
+import inspect
+import functools
+import warnings
+import datetime
+import uuid6
 import vcon.utils
 import vcon.security
-import json
 import jose.utils
 import jose.jws
-import enum
-import uuid
-from datetime import datetime
+import jose.jwe
 
+_LAST_V8_TIMESTAMP = None
+
+def deprecated(reason : str):
+  """
+  Decorator for marking and emmiting warnings on deprecated methods and classes
+  """
+
+  def decorator(func):
+    if inspect.isclass(func):
+      msg = "Call to deprecated class {{}} ({}).".format(reason)
+    else:
+      msg = "Call to deprecated function {{}} ({}).".format(reason)
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+      warnings.simplefilter('always', DeprecationWarning)
+      warnings.warn(
+        msg.format(func.__name__),
+        category=DeprecationWarning,
+        stacklevel=2)
+      warnings.simplefilter('default', DeprecationWarning)
+      return func(*args, **kwargs)
+
+    return new_func
+
+  return decorator
 
 class VconStates(enum.Enum):
   """ Vcon states WRT signing and verification """
@@ -36,23 +69,60 @@ class InvalidVconState(Exception):
 class InvalidVconJson(Exception):
   """ JSON not valid for Vcon """
 
-class VconDictList:
-  """ descriptor for Lists of dicts in vcon """
+class InvalidVconHash(Exception):
+  """ Hash does not match the content/body """
+
+class InvalidVconSignature(Exception):
+  """ Signature does not match the content"""
+
+
+class VconAttribute:
+  """ descriptor base class for attributes in vcon """
+  def __init__(self, doc : str = None):
+    self._type_name = ""
+    self.name = None
+    if(doc is not None):
+      self.__doc__ = doc
+
   def __set_name__(self, owner_class, name):
-    #print("defining new VconList: {}".format(name))
+    #print("defining new Vcon{}: {}".format(self._type_name, name))
     self.name = name
 
-  def __get__(self, instance_object, class_type = None) -> list:
+  def __get__(self, instance_object, class_type = None):
     #print("getting: {} inst type: {} class type: {}".format(self.name, type(instance_object), type(class_type)))
-    # TODO: once signed, this should return a read only list
+    # TODO: once signed, this should return a read only attribute
+    # This may be done by overloading the __get__ method in derived classes
 
-    if(instance_object._state == VconStates.UNVERIFIED):
+    if(instance_object._state in [VconStates.UNVERIFIED, VconStates.DECRYPTED]):
       raise UnverifiedVcon("vCon is signed, but not verified. Call verify before reading data.")
+
+    if(instance_object._state in [VconStates.ENCRYPTED]):
+      raise UnverifiedVcon("vCon is encrypted. Call decrypt and verify before reading data.")
 
     return(instance_object._vcon_dict.get(self.name, None))
 
-  def __set__(self, instance_object, value : dict) -> None:
-    raise AttributeError("not allowed to replace {} List".format(self.name))
+  def __set__(self, instance_object, value : str) -> None:
+    raise AttributeError("not allowed to replace {} {}".format(self.name, self._type_name))
+
+class VconString(VconAttribute):
+  """ descriptor for String attributes in vcon """
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "String"
+
+class VconDict(VconAttribute):
+  """ descriptor for Lists of dicts in vcon """
+
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "Dict"
+
+class VconDictList(VconAttribute):
+  """ descriptor for Lists of dicts in vcon """
+
+  def __init__(self, doc : str = None):
+    super().__init__(doc = doc)
+    self._type_name = "DictList"
 
 class Vcon():
   """
@@ -67,10 +137,21 @@ class Vcon():
   """
 
   # Some commonly used MIME types for convenience
-  MIMETYPE_WAV = "audio/x-wav"
+  MIMETYPE_TEXT_PLAIN = "text/plain"
+  MIMETYPE_AUDIO_WAV = "audio/x-wav"
+  MIMETYPE_AUDIO_MP3 = "audio/x-mp3"
+  MIMETYPE_AUDIO_MP4 = "audio/x-mp4"
+  MIMETYPE_VIDEO_MP4 = "video/x-mp4"
+  MIMETYPE_VIDEO_OGG = "video/ogg"
+  MIMETYPE_MULTIPART = "multipart/mixed"
 
   # Dict keys
   VCON_VERSION = "vcon"
+  UUID = "uuid"
+  SUBJECT = "subject"
+  REDACTED = "redacted"
+  APPENDED = "appended"
+  GROUP = "group"
   PARTIES = "parties"
   DIALOG = "dialog"
   ANALYSIS = "analysis"
@@ -78,10 +159,18 @@ class Vcon():
   CREATED_AT = "created_at"
   ID = "_id"
 
-  parties = VconDictList()
-  dialog = VconDictList()
-  analysis = VconDictList()
-  attachments = VconDictList()
+  vcon = VconString(doc = "vCon version string attribute")
+  uuid = VconString(doc = "vCon UUID string attribute")
+  subject = VconString(doc = "vCon subject string attribute")
+
+  redacted = VconDict(doc = "redacted Dict for reference or inclusion of less redacted signed or encrypted version of this vCon")
+  appended = VconDict(doc = "appended Dict for reference or includsion of signed or encrypted vCon to which this vCon appends data")
+
+  group = VconDictList(doc = "List of Dicts referencing or including other vCons to be aggregated by this vCon")
+  parties = VconDictList(doc = "List of Dicts, one for each party to this conversation")
+  dialog = VconDictList(doc = "List of Dicts referencing or including the capture of text, audio or video (original form of communication) segments for this conversation")
+  analysis = VconDictList(doc = "List of Dicts referencing or includeing analysis data for this conversation")
+  attachments = VconDictList(doc = "List of Dicts referencing or including ancillary documents to this conversation")
 
   # TODO:  work out states the vcon can be in.  For example:
   """
@@ -127,6 +216,10 @@ class Vcon():
     self._vcon_dict[Vcon.ID] = str(uuid.uuid4())
 
 
+  def _attempting_modify(self) -> None:
+    if(self._state != VconStates.UNSIGNED):
+      raise InvalidVconState("Cannot modify Vcon unless current state is UNSIGNED.  Current state: {}".format(self._state))
+
   def __add_new_party(self, index : int) -> int:
     """
     check if a new party needs to be added to the list
@@ -169,29 +262,123 @@ class Vcon():
     # has defininte joine time for each party, but is not captured in the vcon.
     raise Exception("not implemented")
 
-  def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
+  def set_party_parameter(self, parameter_name : str, parameter_value : str, party_index : int =-1) -> int:
     """
-    Set tel URL for a party.
+    Set the named parameter for the given party index.  If the index is not provided,
+    add a new party to the vCon Parties Object array.
 
     Parameters:
-    tel_url
-    party_index (int): index of party to set tel url on
+      parameter_name (String) name of the Party Object parameter to be set.
+                  Must beone of the following: ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+      parameter_value (String) new value to set for the named parameter
+      party_index (int): index of party to set tel url on
                   (-1 indicates a new party should be added)
 
     Returns:
     int: if success, opsitive int index of party in list
     """
 
-    # TODO: should label as caller or called
+    self._attempting_modify()
+
+    parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+    if(parameter_name not in parties_object_string_parameters):
+      raise AttributeError(
+        "Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".
+        format(parameter_name, parties_object_string_parameters))
 
     party_index = self.__add_new_party(party_index)
 
-    self._vcon_dict[Vcon.PARTIES][party_index]['tel'] = tel_url
+    # TODO parameter specific validation
+    self._vcon_dict[Vcon.PARTIES][party_index][parameter_name] = parameter_value
 
     return(party_index)
 
+  @deprecated("use Vcon.set_party_parameter")
+  def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:
+    """
+    Set tel URL for a party.
+
+    Parameters:
+      tel_url
+      party_index (int): index of party to set tel url on
+                  (-1 indicates a new party should be added)
+
+    Returns:
+      int: if success, opsitive int index of party in list
+    """
+
+    return(self.set_party_parameter("tel", tel_url, party_index))
+
+  def find_parties_by_parameter(self, parameter_name : str, parameter_value_substr : str) -> typing.List[int]:
+    """
+    Find the list of parties which have string parameters of the given name and value
+    which contains the given substring.
+
+    Parameters:
+      parameter_name (String) name of the Party Object parameter to be searched.
+      paramter_value_substr(String) substring to check if it is contained in the value of the given
+              parameter name
+
+    Returns:
+      List of indices into the parties object array for which the given parameter name's value
+      contains a match for the given substring.
+    """
+    found = []
+    for party_index, party in enumerate(self.parties):
+      value = party.get(parameter_name, "")
+      if(parameter_value_substr in value):
+        found.append(party_index)
+
+    return(found)
+
+  def add_dialog_inline_text(self, body : str,
+    start_time : typing.Union[str, int, float, datetime.datetime],
+    duration : typing.Union[int, float],
+    party : int,
+    mime_type : str,
+    file_name : str = None) -> int:
+    """
+    Add a dialog segment for a text chat or email thread.
+
+    Parameters:
+      body (str): bytes for the text communication (e.g. text or multipart MIME body).
+      start_time (str, int, float, datetime.datetime): Date, time of the start time the
+               sender started typing or if unavailable, the time it was sent.
+               String containing RFC 2822 or RFC3339 date time stamp or int/float
+               containing epoch time (since 1970) in seconds.
+      duration (int or float): duration in time the sender completed typing in seconds.
+               Should be zero if unknown.
+      party (int) index into parties object array as to which party sent the text communication.
+      mime_type (str): mime type of the body (usually MIMETYPE_TEXT_PLAIN or MIMETYPE_MULTIPART)
+      file_name (str): file name of the body if applicable (optional)
+
+    Returns:
+      Index of the new dialog in the Dialog Object array parameter.
+    """
+
+    self._attempting_modify()
+
+    new_dialog = {}
+    new_dialog['type'] = "text"
+    new_dialog['start'] = vcon.utils.cannonize_date(start_time)
+    new_dialog['duration'] = duration
+    new_dialog['parties'] = party
+    new_dialog['mimetype'] = mime_type
+    if(file_name is not None and len(file_name) > 0):
+      new_dialog['filename'] = file_name
+
+    new_dialog['encoding'] = "None"
+    new_dialog['body'] = body
+
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
+
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
+
+    return(len(self.dialog))
+
   def add_dialog_inline_recording(self, body : bytes,
-    start_time : typing.Union[str, int, float],
+    start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     mime_type : str,
@@ -201,7 +388,8 @@ class Vcon():
 
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
-    start_time (str, int, float): Date, time of the start of the recording.
+    start_time (str, int, float, datetime.datetime): Date, time of the start of
+               the recording.
                string containing RFC 2822 or RFC3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
@@ -213,9 +401,13 @@ class Vcon():
     Returns:
             Number of bytes read from body.
     """
+    # TODO should return dialog index not byte count
+
     # TODO: do we want to know the number of channels?  e.g. to verify party list length
 
     # TODO: should we validate the start time?
+
+    self._attempting_modify()
 
     new_dialog = {}
     new_dialog['type'] = "recording"
@@ -223,7 +415,7 @@ class Vcon():
     new_dialog['duration'] = duration
     new_dialog['parties'] = parties
     new_dialog['mimetype'] = mime_type
-    if(file_name is not None):
+    if(file_name is not None and len(file_name) > 0):
       new_dialog['filename'] = file_name
 
     new_dialog['encoding'] = "base64url"
@@ -231,12 +423,18 @@ class Vcon():
     #print("encoded body type: {}".format(type(encoded_body)))
     new_dialog['body'] = encoded_body
 
-    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
 
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
     return(len(body))
 
+  @deprecated("use Vcon.decode_dialog_inline_body")
   def decode_dialog_inline_recording(self, dialog_index : int) -> bytes:
+    return(self.decode_dialog_inline_body(dialog_index))
+
+  def decode_dialog_inline_body(self, dialog_index : int) -> typing.Union[str, bytes]:
     """
     Get the dialog recording at the given index, decoding it and returning the raw bytes.
 
@@ -247,31 +445,43 @@ class Vcon():
       (bytes): the bytes for the recording file
     """
     dialog = self.dialog[dialog_index]
-    if(dialog["type"] != "recording"):
-      raise AttributeError("dialog[{}] is not a recording file")
+    if(dialog["type"] not in ["text", "recording"]):
+      raise AttributeError("dialog[{}] type: {} is not supported".format(dialog_index, dialog["type"]))
     if(dialog.get("body") is None):
-      raise AttributeError("dialog[{}] does not contain an inline recording file")
+      raise AttributeError("dialog[{}] does not contain an inline body/file".format(dialog_index))
 
-    # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
-    # this is a bug in jose.baseurl_decode
-    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+    encoding = dialog.get("encoding", "None").lower()
+    if(encoding == "base64url"):
+      # This is wrong.  decode should take a string not bytes, but it fails without the bytes conversion
+      # this is a bug in jose.baseurl_decode
+      decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+
+    # No encoding
+    elif(encoding == "none"):
+      decoded_body = dialog["body"]
+
+    else:
+      raise UnsupportedVconVersion("dialog[{}] body encoding: {} not supported".format(dialog_index, dialog["encoding"]))
 
     return(decoded_body)
 
   def add_dialog_external_recording(self, body : bytes,
-    start_time : typing.Union[str, int, float],
+    start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
     external_url: str,
-    mime_type : str =None,
-    file_name : str =None) -> int:
+    mime_type : str = None,
+    file_name : str = None,
+    sign_type : str = "SHA-512") -> int:
     """
     Add a recording of a portion of the conversation, as a reference via the given
-    URL, to the dialog and generate a signature and key for the content.
+    URL, to the dialog and generate a signature and key for the content.  This
+    method has the limitation that the entire recording must be passed in in-memory.
 
     Parameters:
     body (bytes): bytes for the audio or video recording (e.g. wave or MP3 file).
-    start_time (str, int, float): Date, time of the start of the recording.
+    start_time (str, int, float, datetime.datetime): Date, time of the start of
+               the recording.
                string containing RFC 2822 or RFC 3339 date time stamp or int/float
                containing epoch time (since 1970) in seconds.
     duration (int or float): duration of the recording in seconds
@@ -280,10 +490,18 @@ class Vcon():
     external_url (string): https URL where the body is stored securely
     mime_type (str): mime type of the recording (optional)
     file_name (str): file name of the recording (optional)
+    sign_type (str): signature type to create for external signature
+                     default= "SHA-512" use SHA 512 bit hash (RFC6234)
+                     "LM-OTS" use Leighton-Micali One Time Signature (RFC8554
 
     Returns:
             Number of bytes read from body.
     """
+    # TODO should return dialog index not byte count
+
+    # TODO: need a streaming/chunk version of this so that we don't have to have the whole file in memory.
+
+    self._attempting_modify()
 
     new_dialog = {}
     new_dialog['type'] = "recording"
@@ -296,15 +514,27 @@ class Vcon():
     if(file_name is not None):
       new_dialog['filename'] = file_name
 
-    key, signature = vcon.security.lm_one_time_signature(body)
-    new_dialog['key'] = key
-    new_dialog['signature'] = signature
-    new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
+    if(sign_type == "LM-OTS"):
+      print("Warning: \"LM-OTS\" may be depricated", file=sys.stderr)
+      key, signature = vcon.security.lm_one_time_signature(body)
+      new_dialog['key'] = key
+      new_dialog['signature'] = signature
+      new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
 
-    self.dialog.append(new_dialog)
+    elif(sign_type == "SHA-512"):
+      sig_hash = vcon.security.sha_512_hash(body)
+      new_dialog['signature'] = sig_hash
+      new_dialog['alg'] = "SHA-512"
+
+    else:
+      raise AttributeError("Unsupported signature type: {}.  Please use \"SHA-512\" or \"LM-OTS\"".format(sign_type))
+
+    if(self.dialog is None):
+      self._vcon_dict[Vcon.DIALOG] = []
+
+    self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
     return(len(body))
-
 
   def verify_dialog_external_recording(self, dialog_index : int, body : bytes) -> None:
     """
@@ -327,18 +557,26 @@ class Vcon():
     if(dialog['type'] != "recording"):
       raise AttributeError("dialog[{}] is of type: {} not recording".format(dialog_index, dialog['type']))
 
-    if(dialog['alg'] != 'LMOTS_SHA256_N32_W8'):
-      raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
-
-    if(len(dialog['key']) < 1 ):
-      raise AttributeError("dialog[{}] key: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['key']))
-
     if(len(dialog['signature']) < 1 ):
       raise AttributeError("dialog[{}] signature: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['signature']))
 
-    vcon.security.verify_lm_one_time_signature(body,
-      dialog['signature'],
-      dialog['key'])
+    if(dialog['alg'] == 'LMOTS_SHA256_N32_W8'):
+      if(len(dialog['key']) < 1 ):
+        raise AttributeError("dialog[{}] key: {} not set.  Must be for LMOTS_SHA256_N32_W8".format(dialog_index, dialog['key']))
+
+      vcon.security.verify_lm_one_time_signature(body,
+        dialog['signature'],
+        dialog['key'])
+
+    elif(dialog['alg'] == 'SHA-512'):
+      sig_hash = vcon.security.sha_512_hash(body)
+      if( dialog['signature'] != sig_hash):
+        print("dialog[\"signature\"]: {} hash: {}".format(dialog['signature'], sig_hash))
+        print("dialog: {}".format(json.dumps(dialog, indent=2)))
+        raise InvalidVconHash("SHA-512 hash in signature does not match the given body for dialog[{}]".format(dialog_index))
+
+    else:
+      raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
 
   def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
     """
@@ -351,6 +589,8 @@ class Vcon():
                   for vendors that have more than one format or version.
     """
 
+    self._attempting_modify()
+
     analysis_element = {}
     analysis_element["type"] = "transcript"
     # TODO should validate dialog_index??
@@ -361,13 +601,21 @@ class Vcon():
     if(vendor_schema is not None):
       analysis_element["vendor_schema"] = vendor_schema
 
-    self.analysis.append(analysis_element)
+    if(self.analysis is None):
+      self._vcon_dict[Vcon.ANALYSIS] = []
 
-  def dumps(self) -> str:
+    self._vcon_dict[Vcon.ANALYSIS].append(analysis_element)
+
+  def dumps(self, signed = True) -> str:
     """
     Dump the vCon as a JSON string.
 
-    Parameters: none
+    Parameters:
+
+    signed (Boolean): If the vCon is signed locally or verfied,
+        True: serialize the signed version
+        False: serialize the unsigned version
+
     Returns:
              String containing JSON representation of the vCon.
     """
@@ -376,12 +624,19 @@ class Vcon():
     # not throw if it not signed.
 
     if(self._state == VconStates.UNSIGNED):
+      if(self.uuid is None or len(self.uuid) < 1):
+        raise InvalidVconState("vCon has no UUID set.  Use set_uuid method.")
+
       return(json.dumps(self._vcon_dict))
 
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
+      if(signed is False and self._state != VconStates.UNVERIFIED):
+        return(json.dumps(self._vcon_dict))
       return(json.dumps(self._jws_dict))
 
     if(self._state in [VconStates.ENCRYPTED, VconStates.DECRYPTED]):
+      if(signed is False):
+        raise AttributeError("not supported: unsigned JSON output for encrypted vCon")
       return(json.dumps(self._jwe_dict))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
@@ -391,6 +646,11 @@ class Vcon():
     Load the vCon from a JSON string.
     Assumes that this vCon is an empty vCon as it is not cleared.
 
+    Decision as to what json form to be deserialized is:
+    1) unsigned vcon must have a vcon and one or more of the following elements: parties, dialog, analysis, attachments
+    2) JWS vCon must have a payload and signatures
+    3) JWE vCon must have a cyphertext and recipients
+
     Parameters:
       vcon_json (str): string containing JSON representation of a vCon
 
@@ -398,13 +658,6 @@ class Vcon():
     """
 
     #TODO: Should check unsafe stuff is not loaded
-
-    """
-    Decision as to what json to be deserialized is:
-    1) vcon must have a vcon and one or more of the following elements: parties, dialog, analysis, attachments
-    2) JWS must have a payload and signatures
-    3) JWE must have a protected and recipients
-    """
 
     if(self._state != VconStates.UNSIGNED):
       raise InvalidVconState("Cannot load Vcon unless current state is UNSIGNED.  Current state: {}".format(self._state))
@@ -434,7 +687,7 @@ class Vcon():
       self._jwe_dict = vcon_dict
 
     # Unsigned vCon has to have vcon version and
-    elif(('vcon' in vcon_dict) and (
+    elif((self.VCON_VERSION in vcon_dict) and (
       # one of the following arrays
       ('parties' in vcon_dict) or
       ('dialog' in vcon_dict) or
@@ -443,7 +696,7 @@ class Vcon():
       )):
 
       # validate version
-      version_string = vcon_dict.get('vcon', "not set")
+      version_string = vcon_dict.get(self.VCON_VERSION, "not set")
       if(version_string != "0.0.1"):
         raise UnsupportedVconVersion("loads of JSON vcon version: \"{}\" not supported".format(version_string))
 
@@ -451,7 +704,7 @@ class Vcon():
 
     # Unknown
     else:
-      raise InvalidVconJson("Not recognized as a unsigned or signed JSON vCon")
+      raise InvalidVconJson("Not recognized as a unsigned, signed or encrypted JSON vCon")
 
 
   def sign(self, private_key_pem_file_name : str, cert_chain_pem_file_names : typing.List[str]) -> None:
@@ -473,6 +726,9 @@ class Vcon():
 
     if(self._state != VconStates.UNSIGNED):
       raise InvalidVconState("Vcon not in valid state to be signed: {}.".format(self._state))
+
+    if(self.uuid is None or len(self.uuid) < 1):
+      raise InvalidVconState("vCon has no UUID set.  Use set_uuid method before signing.")
 
     header, signing_jwk = vcon.security.build_signing_jwk_from_pem_files(private_key_pem_file_name, cert_chain_pem_file_names)
 
@@ -563,8 +819,10 @@ class Vcon():
                 verification_jwk["kty"] = "RSA"
                 verification_jwk["use"] = "sig"
                 verification_jwk["alg"] = signature['header']['alg']
-                verification_jwk["e"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(cert_chain_objects[0].public_key().public_numbers().e)).decode('utf-8')
-                verification_jwk["n"] = jose.utils.base64url_encode(jose.utils.long_to_bytes(cert_chain_objects[0].public_key().public_numbers().n)).decode('utf-8')
+                verification_jwk["e"] = jose.utils.base64url_encode(jose.utils.
+                  long_to_bytes(cert_chain_objects[0].public_key().public_numbers().e)).decode('utf-8')
+                verification_jwk["n"] = jose.utils.base64url_encode(jose.utils.
+                  long_to_bytes(cert_chain_objects[0].public_key().public_numbers().n)).decode('utf-8')
 
                 jws_token = signature['protected'] + "." + self._jws_dict['payload'] + "." + signature['signature']
                 verified_payload = jose.jws.verify(jws_token, verification_jwk, verification_jwk["alg"])
@@ -607,8 +865,8 @@ class Vcon():
     Returns: none
     """
 
-    if(self._state != VconStates.SIGNED):
-      raise InvalidVconState("Vcon must be signed before it can be encerypted")
+    if(self._state not in [VconStates.SIGNED, VconStates.UNVERIFIED]):
+      raise InvalidVconState("Vcon must be signed before it can be encrypted")
 
     if(len(self._jws_dict) < 2):
       raise InvalidVconState("Vcon signature does not seem valid: {}".format(self._jws_dict))
@@ -629,7 +887,7 @@ class Vcon():
   def decrypt(self, private_key_pem_file_name : str, cert_pem_file_name : str) -> None:
     """
     Decrypt a vCon using private and public key file.
-  
+
     vCOn must be in encrypted state and will be in signed state after decryption.
 
     Parameters:
@@ -664,6 +922,110 @@ class Vcon():
       self._state = current_state
       raise e
 
+  def set_subject(self, subject: str) -> None:
+    """
+    Set the subject parameter of the vCon.
+
+    Parameters:
+      subject - String value to assign to the vCon subject parameter.
+
+    Returns: None
+    """
+
+    self._attempting_modify()
+
+    self._vcon_dict[Vcon.SUBJECT] = subject
+
+  def set_uuid(self, domain_name: str, replace: bool= False) -> str:
+    """
+    Generate a UUID for this vCon and set the parameter
+
+    Parameters:
+      domain_name: a DNS domain name string, should generally be a fully qualified host
+          name.
+
+    Returns:
+      UUID version 8 string
+      (vCon uuid parameter is also set)
+
+    """
+
+    self._attempting_modify()
+
+    if(self.uuid is not None and replace is False and len(self.uuid) > 0):
+      raise AttributeError("uuid parameter already set")
+
+    uuid = self.uuid8_domain_name(domain_name)
+
+    self._vcon_dict[Vcon.UUID] = uuid
+
+    return(uuid)
+
+  @staticmethod
+  def uuid8_domain_name(domain_name: str) -> str:
+    """
+    Generate a version 8 (custom) UUID using the upper 62 bits of the SHA-1 hash
+    for the given DNS domain name string for custom_c and generating
+    custom_a and custom_b the same way as unix_ts_ms and rand_a respectively
+    for UUID version 7 (per IETF I-D draft-peabody-dispatch-new-uuid-format-04).
+
+    Parameters:
+      domain_name: a DNS domain name string, should generally be a fully qualified host
+          name.
+
+    Returns:
+      UUID version 8 string
+    """
+
+    sha1_hasher = hashlib.sha1()
+    sha1_hasher.update(bytes(domain_name, "utf-8"))
+    dn_sha1 = sha1_hasher.digest()
+
+    hash_upper_64 = dn_sha1[0:8]
+    int64 = int.from_bytes(hash_upper_64, byteorder="big")
+
+    uuid8_domain = Vcon.uuid8_time(int64)
+
+    return(uuid8_domain)
+
+  @staticmethod
+  def uuid8_time(custom_c_62_bits: int) -> str:
+    """
+    Generate a version 8 (custom) UUID using the given custom_c and generating
+    custom_a and custom_b the same way as unix_ts_ms and rand_a respectively
+    for UUID version 7 (per IETF I-D draft-peabody-dispatch-new-uuid-format-04).
+
+    Parameters:
+      custom_c_62_bits: the 62 bit value as an integer to be used for custom_b
+           portion of UUID version 8.
+
+    Returns:
+      UUID version 8 string
+    """
+    # This is partially from uuid6.uuid7 implementation:
+    global _LAST_V8_TIMESTAMP
+
+    nanoseconds = time.time_ns()
+    if _LAST_V8_TIMESTAMP is not None and nanoseconds <= _LAST_V8_TIMESTAMP:
+        nanoseconds = _LAST_V8_TIMESTAMP + 1
+    _last_v7_timestamp = nanoseconds
+    timestamp_ms, timestamp_ns = divmod(nanoseconds, 10**6)
+    subsec = uuid6._subsec_encode(timestamp_ns)
+
+    # This is not what is in the vCon I-D.  It says random bits
+    # not bits from the time stamp.  May want to change this
+    subsec_a = subsec >> 8
+    uuid_int = (timestamp_ms & 0xFFFFFFFFFFFF) << 80
+    uuid_int |= subsec_a << 64
+    uuid_int |= custom_c_62_bits
+
+    # We lie about the version and then correct it afterwards
+    uuid_str = str(uuid6.UUID(int=uuid_int, version=7))
+    assert(uuid_str[14] == '7')
+    uuid_str =  uuid_str[:14] +'8' + uuid_str[15:]
+
+    return(uuid_str)
+
   @staticmethod
   def migrate_0_0_1_vcon(old_vcon : dict) -> dict:
     """
@@ -677,20 +1039,20 @@ class Vcon():
     """
 
     # Fix dates in older dialogs
-    for index, dialog in enumerate(old_vcon["dialog"]):
+    for index, dialog in enumerate(old_vcon.get("dialog", [])):
       if("start" in dialog):
         dialog['start'] = vcon.utils.cannonize_date(dialog['start'])
 
       if("alg" in dialog):
         if( dialog['alg'] == "lm-ots"):
           dialog['alg'] = "LMOTS_SHA256_N32_W8"
-        elif( dialog['alg'] == "LMOTS_SHA256_N32_W8"):
+        elif( dialog['alg'] in ["SHA-512", "LMOTS_SHA256_N32_W8"]):
           pass
         else:
-          raise AttributeError("dialog[{}] alg: {} not supported.  Must be LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
+          raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(index, dialog['alg']))
 
     # Translate transcriptions to body for consistency with dialog and attachments
-    for index, analysis in enumerate(old_vcon["analysis"]):
+    for index, analysis in enumerate(old_vcon.get("analysis", [])):
       if(analysis['type'] == "transcript"):
         if("transcript" in analysis):
           analysis['body'] = analysis.pop('transcript')

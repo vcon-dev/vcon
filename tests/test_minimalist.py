@@ -48,11 +48,23 @@ def empty_vcon() -> vcon.Vcon:
 def two_party_tel_vcon(empty_vcon : vcon.Vcon) -> vcon.Vcon:
   """ construct vCon with two tel URL """
   vCon = empty_vcon
-  first_party = vCon.set_party_tel_url(call_data['source'])
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
+  assert(first_party == 0)
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
+  assert(second_party == 1)
   return(vCon)
 
-def test_tel(empty_vcon : vcon.Vcon):
+def test_party_parameters(empty_vcon : vcon.Vcon):
+  try:
+    empty_vcon.set_party_parameter("foo", "bar")
+    Exception("Should not allow setting of foo parameter on a Party")
+
+  except AttributeError as e:
+    pass
+
+  assert(len(empty_vcon.parties) == 0)
+
+def test_party_tel(empty_vcon : vcon.Vcon):
   """ Test adding first party with a tel url to create simple vCon """
 
   vCon = empty_vcon
@@ -66,6 +78,11 @@ def test_tel(empty_vcon : vcon.Vcon):
   assert_vcon_array_size(vCon, "attachments", 0)
 
 
+  existing_party_index = vCon.set_party_parameter("tel", call_data['source'] + "2", party_index)
+  assert(existing_party_index == party_index)
+  assert(vCon._vcon_dict[VCON_PARTIES][party_index]['tel'] == call_data['source'] + "2")
+  assert_vcon_array_size(vCon, VCON_PARTIES, 1)
+
 def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
   """ Test two party call with tel urls """
   vCon = empty_vcon
@@ -75,13 +92,13 @@ def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
   assert_vcon_array_size(vCon, VCON_DIALOG, 0)
   assert_vcon_array_size(vCon, "analysis", 0)
   assert_vcon_array_size(vCon, "attachments", 0)
-  first_party = vCon.set_party_tel_url(call_data['source'])
+  first_party = vCon.set_party_parameter("tel", call_data['source'])
   assert(first_party == 0)
   assert(vCon._vcon_dict[VCON_PARTIES][first_party]['tel'] == call_data['source'])
   assert_vcon_array_size(vCon, VCON_PARTIES, 1)
 
   # 2nd party:
-  second_party = vCon.set_party_tel_url(call_data['destination'])
+  second_party = vCon.set_party_parameter("tel", call_data['destination'])
   assert(second_party== 1)
   assert(vCon._vcon_dict[VCON_PARTIES][second_party]['tel'] == call_data['destination'])
   # make sure 1st party did not get modified
@@ -93,11 +110,22 @@ def test_two_tel_party_vcon(empty_vcon : vcon.Vcon) -> None:
 
 def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
   vCon = two_party_tel_vcon
-  
+ 
+  try: 
+    vcon_json = vCon.dumps()
+    raise Exception("Expected exception as vCon did not have a UUID set")
+
+  except vcon.InvalidVconState as e:
+    # We expect this exception for UUID not set
+    pass
+
+  vCon.set_uuid("vcon.dev")
+  # should work now that UUID is set
   vcon_json = vCon.dumps()
+
   vcon_dict = json.loads(vcon_json)
 
-  assert(vcon_dict["vcon"] == "0.0.1")
+  assert(vcon_dict[vcon.Vcon.VCON_VERSION] == "0.0.1")
   assert_dict_array_size(vcon_dict, VCON_PARTIES, 2)
   assert(vcon_dict['parties'][0]['tel'] == call_data['source'])
   assert(vcon_dict['parties'][1]['tel'] == call_data['destination'])
@@ -106,6 +134,7 @@ def test_dumps(two_party_tel_vcon : vcon.Vcon) -> None:
   assert_dict_array_size(vcon_dict, "attachments", 0)
   
 def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
+  two_party_tel_vcon.set_uuid("vcon.dev")
   vcon_json = two_party_tel_vcon.dumps()
   empty_vcon.loads(vcon_json)
 
@@ -115,6 +144,7 @@ def test_loads(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
 def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
   """ Test add of a recording file inline to ensure base64 encode and decode are properly done. """
   vCon = two_party_tel_vcon
+  vCon.set_uuid("vcon.dev")
   deserialized_vcon = empty_vcon
   random_size = 4096
   fake_recording_file = os.urandom(random_size)
@@ -144,7 +174,13 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   assert(decoded_file == fake_recording_file)
 
   # Test real accessor
+  # this method depreicated
   decoded_body = vCon.decode_dialog_inline_recording(0)
+  assert(len(decoded_file) == len(decoded_body))
+  assert(decoded_file == decoded_body)
+
+  # Test real accessor
+  decoded_body = vCon.decode_dialog_inline_body(0)
   assert(len(decoded_file) == len(decoded_body))
   assert(decoded_file == decoded_body)
 

@@ -24,6 +24,7 @@ async def start():
                 try:
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
+                    vCon.set_uuid("vcon.dev")
                     caller = body["to_number"]
                     called = body["from_number"]
                     vCon.set_party_tel_url(caller)

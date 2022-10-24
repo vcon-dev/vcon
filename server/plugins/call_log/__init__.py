@@ -11,7 +11,6 @@ from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGO
 
 
 async def save_to_s3(vcon):
-    print("Saving to S3")
     json_string = vcon.dumps()
     # Save the vCon to S3
     s3 = boto3.resource(
@@ -21,27 +20,20 @@ async def save_to_s3(vcon):
     aws_secret_access_key=AWS_SECRET_KEY
     )
  
-    print("Saving to S3", type(vcon))
+    vconId = vcon.uuid
     S3Path = "plugins/call_log/" + str(vconId) + ".vcon"
     s3.Bucket(AWS_BUCKET).put_object(Key=S3Path, Body=json_string)
-    print(f"{S3Path} Saved to S3 ")
 
 async def save_to_redis(vcon, redis_client):
-    print("Saving to Redis")
     json_string = vcon.dumps()
     # Save the vCon to Redis (for now)
     await redis_client.sadd("call_log", json_string)
-    print("Saved to Redis")
 
 async def save_to_mongo(vcon, mongo_client):
-    print("Saving to MongoDB")
     json_string = vcon.dumps()
-    # Save the vCon to MongoDB
-    await mongo_client.call_log.insert_one(json_string)
-    print("Saved to MongoDB")
+    json_vcon = json.loads(json_string)
+    mongo_client.conserver.call_log.insert_one(json_vcon)
     
-
-
 
 async def manage_ended_call(inbound_vcon, redis_client, mongo_client):
     try:
@@ -52,11 +44,8 @@ async def manage_ended_call(inbound_vcon, redis_client, mongo_client):
         # Add that this plugin has processed this vCon
         vCon.attachments.append({"plugin": "call_log"})
         # Save the vCon to the database(s)
-        print("Saving to S3")
         await save_to_s3(vCon)
-        print("Saving to Redis")
         await save_to_redis(vCon, redis_client)
-        print("Saving to MongoDB")
         await save_to_mongo(vCon, mongo_client)
     
     except Exception as e:
@@ -77,8 +66,6 @@ async def start():
                     if message['type'] == 'message':
                         body = json.loads(message['data'].decode())
                         await manage_ended_call(body, r, m)
-                        print("call_log plugin received message")
-                        print(body)
                         await asyncio.sleep(1)
 
         except asyncio.TimeoutError:

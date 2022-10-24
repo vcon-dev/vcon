@@ -4,10 +4,16 @@ import async_timeout
 import redis.asyncio as redis
 import json
 import urllib
-import datetime
+from datetime import date
 from pydub import AudioSegment
 from urllib.parse import urlparse
 import sys
+from uuid6 import uuid 
+from datetime import datetime
+from urllib.parse import urlparse, parse_qs
+import humanize
+
+
 
 sys.path.append("../..")
 import vcon
@@ -18,13 +24,11 @@ async def start():
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
         try:
-            async with async_timeout.timeout(5):
+            async with async_timeout.timeout(10):
                 list, data = await r.blpop("ringplan-conserver-feed")
                 if data is None:
-                    await asyncio.sleep(1)
                     continue
 
-                print("Found a ring_plan")
                 try:
                     list = list.decode()
                     payload = json.loads(data.decode())
@@ -32,6 +36,7 @@ async def start():
 
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
+                    vCon.set_uuid("vcon.dev")
 
                     payload = original_msg.get("payload")
 
@@ -42,43 +47,49 @@ async def start():
                     # The file name is the last part of the URL
                     recording_filename = host.split("/")[-1]
 
-                    try:
-                        # Download the recording
-                        print("Downloading recording from: ", recording_url)
-                        recording_bytes = urllib.request.urlopen(recording_url).read()
-                        starttime = payload.get("cdr").get("starttime")
-                        duration = payload.get("cdr").get("duration")
+                    # Download the recording
+                    parse_result = urlparse(recording_url)
+                    dict_result = parse_qs(parse_result.query)
+                    expires = datetime.fromtimestamp(int(dict_result.get("Expires")[0]))
+                    expires_human = humanize.precisedelta(expires)
 
-                        vCon.add_dialog_inline_recording(
-                        recording_bytes,
-                        starttime,
-                        duration,
-                        [0, 1], # parties recorded
-                        "audio/ogg", # MIME type
-                        recording_filename)
-                        print("Recording downloaded")
+                    if (datetime.today() > expires):
+                        print("Recording expired {} ago.".format(expires_human))
 
-                    except urllib.error.HTTPError as err:
-                        error_msg = "Error retrieving recording from " + recording_url
-                        error_type = "HTTPError"
-                        error_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-                        vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
-                        print("Recording not downloaded, expired")
+                    else:   
+                        try:
+                            # Download the recording
+                            recording_bytes = urllib.request.urlopen(recording_url).read()
+                            starttime = payload.get("cdr").get("starttime")
+                            duration = payload.get("cdr").get("duration")
 
+                            vCon.add_dialog_inline_recording(
+                            recording_bytes,
+                            starttime,
+                            duration,
+                            [0, 1], # parties recorded
+                            "audio/ogg", # MIME type
+                            recording_filename)
 
+                        except urllib.error.HTTPError as err:
+                            error_msg = "Error retrieving recording from " + recording_url
+                            error_type = "HTTPError"
+                            error_time = date.today().strftime("%m/%d/%Y, %H:%M:%S")
+                            vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
+                            print("Recording not downloaded, expired")
 
 
                     if payload.get("cdr").get("direction") == "IN":
                         caller = payload.get("cdr").get("src")
                         called = payload.get("cdr").get("dst")
-                        vCon.set_party_tel_url(caller,-1)
-                        vCon.set_party_tel_url(called,-1)
+                        vCon.set_party_parameter("tel", caller)
+                        vCon.set_party_parameter("tel", called)
                         agent_party = 1
                     else:
                         caller = payload.get("cdr").get("dst")
                         called = payload.get("cdr").get("src")
-                        vCon.set_party_tel_url(caller,-1)
-                        vCon.set_party_tel_url(called,-1)
+                        vCon.set_party_parameter("tel", caller)
+                        vCon.set_party_parameter("tel", called)
                         agent_party = 0
                     
                     vCon.parties[agent_party]["network"] = payload.get("cdr").get("network")
@@ -95,13 +106,10 @@ async def start():
                     adapter_meta['src'] = 'conserver'
                     adapter_meta['type'] = 'call_completed'
                     adapter_meta['adapter'] = "ringplan"
-                    adapter_meta['received_at'] = datetime.datetime.now().isoformat()
+                    adapter_meta['received_at'] = date.today().isoformat()
                     adapter_meta['payload'] = original_msg
 
                     vCon.attachments.append(adapter_meta)
-
-                    print("Sending vCon to server")
-                    print(vCon)
                     await r.publish("ingress-events",  vCon.dumps())
                 except Exception as e:
                     print("Error in ringplan adapter: {}".format(e))

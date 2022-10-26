@@ -301,6 +301,20 @@ async def load_services():
         except Exception as e:
             print("Error loading plugin:", plugin, e)
 
+    print("Checking storage")
+    storages = os.listdir("storage")
+    print("storage:", storages)
+    for storage in storages:
+        print("Loading storage:", storage)
+        try:
+            print("Importing storage:", storage)
+            new_storage = importlib.import_module("storage."+storage)
+            print("Starting storage:", storage)
+            background_tasks.add(asyncio.create_task(new_storage.start()))
+            print("storage started:", storage)
+        except Exception as e:
+            print("Error loading storage:", storage, e)
+
 
 @app.on_event("shutdown")
 async def shutdown_background_tasks():

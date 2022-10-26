@@ -215,7 +215,7 @@ class Vcon():
     self._vcon_dict[Vcon.DIALOG] = []
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
-    self._vcon_dict[Vcon.CREATED_AT] = date.today().strftime("%a, %d %b %Y %H:%M:%S %z")
+    self._vcon_dict[Vcon.CREATED_AT] = datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S %z")
     self._vcon_dict[Vcon.ID] = str(uuid.uuid4())
     
 

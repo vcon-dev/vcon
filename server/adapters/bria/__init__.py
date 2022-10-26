@@ -39,7 +39,7 @@ async def start():
 
 
                     vCon.attachments.append(body)
-                    await r.publish("ingress-events", vCon.dumps())
+                    await r.publish("ingress-vcons", vCon.dumps())
                 except Exception as e:
                     print("bria adapter error: {}".format(e))
 
@@ -105,7 +105,7 @@ async def start():
                 msg['type'] = original_msg['status']["@type"]
                 msg['source'] = "bria"       
                 msg['payload'] = original_msg
-                # await r.publish("ingress-events", json.dumps(msg))
+                await r.publish("ingress-vcons", json.dumps(msg))
 
         except asyncio.TimeoutError:
             pass

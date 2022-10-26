@@ -70,6 +70,7 @@ async def start():
                             [0, 1], # parties recorded
                             "audio/ogg", # MIME type
                             recording_filename)
+                            print("Recording successfully downloaded and attached to vCon")
 
                         except urllib.error.HTTPError as err:
                             error_msg = "Error retrieving recording from " + recording_url

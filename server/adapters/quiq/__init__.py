@@ -37,7 +37,7 @@ async def start():
                 adapter_meta['received_at'] = datetime.datetime.now().isoformat()
                 adapter_meta['payload'] = body
                 vCon.attachments.append(adapter_meta)
-                await r.publish("ingress-events", vCon.dumps())
+                await r.publish("ingress-vcons", vCon.dumps())
                 await asyncio.sleep(1)
 
         except asyncio.TimeoutError:

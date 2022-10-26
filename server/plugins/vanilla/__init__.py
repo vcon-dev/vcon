@@ -44,7 +44,7 @@ async def start():
         try:
             async with async_timeout.timeout(5):
                 pubsub = r.pubsub()
-                await pubsub.subscribe("ingress-events")
+                await pubsub.subscribe("ingress-vcons")
                 async for message in pubsub.listen():
                     if message['type'] == 'message':
                         body = json.loads(message['data'].decode())

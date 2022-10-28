@@ -1,15 +1,16 @@
 import asyncio
-from pydoc import doc
 import async_timeout
 import redis.asyncio as redis
 import json
 import vcon
-import urllib
 import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def start():
-    print("Starting the quiq adapter")
+    logger.info("Starting the quiq adapter")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
@@ -37,6 +38,7 @@ async def start():
                 adapter_meta['received_at'] = datetime.datetime.now().isoformat()
                 adapter_meta['payload'] = body
                 vCon.attachments.append(adapter_meta)
+                logger.info("New vCon created: {}".format(vCon.uuid))
                 await r.publish("ingress-vcons", vCon.dumps())
                 await asyncio.sleep(1)
 
@@ -44,13 +46,13 @@ async def start():
             pass
 
         except asyncio.CancelledError:
-            print("quiq Cancelled")
+            logger.debug("quiq Cancelled")
             break
 
         except Exception as e:
-            print("quiq adapter error: {}".format(e))
+            logger.debug("quiq adapter error: {}".format(e))
 
-    print("Adapter stopped")    
+    logger.info("Adapter stopped")    
 
 
 

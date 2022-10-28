@@ -3,6 +3,9 @@ import async_timeout
 import redis.asyncio as redis
 import json
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def reader(redis: redis, channel: redis.client.PubSub):
     while True:
@@ -10,8 +13,8 @@ async def reader(redis: redis, channel: redis.client.PubSub):
             async with async_timeout.timeout(1):
                 message = await channel.get_message(ignore_subscribe_messages=True)
                 if message is not None:
-                    print("Storage adapter received: {}".format(message))
                     vcon = json.loads(message['data'])
+                    logger.info("Storage adapter received vCon: {}".format(vcon.get('uuid')))
                     try:
                         json_string = json.dumps(vcon)
                         # Save the vCon to Redis (for now)

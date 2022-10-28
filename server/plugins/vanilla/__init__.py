@@ -1,12 +1,14 @@
 import asyncio
-from pydoc import doc
 import async_timeout
 import redis.asyncio as redis
 import json
 import vcon
 import asyncio
 import boto3
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGODB_URL
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def manage_ended_call(inbound_vcon, redis_client):
@@ -34,10 +36,10 @@ async def manage_ended_call(inbound_vcon, redis_client):
         await redis_client.sadd("vanilla", json_string)
     
     except Exception as e:
-        print("manage_ended_call error: {}".format(e))
+        logger.debug("manage_ended_call error: {}".format(e))
 
 async def start():
-    print("Starting the vanilla plugin")
+    logger.info("Starting the vanilla plugin")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
@@ -55,10 +57,10 @@ async def start():
             pass
 
         except asyncio.CancelledError:
-            print("vanilla plugin Cancelled")
+            logger.debug("vanilla plugin Cancelled")
             break
 
-    print("vanilla plugin stopped")    
+    logger.info("vanilla plugin stopped")    
 
 
 

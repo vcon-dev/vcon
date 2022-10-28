@@ -6,6 +6,10 @@ import json
 import vcon
 import urllib
 import datetime
+import logging 
+
+logger = logging.getLogger(__name__)
+
 
 def adapter_meta(body, type):
     meta= {}
@@ -88,22 +92,18 @@ def create_vcon_from_phone_call(body):
                 [0, 1], # parties recorded
                 "audio/x-wav", # MIME type
                 recording_filename)
-                print("Recording successfully downloaded and attached to vCon")
 
             except urllib.error.HTTPError as err:
                 error_msg = "Error retrieving recording from " + recording_url
                 error_type = "HTTPError"
                 error_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
                 vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
-                print("Recording not downloaded, expired")
         return vCon
 
     except Exception as e:
-        print("create_vcon_from_phone_call error: {}".format(e))
+        logger.debug("create_vcon_from_phone_call error: {}".format(e))
         return None
 
-
-print("The file has loaded!")
 async def start():
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
@@ -122,29 +122,24 @@ async def start():
                     # Decode it
                     kind = body.get('kind', 'unknown')
                     if kind == 'NEW_MESSAGE':
-                        print("Found an SMS")
                         vCon = create_vcon_from_sms(body)
                     elif kind == 'NEW_CALL':
-                        print("Found a phone call")
                         vCon = create_vcon_from_phone_call(body)
                     elif kind == 'NEW_EMAIL':
-                        print("Found an email")
                         vCon = create_vcon_from_email(body)
                     else:
-                        print("What the heck is this? {}".format(body))
+                        logger.debug("What the heck is this? {}".format(body))
                         continue
-
-                    print(type(vCon))
-                    print(vCon.dumps())
+                    logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
                     await r.publish("ingress-vcons", vCon.dumps())
                 except Exception as e:
-                    print("volie adapter error: {}".format(e))
+                    logger.debug("volie adapter error: {}".format(e))
 
         except asyncio.TimeoutError:
             pass    
         except asyncio.CancelledError:
-            print("Volie Cancelled")
+            logger.info("Volie Cancelled")
             break
 
-    print("Volie Adapter stopped")    
+    logger.info("Volie Adapter stopped")    
 

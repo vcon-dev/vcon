@@ -1,14 +1,11 @@
-
 import os
 import sys
 import logging
-from typing import Optional, List
+import logging.config
 import json
 import urllib.request
-from urllib.error import HTTPError
 import datetime
 import importlib
-from anyio import run
 
 import asyncio
 import boto3
@@ -19,7 +16,6 @@ from fastapi import status
 from fastapi.requests import Request
 from fastapi.exceptions import HTTPException
 from fastapi.applications import FastAPI
-from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_utils.tasks import repeat_every
 from starlette.responses import JSONResponse, HTMLResponse
@@ -31,16 +27,19 @@ import motor.motor_asyncio
 import json
 import jose.utils
 import jose.jws
-from bson import ObjectId
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
 from pydantic_models import VconModel, PyObjectId
 
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGODB_URL
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
 
 # Our local modules``
 sys.path.append("..")
 import vcon
+
+logger = logging.getLogger(__name__)
+logging.config.fileConfig('./logging.conf')
+logger.info('Conserver starting up')
+
+
 
 # Setup redis
 r = redis.Redis(host='localhost', port=6379, db=0)
@@ -50,7 +49,6 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-logger = logging.getLogger("ui")
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -68,6 +66,76 @@ db = client.conserver
 # Environment variables
 VCON_VERSION = "0.1.1"
 MIMETYPE="audio/wav"
+
+
+
+@app.on_event("startup")
+@repeat_every(seconds=1)
+def check_sqs():
+    sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
+    queue_names = r.smembers('queue_names')
+    try:
+        for queue_name in queue_names:
+            q = queue_name.decode("utf-8") 
+            queue = sqs.get_queue_by_name(QueueName=q)
+            for message in queue.receive_messages():
+                message.delete()
+                r.rpush(q, message.body)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+
+
+background_tasks = set()
+
+@app.on_event("startup")
+async def load_services():
+    adapters = os.listdir("adapters")
+    for adapter in adapters:
+        try:
+            new_adapter = importlib.import_module("adapters."+adapter)
+            background_tasks.add(asyncio.create_task(new_adapter.start()))
+            logger.info("Adapter started: %s", adapter)
+        except Exception as e:
+            logger.info("Error loading adapter: %s %s", adapter, e)
+
+    plugins = os.listdir("plugins")
+    for plugin in plugins:
+        try:
+            new_plugin = importlib.import_module("plugins."+plugin)
+            background_tasks.add(asyncio.create_task(new_plugin.start()))
+            logger.info("Plugin started: %s", plugin)
+        except Exception as e:
+            logger.info("Error loading plugin: %s %s", plugin, e)
+
+    storages = os.listdir("storage")
+    for storage in storages:
+        try:
+            new_storage = importlib.import_module("storage."+storage)
+            background_tasks.add(asyncio.create_task(new_storage.start()))
+            logger.info("Storage started: %s", storage)
+        except Exception as e:
+            logger.info("Error loading storage: %s %s", storage, e)
+
+    projections = os.listdir("data_projections")
+    for projection in projections:
+        try:
+            new_projection = importlib.import_module("data_projections."+projection)
+            background_tasks.add(asyncio.create_task(new_projection.start()))
+            logger.info("Projection started: %s", projection)
+        except Exception as e:
+            logger.info("Error loading projection: %s %s", projection, e)
+
+
+@app.on_event("shutdown")
+async def shutdown_background_tasks():
+    logger.info("Shutting down background tasks")
+    for task in background_tasks:
+        task.cancel()
+        await task
+        logger.info("Task cancelled: %s", task)
+
+
+
 
 
 # Routes for the web server
@@ -110,7 +178,7 @@ async def post_vcon(request: Request):
 
     try:
         # Download the recording
-        print("Downloading recording from: ", recording_url)
+        logger.info("Downloading recording from: %s", recording_url)
         recording_bytes = urllib.request.urlopen(recording_url).read()
         vCon.add_dialog_inline_recording(
         recording_bytes,
@@ -119,7 +187,7 @@ async def post_vcon(request: Request):
         [0, 1], # parties recorded
         "audio/x-wav", # MIME type
         recording_filename)
-        print("Recording downloaded")
+        logger.info("Recording downloaded")
 
     except urllib.error.HTTPError as err:
         error_msg = "Error retrieving recording from " + recording_url
@@ -136,7 +204,7 @@ async def post_vcon(request: Request):
     vcon_dict = json.loads(json_string)
     insert_one_result = await db["vcons"].insert_one(vcon_dict)
 
-    print("Saving to S3")
+    logger.info("Saving to S3")
     # Save the vCon to S3
     s3 = boto3.resource(
     's3',
@@ -145,7 +213,7 @@ async def post_vcon(request: Request):
     aws_secret_access_key=AWS_SECRET_KEY
     )
     s3.Bucket(AWS_BUCKET).put_object(Key=str(insert_one_result.inserted_id), Body=json_string)
-    print("Saved to S3")
+    logger.info("Saved to S3")
 
     return JSONResponse(status_code=status.HTTP_200_OK)
 
@@ -158,7 +226,7 @@ async def show_vcon(request: Request, id: PyObjectId):
 
 @app.get("/details/{id}", response_class=HTMLResponse)
 async def show_vcon(request: Request, id: str):
-    print("Hello!")
+    logger.info("Hello!")
     vcon = await db["vcons"].find_one({"_id": id})
     if vcon is None:
         raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
@@ -213,9 +281,9 @@ async def show_vcon(request: Request, id: str):
             await db["vcons"].update_one({"_id": id}, {"$push": { 'analysis': analysis_element}})
 
             # Update S3
-            print("Transcription complete")
+            logger.info("Transcription complete")
         else:
-            print("Transcription already exists")
+            logger.info("Transcription already exists")
 
     return templates.TemplateResponse("vcon.html", {"request": request, "vcon": vcon})
 
@@ -253,92 +321,7 @@ async def delete_vcon(id: str):
 
     raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
 
-@app.on_event("startup")
-@repeat_every(seconds=1)
-def check_sqs():
-    sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
-    queue_names = r.smembers('queue_names')
-    try:
-        for queue_name in queue_names:
-            q = queue_name.decode("utf-8") 
-            queue = sqs.get_queue_by_name(QueueName=q)
-            for message in queue.receive_messages():
-                message.delete()
-                r.rpush(q, message.body)
-    except Exception as e:
-        print("Error: {}".format(e))
 
-
-background_tasks = set()
-
-@app.on_event("startup")
-async def load_services():
-    print("Checking adapters")
-    adapters = os.listdir("adapters")
-    print("Adapters:", adapters)
-    for adapter in adapters:
-        print("Loading adapter:", adapter)
-        try:
-            print("Importing adapter:", adapter)
-            new_adapter = importlib.import_module("adapters."+adapter)
-            print("Starting adapter:", adapter)
-            background_tasks.add(asyncio.create_task(new_adapter.start()))
-            print("Adapter started:", adapter)
-        except Exception as e:
-            print("Error loading adapter:", adapter, e)
-
-    print("Checking plugins")
-    plugins = os.listdir("plugins")
-    print("plugins:", plugins)
-    for plugin in plugins:
-        print("Loading plugin:", plugin)
-        try:
-            print("Importing plugin:", plugin)
-            new_plugin = importlib.import_module("plugins."+plugin)
-            print("Starting plugin:", plugin)
-            background_tasks.add(asyncio.create_task(new_plugin.start()))
-            print("plugin started:", plugin)
-        except Exception as e:
-            print("Error loading plugin:", plugin, e)
-
-    print("Checking storage")
-    storages = os.listdir("storage")
-    print("storage:", storages)
-    for storage in storages:
-        print("Loading storage:", storage)
-        try:
-            print("Importing storage:", storage)
-            new_storage = importlib.import_module("storage."+storage)
-            print("Starting storage:", storage)
-            background_tasks.add(asyncio.create_task(new_storage.start()))
-            print("storage started:", storage)
-        except Exception as e:
-            print("Error loading storage:", storage, e)
-
-
-@app.on_event("shutdown")
-async def shutdown_background_tasks():
-    print("Shutting down background tasks")
-    for task in background_tasks:
-        task.cancel()
-        await task
-        print("Task shutdown:", task)
-
-
-""" @app.on_event("startup")
-@repeat_every(seconds=60)
-async def check_plugins():
-    print("Checking plugins")
-    plugins = os.listdir("plugins")
-    print("Plugins:", plugins)
-    for plugin in plugins:
-        print("Loading plugin:", plugin)
-        try:
-            exec(f"from plugins import {plugin}")
-        except Exception as e:
-            print(f"Error loading plugin {plugin}: {e}")
-
- """
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,25 +1,23 @@
 import asyncio
-from pydoc import doc
 import async_timeout
 import redis.asyncio as redis
 import json
 import urllib
 from datetime import date
-from pydub import AudioSegment
 from urllib.parse import urlparse
 import sys
-from uuid6 import uuid 
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 import humanize
-
-
+import logging
 
 sys.path.append("../..")
 import vcon
 
+logger = logging.getLogger(__name__)
+
 async def start():
-    print("Starting the ringplan adapter")
+    logger.info("Starting the ringplan adapter")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
@@ -54,7 +52,7 @@ async def start():
                     expires_human = humanize.precisedelta(expires)
 
                     if (datetime.today() > expires):
-                        print("Recording expired {} ago.".format(expires_human))
+                        logger.debug("Recording expired {} ago.".format(expires_human))
 
                     else:   
                         try:
@@ -70,14 +68,14 @@ async def start():
                             [0, 1], # parties recorded
                             "audio/ogg", # MIME type
                             recording_filename)
-                            print("Recording successfully downloaded and attached to vCon")
+                            logger.debug("Recording successfully downloaded and attached to vCon")
 
                         except urllib.error.HTTPError as err:
                             error_msg = "Error retrieving recording from " + recording_url
                             error_type = "HTTPError"
                             error_time = date.today().strftime("%m/%d/%Y, %H:%M:%S")
                             vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
-                            print("Recording not downloaded, expired")
+                            logger.debug("Recording not downloaded, expired")
 
 
                     if payload.get("cdr").get("direction") == "IN":
@@ -111,20 +109,20 @@ async def start():
                     adapter_meta['payload'] = original_msg
 
                     vCon.attachments.append(adapter_meta)
-                    await r.publish("ingress-events",  vCon.dumps())
+                    logger.info("New vCon created: {}".format(vCon.uuid))
+                    await r.publish("ingress-vcons",  vCon.dumps())
                 except Exception as e:
-                    print("Error in ringplan adapter: {}".format(e))
+                    logger.debug("Error in ringplan adapter: {}".format(e))
                     break
 
         except asyncio.CancelledError:
-            print("ringplan Cancelled")
+            logger.debug("ringplan Cancelled")
             break
         except asyncio.TimeoutError:
-            print("ringplan Timeout")
             pass    
 
 
-    print("Adapter stopped")    
+    logger.info("Adapter stopped")    
 
 
 

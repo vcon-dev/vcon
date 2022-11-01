@@ -4,44 +4,52 @@ import redis.asyncio as redis
 import json
 import asyncio
 import boto3
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
 import logging
 
 logger = logging.getLogger(__name__)
+default_options = {
+    "name": "s3",
+    "ingress-topics": ["ingress-vcons"],
+    "egress-topics":[],
+    "AWS_KEY_ID": AWS_KEY_ID,
+    "AWS_SECRET_KEY": AWS_SECRET_KEY,
+    "AWS_BUCKET": AWS_BUCKET,
+    "S3Path": "plugins/call_log/"
+}
+options = {}
 
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, DEEPGRAM_KEY, MONGODB_URL
+async def start(opts=default_options):
+    logger.info("Starting the s3 storage plugin")
 
-async def reader(channel: redis.client.PubSub):
-    while True:
-        try:
-            async with async_timeout.timeout(1):
-                message = await channel.get_message(ignore_subscribe_messages=True)
-                if message is not None:
-                    vcon = json.loads(message['data'])
-                    logger.info("Storage adapter received vCon: {}".format(vcon.get('uuid')))
-                    try:
-                        # Save the vCon to S3
-                        s3 = boto3.resource(
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        p = r.pubsub(ignore_subscribe_messages=True)
+        await p.subscribe(*opts['ingress-topics'])
+
+        while True:
+            try:
+                message = await p.get_message()
+                if message:
+                    vConUuid = message['data'].decode('utf-8')
+                    logger.info("S3: received vCon: {}".format(vConUuid))
+                    body = await r.get("vcon-{}".format(str(vConUuid)))
+
+                    # Save the vCon to S3
+                    s3 = boto3.resource(
                         's3',
                         region_name='us-east-1',
-                        aws_access_key_id=AWS_KEY_ID,
-                        aws_secret_access_key=AWS_SECRET_KEY
+                        aws_access_key_id=opts["AWS_KEY_ID"],
+                        aws_secret_access_key=opts["AWS_SECRET_KEY"]
                         )
                     
-                        vconId = vcon["uuid"]
-                        S3Path = "plugins/call_log/" + str(vconId) + ".vcon"
-                        s3.Bucket(AWS_BUCKET).put_object(Key=S3Path, Body=json.dumps(vcon))
-                    except Exception as e:
-                        logger.debug("S3 adapter error: {}".format(e))
+                    S3Path = opts['S3Path'] + vConUuid + ".vcon"
+                    s3.Bucket(opts["AWS_BUCKET"]).put_object(Key=S3Path, Body=body)
                 await asyncio.sleep(0.01)
-        except asyncio.TimeoutError:
-            pass
+            except Exception as e:
+                logger.debug("S3 adapter error: {}".format(e))
 
+    except asyncio.CancelledError:
+        logger.debug("s3 storage plugin Cancelled")
 
-async def start():
-    # Setup redis
-    r = redis.Redis(host='localhost', port=6379, db=0)
-    pubsub =  r.pubsub()
-    await pubsub.subscribe('storage-events')
-    future = asyncio.create_task(reader(pubsub))
-    await future
-    logger.info("S3 adapter stopped")
+    logger.info("s3 storage plugin stopped")    

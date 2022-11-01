@@ -1,27 +1,34 @@
-import asyncio
+from datetime import date
 from pydoc import doc
+from urllib.parse import urlparse
 import async_timeout
-import redis.asyncio as redis
-import json
-import vcon
-import urllib
+import asyncio
 import datetime
+import json
+import logging
+import redis.asyncio as redis
+import vcon
+
+logger = logging.getLogger(__name__)
 
 async def start():
+    logger.info("Starting the bria adapter")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
         try:
-            async with async_timeout.timeout(1):
-                element = await r.lpop("bria-conserver-feed")
-                if element is None:
-                    await asyncio.sleep(1)
+            async with async_timeout.timeout(10):
+                list, data = await r.blpop("bria-conserver-feed")
+                if data is None:
                     continue
-                decoded_element = json.loads(element)
-                message = json.loads(decoded_element.get("Message"))
-                body = json.loads(message['default']['body'])
-                print("Bria adapter received: {}".format(body))
+
                 try:
+                    list = list.decode()
+                    payload = json.loads(data.decode())
+                    message = json.loads(payload.get("Message"))
+                    body = json.loads(message['default']['body'])
+                    print("Bria adapter received: {}".format(body))
+
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
                     vCon.set_uuid("vcon.dev")
@@ -29,6 +36,8 @@ async def start():
                     called = body["from_number"]
                     vCon.set_party_tel_url(caller)
                     vCon.set_party_tel_url(called)
+
+                    # Set the adapter meta so we know where the this came from
                     adapter_meta= {}
                     adapter_meta['src'] = 'conserver'
                     adapter_meta['type'] = 'call_history'
@@ -37,18 +46,20 @@ async def start():
                     adapter_meta['payload'] = body
                     vCon.attachments.append(adapter_meta)
 
-
-                    vCon.attachments.append(body)
-                    await r.publish("ingress-vcons", vCon.dumps())
+                    # Publish the vCon
+                    logger.info("New vCon created: {}".format(vCon.uuid))
+                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    await r.publish("ingress-vcons", str(vCon.uuid))
                 except Exception as e:
                     print("bria adapter error: {}".format(e))
 
 
+        except asyncio.CancelledError:
+            print("Bria Cancelled")
+            break
+
         except asyncio.TimeoutError:
             pass
     
-        except asyncio.CancelledError:
-            print("Volie Cancelled")
-            break
 
-    print("Adapter stopped")    
+    print("Bria dapter stopped")    

@@ -1,17 +1,14 @@
-import asyncio
-import async_timeout
-import redis.asyncio as redis
-import json
-import urllib
 from datetime import date
-from urllib.parse import urlparse
-import sys
 from datetime import datetime
+from urllib.parse import urlparse
 from urllib.parse import urlparse, parse_qs
+import async_timeout
+import asyncio
 import humanize
+import json
 import logging
-
-sys.path.append("../..")
+import redis.asyncio as redis
+import urllib
 import vcon
 
 logger = logging.getLogger(__name__)
@@ -100,17 +97,19 @@ async def start():
                     vCon.parties[agent_party]["releasecausecode"] =  payload.get("cdr").get("releasecausecode")
                     vCon.parties[agent_party]["status"] =  payload.get("cdr").get("status")
 
-        
+                    # Set the adapter meta so we know where the this came from
                     adapter_meta= {}
                     adapter_meta['src'] = 'conserver'
                     adapter_meta['type'] = 'call_completed'
                     adapter_meta['adapter'] = "ringplan"
-                    adapter_meta['received_at'] = date.today().isoformat()
+                    adapter_meta['received_at'] = datetime.datetime.now().isoformat()
                     adapter_meta['payload'] = original_msg
-
                     vCon.attachments.append(adapter_meta)
+
+                    # Publish the vCon
                     logger.info("New vCon created: {}".format(vCon.uuid))
-                    await r.publish("ingress-vcons",  vCon.dumps())
+                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    await r.publish("ingress-vcons",  str(vCon.uuid))
                 except Exception as e:
                     logger.debug("Error in ringplan adapter: {}".format(e))
                     break
@@ -122,7 +121,7 @@ async def start():
             pass    
 
 
-    logger.info("Adapter stopped")    
+    logger.info("Quiq adapter stopped")    
 
 
 

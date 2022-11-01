@@ -5,10 +5,14 @@ import boto3
 import redis
 import asyncio
 import importlib
+import sys
+import shortuuid
 
 from fastapi.applications import FastAPI
 from fastapi_utils.tasks import repeat_every
 from settings import AWS_KEY_ID, AWS_SECRET_KEY
+
+chains = []
 
 # Load FastAPI app
 app = FastAPI.conserver_app
@@ -36,6 +40,27 @@ def check_sqs():
         logger.info("Error: {}".format(e))
 
 
+async def run_execute_chain(conserver_chain):
+
+    chain_id = shortuuid.uuid()
+    chain_tasks = []
+
+    # The first link in the chain gets ingress vCons from 
+
+
+    for plugin in conserver_chain:
+        pluginObject = importlib.import_module(plugin)
+        options = pluginObject.default_options
+        block_egress = "{}_{}".format(plugin, chain_id)
+        options['egress-topics'].append(block_egress)
+        task = asyncio.create_task(pluginObject.start(options), name=plugin)
+        background_tasks.add(task)
+        chain_tasks.append(task)
+
+    logger.info("Chain tasks: {}".format(chain_tasks))
+
+
+
 background_tasks = set()
 
 @app.on_event("startup")
@@ -50,31 +75,27 @@ async def load_services():
             logger.info("Error loading adapter: %s %s", adapter, e)
 
     plugins = os.listdir("plugins")
+    available_blocks = []
     for plugin in plugins:
-        try:
-            new_plugin = importlib.import_module("plugins."+plugin)
-            background_tasks.add(asyncio.create_task(new_plugin.start(), name=plugin))
-            logger.info("Plugin started: %s", plugin)
-        except Exception as e:
-            logger.info("Error loading plugin: %s %s", plugin, e)
+        available_blocks.append("plugins."+plugin)
 
     storages = os.listdir("storage")
     for storage in storages:
-        try:
-            new_storage = importlib.import_module("storage."+storage)
-            background_tasks.add(asyncio.create_task(new_storage.start(), name=storage))
-            logger.info("Storage started: %s", storage)
-        except Exception as e:
-            logger.info("Error loading storage: %s %s", storage, e)
+        available_blocks.append("storage."+storage)
 
     projections = os.listdir("data_projections")
     for projection in projections:
-        try:
-            new_projection = importlib.import_module("data_projections."+projection)
-            background_tasks.add(asyncio.create_task(new_projection.start(), name=projection))
-            logger.info("Projection started: %s", projection)
-        except Exception as e:
-            logger.info("Error loading projection: %s %s", projection, e)
+        available_blocks.append("data_projections."+projection)
+
+    r.delete('available_blocks')
+    r.sadd('available_blocks', *available_blocks)
+
+    active_chains = r.smembers('active_chains')
+    for chain in active_chains:
+        chain = chain.decode("utf-8")
+        chain = chain.split(",")
+        logger.info("Chain: {}".format(chain))
+        asyncio.create_task(run_execute_chain(chain))
 
 
 @app.on_event("shutdown")

@@ -105,18 +105,24 @@ def create_vcon_from_phone_call(body):
         return None
 
 async def start():
+    logger.info("Starting the volie adapter")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
         try:
-            async with async_timeout.timeout(1):
-                element = await r.lpop("volie-conserver-feed")
-                if element is None:
-                    await asyncio.sleep(1)
+            async with async_timeout.timeout(10):
+                list, data = await r.blpop("volie-conserver-feed")
+                if data is None:
                     continue
                 try:
-                    decoded_element = json.loads(element)
-                    message = json.loads(decoded_element.get("Message"))
+                    list = list.decode()
+                    payload = json.loads(data.decode())
+
+                    # Construct empty vCon, set meta data
+                    vCon = vcon.Vcon()
+                    vCon.set_uuid("vcon.dev")
+
+                    message = json.loads(json.loads(data).get("Message"))
                     body = json.loads(message['default']['body'])
 
                     # Decode it
@@ -131,7 +137,8 @@ async def start():
                         logger.debug("What the heck is this? {}".format(body))
                         continue
                     logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
-                    await r.publish("ingress-vcons", vCon.dumps())
+                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    await r.publish("ingress-vcons", str(vCon.uuid))
                 except Exception as e:
                     logger.debug("volie adapter error: {}".format(e))
 

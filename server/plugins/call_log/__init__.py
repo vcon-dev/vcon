@@ -10,11 +10,8 @@ import logging
 import datetime
 import whisper
 import jose
-import numpy
-from pydub import AudioSegment
 import uuid
 import os
-import torch
 import time
 from deepgram import Deepgram
 
@@ -22,86 +19,17 @@ from deepgram import Deepgram
 logger = logging.getLogger(__name__)
 model = whisper.load_model("base")
 
-options = {
+default_options = {
     "name": "call_log",
+    "ingress-topics": ["ingress-vcons"],
     "transcribe": True,
     "min_transcription_length": 10,
-    "deepgram": True,
+    "deepgram": False,
+    "egress-topics":["egress-vcons-1"],
 }
+options = {}
 
-async def transcribe_deepgram(dialog):
-    try:
-        mimetype = dialog['mimetype']
-        match mimetype:
-            case "audio/ogg":
-                filename = "/tmp/{}.ogg".format(uuid.uuid4())
-            case "audio/x-wav":
-                filename = "/tmp/{}.wav".format(uuid.uuid4())
-
-        decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-        f = open(filename, "wb")
-        f.write(decoded_body)
-        f.close()
-
-        # Transcribe the call 
-        st = time.time()
-        logger.info("Transcribing call with DeepGram: duration: {} seconds".format(dialog['duration']))
-
-        # Transcribe it
-        dg_client = Deepgram(DEEPGRAM_KEY)
-        audio = open(filename, 'rb')
-        source = {
-        'buffer': audio,
-        'mimetype': mimetype,
-        }
-        transcription = await dg_client.transcription.prerecorded(source, 
-            {   'punctuate': True,
-                'diarize': True,
-                'multichannel': False,
-                'language': 'en',
-                'model': 'general',
-                'punctuate': True,
-                'tier':'enhanced',
-            })
-        # get the end time
-        et = time.time()
-
-        # get the execution time
-        elapsed_time = et - st
-        logger.info("Transcription Execution time: {} seconds".format(elapsed_time))
-        logger.info("Transcription: {}".format(transcription))
-
-        os.remove(filename)
-        return transcription['results']
-    except BaseException as e:
-        logger.info("DeepGram error: {}".format(e))
-
-
-
-async def transcribe(dialog):
-    filename = "/tmp/{}.ogg".format(uuid.uuid4())
-    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-    f = open(filename, "wb")
-    f.write(decoded_body)
-    f.close()
-
-    # Transcribe the call 
-    st = time.time()
-    logger.info("Transcribing call with Whisper: duration: {} seconds".format(dialog['duration']))
-    decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-    result = model.transcribe(filename, fp16=False)
-    # get the end time
-    et = time.time()
-
-    # get the execution time
-    elapsed_time = et - st
-    logger.info("Transcription Execution time: {} seconds".format(elapsed_time))
-    logger.info("Transcription: {}".format(result))
-
-    os.remove(filename)
-    return result
-
-async def manage_ended_call(inbound_vcon, redis_client, mongo_client):
+async def manage_ended_call(inbound_vcon):
     try:
         # Construct empty vCon, set meta data
         vCon = vcon.Vcon()
@@ -138,49 +66,43 @@ async def manage_ended_call(inbound_vcon, redis_client, mongo_client):
                 if 'disposition' in party:
                     projection['disposition'] = party['disposition']
 
-            # Transcribe the recording
-            if options['transcribe'] and dialog['duration'] > options['min_transcription_length']:
-                if options['deepgram']:
-                    result = await transcribe_deepgram(dialog)
-                    transcription = result['channels'][0]['alternatives'][0]['transcript']
-
-                else:
-                    result = await transcribe(dialog)
-                    transcription = result['text']
-                projection['transcription'] = transcription
-
             vCon.attachments.append(projection)
 
         # Send this out to the storage adapters
-        await redis_client.publish("storage-events", vCon.dumps())
+        return(vCon)
     
     except Exception as e:
+        logger.error("call_log plugin: error: {}".format(e))
+        logger.error("Shoot!")
         logger.info("call_log error: {}".format(e))
 
-async def start():
+async def start(opts=default_options):
     logger.info("Starting the call_log plugin")
 
-    while True:
-        try:
-            async with async_timeout.timeout(500):
-                # Setup redis
-                r = redis.Redis(host='localhost', port=6379, db=0)
-                m = pymongo.MongoClient(MONGODB_URL)
-                pubsub = r.pubsub()
-                await pubsub.subscribe("ingress-vcons")
-                async for message in pubsub.listen():
-                    if message['type'] == 'message':
-                        body = json.loads(message['data'].decode())
-                        logger.info("call_log received vCon: {}".format(body['uuid']))
-                        await manage_ended_call(body, r, m)
-                        await asyncio.sleep(1)
+    try:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        p = r.pubsub(ignore_subscribe_messages=True)
+        await p.subscribe(*opts['ingress-topics'])
 
-        except asyncio.TimeoutError:
-            pass
+        while True:
+            message = await p.get_message()
+            if message:
+                
+                vConUuid = message['data'].decode('utf-8')
+                logger.info("call_log plugin: received vCon: {}".format(vConUuid))
+                vCon = await r.get("vcon-"+vConUuid)
+                vCon = json.loads(vCon)
+                vCon = await manage_ended_call(vCon)
+                if not vCon:
+                    continue
+                await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                for topic in opts['egress-topics']:
+                    await r.publish(topic, vCon.uuid)
+            await asyncio.sleep(0.1)
 
-        except asyncio.CancelledError:
-            logger.debug("call log plugin Cancelled")
-            break
+    except asyncio.CancelledError:
+        logger.debug("call log plugin Cancelled")
+
 
     logger.info("call log plugin stopped")    
 

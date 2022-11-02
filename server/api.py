@@ -21,7 +21,7 @@ import json
 import jose.utils
 import jose.jws
 from pydantic_models import VconModel, PyObjectId
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, MONGODB_URL
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET, MONGODB_URL, DEEPGRAM_KEY
 import pymongo
 
 # Our local modules``
@@ -58,13 +58,31 @@ app.add_middleware(
 VCON_VERSION = "0.1.1"
 MIMETYPE="audio/wav"
 
+# Utility functions
+def has_voice(vcon):
+    for party in vcon['parties']:
+        if "tel" in party:
+            return True
+    return False
+
+def is_email(vcon):
+    for party in vcon['parties']:
+        if "mailto" in party:
+            return True
+    return False
 
 # Routes for the web server
+
+async def last_vcons(size=100):
+    vcons = []
+    for vcon_uuid in r.lrange("call_log_list", 0, size):
+        vcons.append(json.loads(r.get("vcon-{}".format(vcon_uuid.decode('utf-8')))))
+    return vcons
 
 # Home page route
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    vcons = await db["vcons"].find().sort("created_at",-1 ).to_list(100)
+    vcons = await last_vcons()
     return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
 
 # Conversation Route
@@ -139,69 +157,97 @@ async def post_vcon(request: Request):
     return JSONResponse(status_code=status.HTTP_200_OK)
 
 @app.get(
-    "/vcon/{id}", response_description="Computer Readable vCon", response_model=VconModel
+    "/vcon/{vconuuid}", response_description="Computer Readable vCon", response_model=VconModel
 )
-async def show_vcon(request: Request, id: PyObjectId):
-    vcon = await db["vcons"].find_one({"_id": id})
-    return vcon  
+async def show_vcon(request: Request, vconuuid: str):
+    key = "vcon-" + vconuuid
+    binary_vcon = r.get(str(key))
+    vcon_string = binary_vcon.decode("utf-8")
+    vcon = json.loads(vcon_string)
+
+    if not vcon:
+        raise HTTPException(status_code=404, detail="vCon not found")
+    return JSONResponse(status_code=status.HTTP_200_OK, content=vcon)
+ 
 
 @app.get("/details/{id}", response_class=HTMLResponse)
 async def show_vcon(request: Request, id: str):
     logger.info("Hello!")
-    vcon = await db["vcons"].find_one({"_id": id})
+    vcon = r.get("vcon-" + id)
     if vcon is None:
         raise HTTPException(status_code=404, detail=f"Vcon {id} not found")
 
-        
-    for index, dialog in enumerate(vcon['dialog']): 
-        wav_filename = "static/{}_{}.wav".format(id, index)
-        mp3_filename = "static/{}_{}.mp3".format(id, index)
-        ogg_filename = "static/{}_{}.ogg".format(id, index)
-        unknown_filename = "static/{}_{}".format(id, index)
-        decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-        f = open(unknown_filename, "wb")
-        f.write(decoded_body)
-        f.close()
-        # convert mp3 file to wav file
-        sound = AudioSegment.from_file(unknown_filename)
-        sound.export(mp3_filename, format="mp3")
-        sound.export(wav_filename, format="wav")
-        sound.export(ogg_filename, format="ogg")
+    vcon = json.loads(vcon.decode("utf-8"))           
+    if has_voice(vcon):
+        for index, dialog in enumerate(vcon['dialog']): 
+            wav_filename = "static/{}_{}.wav".format(id, index)
+            mp3_filename = "static/{}_{}.mp3".format(id, index)
+            ogg_filename = "static/{}_{}.ogg".format(id, index)
+            unknown_filename = "static/{}_{}".format(id, index)
+            decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
+            f = open(unknown_filename, "wb")
+            f.write(decoded_body)
+            f.close()
+            # convert mp3 file to wav file
+            sound = AudioSegment.from_file(unknown_filename)
+            sound.export(mp3_filename, format="mp3")
+            sound.export(wav_filename, format="wav")
+            sound.export(ogg_filename, format="ogg")
 
-        # Check to see if we have a transcript, create one if not
-        need_transcript = True
-        for analysis in vcon['analysis']:
-            if analysis['type'] == 'transcript':
-                need_transcript = False
-                break
-        if need_transcript:
-            # Transcribe it
-            dg_client = Deepgram(settings.DEEPGRAM_KEY)
-            audio = open(wav_filename, 'rb')
-            source = {
-            'buffer': audio,
-            'mimetype': MIMETYPE
-            }
-            transcription = await dg_client.transcription.prerecorded(source, 
-                {   'punctuate': True,
-                    'multichannel': False,
-                    'language': 'en',
-                    'model': 'general',
-                    'punctuate': True,
-                    'tier':'enhanced',
-                })
+            # Check to see if we have a transcript, create one if not
+            need_transcript = True
+            for analysis in vcon['analysis']:
+                if analysis['type'] == 'transcript':
+                    need_transcript = False
+                    break
+            if need_transcript:
+                # Transcribe it
+                try: 
+                    dg_client = Deepgram(DEEPGRAM_KEY)
+                    audio = open(wav_filename, 'rb')
+                    source = {
+                    'buffer': audio,
+                    'mimetype': MIMETYPE
+                    }
+                    transcription = await dg_client.transcription.prerecorded(source, 
+                        {   'punctuate': True,
+                            'multichannel': False,
+                            'language': 'en',
+                            'model': 'general',
+                            'punctuate': True,
+                            'diarize': True,
+                            'tier':'enhanced',
+                        })
+                    
+                    analysis_element = {}
+                    analysis_element["type"] = "transcript"
+                    analysis_element["dialog"] = index
+                    analysis_element["body"] = transcription
+                    analysis_element["encoding"] = "json"
+                    analysis_element["vendor"] = "deepgram"
 
-            analysis_element = {}
-            analysis_element["type"] = "transcript"
-            analysis_element["dialog"] = index
-            analysis_element["body"] = transcription
-            analysis_element["encoding"] = "json"
-            analysis_element["vendor"] = "deepgram"
-            vcon['analysis'] = []
-            vcon['analysis'].append(analysis_element)
-            await db["vcons"].update_one({"_id": id}, {"$push": { 'analysis': analysis_element}})
+                    # Create the dialog
+                    current_speaker = 0
+                    current_line = "{}:".format(current_speaker)
+                    dialog = []
+                    for word in  analysis_element['body']['results']['channels'][0]['alternatives'][0]['words']:
+                        if word['speaker'] == current_speaker:
+                            current_line += word['punctuated_word'] + " "
+                        else:
+                            dialog.append(current_line)
+                            current_speaker = word['speaker']
+                            current_line = "{} ({}): {}".format(current_speaker, word['start'], word['punctuated_word'])
 
-            # Update S3
+                    dialog.append(current_line)
+                    analysis_element["dialog"] = dialog
+                    vcon['analysis'] = []
+                    vcon['analysis'].append(analysis_element)
+                except Exception as e:
+                    logger.error("Error transcribing: %s", e)
+                    transcription = None
+
+                r.set("vcon-" + id, json.dumps(vcon))
+
             logger.info("Transcription complete")
         else:
             logger.info("Transcription already exists")

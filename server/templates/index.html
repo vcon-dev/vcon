@@ -3,56 +3,45 @@
 
 {% block content %}
 <div class="bg-white shadow overflow-hidden sm:rounded-md">
-  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     {% for vcon in vCons %}
       <div class="border-2 rounded bg-gray-200">
-        <a href="/details/{{vcon._id}}" class="block hover:white">
+        <a href="/details/{{vcon.uuid}}" class="block hover:white">
           <div class="px-4 py-4 sm:px-6">
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-medium text-indigo-600 truncate">{{vcon.parties[0]['tel']}} called {{vcon.parties[1]['tel']}}</p>
-              <div class="ml-2 flex-shrink-0 flex">
-                <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                  {% if vcon.dialog|length > 0 %}
-                    {{ vcon.dialog[0].duration}} seconds
-                  {% elif vcon.status == 'ended' %}
-                    No Conversations
-                  {% endif %}
-                </p>
-              </div>
-            </div>
-            <div class="mt-20 sm:flex sm:justify-between">
-              <div class="sm:flex">
-                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
-                  </svg>
-                  Raw
-                </p>  
-                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                  <!-- Heroicon name: solid/users -->
-                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  Signed
-                </p>
-                <p class="flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                  <!-- Heroicon name: solid/location-marker -->
-                  <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                  </svg>                  
-                  Embedded
-                </p>
-              </div>
-              <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                <!-- Heroicon name: solid/calendar -->
-                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+              {% if 'tel' in vcon.parties[0] %}
+              <div class="flex items-center justify-between">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                 </svg>
-                <p>
-                  Start 
-                  <time>{{ vcon.get("dialog[0].start","No Recordings") }}</time>
-                </p>
+                <div class="text-sm font-medium text-indigo-600 text-center truncate">{{vcon.parties[0]['tel']}} </div>
+                <div class="text-sm font-medium text-indigo-600 text-center truncate">called </div> 
+                <div class="text-sm font-medium text-indigo-600 text-center truncate"> {{vcon.parties[1]['tel']}}</div></p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-indigo-600 text-center">
+                    {% if vcon.dialog|length > 0 %}
+                      {{ vcon.dialog[0].duration}} seconds
+                    {% elif vcon.status == 'ended' %}
+                      No Conversations
+                    {% endif %}
+                  </p>
+                </div>
+              {% endif %}
+              {% if 'mailto' in vcon.parties[0] %}                
+              <div class="flex items-center justify-between">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 001.183 1.981l6.478 3.488m8.839 2.51l-4.66-2.51m0 0l-1.023-.55a2.25 2.25 0 00-2.134 0l-1.022.55m0 0l-4.661 2.51m16.5 1.615a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V8.844a2.25 2.25 0 011.183-1.98l7.5-4.04a2.25 2.25 0 012.134 0l7.5 4.04a2.25 2.25 0 011.183 1.98V19.5z" />
+                </svg>
               </div>
+              <div class="text-sm font-medium text-indigo-600 text-center truncate">{{vcon.parties[0]['mailto']}} </div>
+              <div class="text-sm font-medium text-indigo-600 text-center truncate"> emailed </div> 
+              <div class="text-sm font-medium text-indigo-600 text-center truncate"> {{vcon.parties[1]['mailto']}}</div>
+              {% endif %}
+      
+            <div>
+              <p class="text-sm text-gray-500 text-center">
+                    {{vcon.created_at}} 
+              </p>
             </div>
           </div>
         </a>

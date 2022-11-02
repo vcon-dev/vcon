@@ -24,7 +24,6 @@ def create_vcon_from_email(body):
     try:
         # Construct empty vCon, set meta data
         vCon = vcon.Vcon()
-        vCon.set_uuid("vcon.dev")
         type = body.get('kind', 'unknown')
         vCon.attachments.append(adapter_meta(body, type))
         vCon.set_party_parameter("mailto", body['email_to_address'], -1)
@@ -42,7 +41,6 @@ def create_vcon_from_sms(body):
     try:
         # Construct empty vCon, set meta data
         vCon = vcon.Vcon()
-        vCon.set_uuid("vcon.dev")
         type = body.get('kind', 'unknown')
         vCon.attachments.append(adapter_meta(body, type))
 
@@ -60,7 +58,6 @@ def create_vcon_from_phone_call(body):
     try:
         # Construct empty vCon, set meta data
         vCon = vcon.Vcon()
-        vCon.set_uuid("vcon.dev")
         type = body.get('kind', 'unknown')
         vCon.attachments.append(adapter_meta(body, type))
 
@@ -120,7 +117,6 @@ async def start():
 
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
-                    vCon.set_uuid("vcon.dev")
 
                     message = json.loads(json.loads(data).get("Message"))
                     body = json.loads(message['default']['body'])

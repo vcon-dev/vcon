@@ -31,8 +31,6 @@ async def start():
 
                     # Construct empty vCon, set meta data
                     vCon = vcon.Vcon()
-                    vCon.set_uuid("vcon.dev")
-
                     payload = original_msg.get("payload")
 
                     # Download the recording and attach it to the vCon

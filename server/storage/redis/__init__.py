@@ -1,6 +1,5 @@
 import asyncio
-import async_timeout
-import redis.asyncio as redis
+import aioredis
 import json
 import asyncio
 import logging
@@ -10,7 +9,9 @@ default_options = {
     "name": "redis",
     "ingress-topics": ["ingress-vcons"],
     "egress-topics":[],
-    "redis-set-name": "call_log"
+    "redis-set-name": "call_log",
+    "redis-list-name": "call_log_list",
+    "expires": 60*60*24*7
 }
 options = {}
 
@@ -18,7 +19,7 @@ async def start(opts=default_options):
     logger.info("Starting the call_log plugin")
 
     try:
-        r = redis.Redis(host='localhost', port=6379, db=0)
+        r = aioredis.Redis(host='localhost', port=6379, db=0)
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts['ingress-topics'])
 
@@ -29,7 +30,11 @@ async def start(opts=default_options):
                     vConUuid = message['data'].decode('utf-8')
                     logger.info("Redis received vCon: {}".format(vConUuid))
                     # Save this vCon into Redis set.
-                    await redis.sadd(opts["redis-set-name"], vConUuid)
+                    await r.sadd(opts["redis-set-name"], vConUuid)
+                    # Save this vCon into Redis list.
+                    await r.lpush(opts["redis-list-name"], vConUuid)
+                    # Set the expiration time for the vCon.
+                    await r.expire(vConUuid, opts["expires"])
                 await asyncio.sleep(0.01)
 
             except Exception as e:

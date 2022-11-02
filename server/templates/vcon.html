@@ -14,7 +14,7 @@
 </div>
 <div class="flex flex-row">
   <div class="basis-1/2 justify-start"> <!-- First Column -->
-    <div class="mt-1 max-w-2xl text-sm text-gray-500 ">vcon ID: {{vcon._id}} </div>
+    <div class="mt-1 max-w-2xl text-sm text-gray-500 ">vcon ID: {{vcon.uuid}} </div>
   </div>
   <div class="basis-1/2 text-right">
     <button type="button" onclick="playFile()" class="w-10 h-10 font-medium  hover:text-strolidyellow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-strolidyellow">
@@ -33,13 +33,24 @@
 <div class="mt-5 border-t border-gray-200">
   <dl class="divide-y divide-gray-200">
     {% for party in vcon['parties'] %}
-      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
-        <dt class="text-sm font-medium text-gray-500">Party</dt>
-        <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-          <span class="flex-grow">{{party['tel']}}</span>
-        </dd>
-      </div>
+      {% if 'mailto' in party %}        
+        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+          <dt class="text-sm font-medium text-gray-500">email</dt>
+          <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+            <span class="flex-grow">{{party['mailto']}}</span>
+          </dd>
+        </div>
+      {% endif %}
+      {% if 'tel' in party %}
+        <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
+          <dt class="text-sm font-medium text-gray-500">Voice</dt>
+          <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+            <span class="flex-grow">{{party['tel']}}</span>
+          </dd>
+        </div>
+      {% endif %}
     {% endfor %}
+
     {% for dialog in vcon['dialog'] %}
         <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 ">
           <dt class="text-sm text-gray-500 font-semibold">Dialog {{loop.index}} </dt>
@@ -82,10 +93,7 @@
       <div class="py-4 sm:grid sm:py-5 sm:grid-cols-3 sm:gap-4">
         <dt class="text-sm font-medium text-gray-500">Transcript</dt>
         <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-          <span class="flex-grow">{{ analysis['body']['results']['channels'][0]['alternatives'][0]['transcript']  }} </span>
-          <span class="ml-4 flex-shrink-0">
-            <button type="button" class="bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Update</button>
-          </span>
+          {% analysis["dialog"] %}
         </dd>
       </div>
     {% endfor %}

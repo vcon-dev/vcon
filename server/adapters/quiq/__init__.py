@@ -25,7 +25,6 @@ async def start():
                                 
                 # Construct empty vCon, set meta data
                 vCon = vcon.Vcon()
-                vCon.set_uuid("vcon.dev")
                 caller = body["src"]
                 called = body["dst"]
                 vCon.set_party_parameter("tel", caller)

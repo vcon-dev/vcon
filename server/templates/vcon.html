@@ -90,10 +90,14 @@
       </div>
     {% endfor %}
     {% for analysis in vcon["analysis"] %}
-      <div class="py-4 sm:grid sm:py-5 sm:grid-cols-3 sm:gap-4">
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4">
         <dt class="text-sm font-medium text-gray-500">Transcript</dt>
         <dd class="mt-1 flex text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-          {% analysis["dialog"] %}
+          <ul>
+            {% for line in analysis["dialog"] %}
+              <li>Speaker: {{line}}</li>
+            {% endfor %}
+          </ul>
         </dd>
       </div>
     {% endfor %}

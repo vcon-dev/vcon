@@ -41,18 +41,40 @@ def check_sqs():
 
 
 async def run_execute_chain(conserver_chain):
-
+    # This function takes a list of [blocks,links,chains, plugins, tasks, adapters] and executes them
+    # in order. The first 
     chain_id = shortuuid.uuid()
     chain_tasks = []
 
     # The first link in the chain gets ingress vCons from 
+    # a REDIS PUBSUB with ingress-vcons.  Then, we create a
+    # new REDIS PUBSUB for the egress vCons called "block_egress".
+    # This becomes the input for the next plugin in the chain, 
+    # and so on.  A plugin can act as a filter by not sending
+    # any vCons to the egress channel.  
 
-
+    last_egress_key = None
     for plugin in conserver_chain:
+        # Load the module with the same name: "adapter.quiq"
+        # I suspect we will  need to extend this to actually use pythons package
+        # loading mechanism, but this is a start.
         pluginObject = importlib.import_module(plugin)
+
+        # This is where we create the options for the plugin,
+        # which will be passed to the plugin's execute function.
+        # We need to replace this with a more robust mechanism
         options = pluginObject.default_options
+
+        # This is a unique name for the egress chanel for this plugin. We
+        # can use this in the next plugin 
         block_egress = "{}_{}".format(plugin, chain_id)
         options['egress-topics'].append(block_egress)
+        if last_egress_key:
+            options['ingress-topics'] = [last_egress_key]
+        last_egress_key = block_egress
+
+        # Start the plugin, add it to the list of tasks
+        # and add this task to the chain of tasks.
         task = asyncio.create_task(pluginObject.start(options), name=plugin)
         background_tasks.add(task)
         chain_tasks.append(task)

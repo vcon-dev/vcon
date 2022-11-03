@@ -11,7 +11,6 @@ default_options = {
     "egress-topics":[],
     "redis-set-name": "call_log",
     "redis-list-name": "call_log_list",
-    "expires": 60*60*24*7
 }
 options = {}
 
@@ -33,8 +32,6 @@ async def start(opts=default_options):
                     await r.sadd(opts["redis-set-name"], vConUuid)
                     # Save this vCon into Redis list.
                     await r.lpush(opts["redis-list-name"], vConUuid)
-                    # Set the expiration time for the vCon.
-                    await r.expire(vConUuid, opts["expires"])
                 await asyncio.sleep(0.01)
 
             except Exception as e:

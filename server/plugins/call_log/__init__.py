@@ -1,19 +1,11 @@
 import asyncio
-import async_timeout
 import redis.asyncio as redis
 import json
 import vcon
 import asyncio
-import pymongo
-from settings import MONGODB_URL, DEEPGRAM_KEY
 import logging
 import datetime
 import whisper
-import jose
-import uuid
-import os
-import time
-from deepgram import Deepgram
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +19,6 @@ default_options = {
     "deepgram": False,
     "egress-topics":["egress-vcons-1"],
 }
-options = {}
 
 async def manage_ended_call(inbound_vcon):
     try:

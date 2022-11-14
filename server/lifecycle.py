@@ -1,86 +1,96 @@
+import asyncio
 import os
 import logging
 import logging.config
 import boto3
-import redis
-import asyncio
+import redis.asyncio as redis
+from redis.commands.json.path import Path
 import importlib
-import sys
 import shortuuid
 
 from fastapi.applications import FastAPI
 from fastapi_utils.tasks import repeat_every
-from settings import AWS_KEY_ID, AWS_SECRET_KEY
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL
+
 
 chains = []
 
 # Load FastAPI app
 app = FastAPI.conserver_app
-
 logger = logging.getLogger(__name__)
 logging.config.fileConfig('./logging.conf')
 logger.info('Conserver starting up')
 
 # Setup redis
-r = redis.Redis(host='localhost', port=6379, db=0)
+r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 
 @app.on_event("startup")
 @repeat_every(seconds=1)
-def check_sqs():
-    sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
-    queue_names = r.smembers('queue_names')
-    try:
-        for queue_name in queue_names:
-            q = queue_name.decode("utf-8") 
-            queue = sqs.get_queue_by_name(QueueName=q)
-            for message in queue.receive_messages():
-                message.delete()
-                r.rpush(q, message.body)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
+async def check_sqs():
+    print("Tick")
+
+class Transformer: 
+    def __init__(self, name, chain_id): 
+        self.name = name 
+        self.module = importlib.import_module(name)
+        self.options = self.module.default_options
+        self.chain_id = chain_id
+
+    def __str__(self): 
+        return self.name
+
+    def default_egress_topic(self):
+        return "{}_{}".format(self.name, self.chain_id)
 
 
-async def run_execute_chain(conserver_chain):
-    # This function takes a list of [blocks,links,chains, plugins, tasks, adapters] and executes them
+async def configure_and_start_pipeline(pipeline):
+    """ This function takes a string of transformations and starts them up as a pipeline
+
+    This function gets a string that corresponds to a list of transformations 
+    like "plugins.call_log,plugins.redaction".  Every transformation takes the same
+    input - a vCon, and then optionally outputs a vCon. Although configurable, 
+    the default input to the chain comes from the "ingress_vcon" REDIS PUB/SUB. 
+    The output of one transformation is the input of the next, again using REDIS PUB/SUB.
+    Each chain has a unique ID to identify it, and that UUID is the suffix of the 
+    REDIS PUB/SUB channels.  The default output of the chain is the "egress_vcon".
+
+    A transformation can act like a filter by not pushing a vCon into the egress
+    channel.  This is useful for things like redaction, where you want to filter
+    out certain vCons, but not others.  The transformation can also modify the
+    vCon in place (typically), or create a new vCon and push that into the egress channel.
+
+    Once the pipeline is setup, no other admin is necessary. Each transformer 
+    executes on each inbound vCon.
+    """
+    # 
     # in order. The first 
-    chain_id = shortuuid.uuid()
-    chain_tasks = []
-
-    # The first link in the chain gets ingress vCons from 
-    # a REDIS PUBSUB with ingress-vcons.  Then, we create a
-    # new REDIS PUBSUB for the egress vCons called "block_egress".
-    # This becomes the input for the next plugin in the chain, 
-    # and so on.  A plugin can act as a filter by not sending
-    # any vCons to the egress channel.  
-
+    pipeline_id = shortuuid.uuid()
+    pipeline_tasks = []
     last_egress_key = None
-    for plugin in conserver_chain:
-        # Load the module with the same name: "adapter.quiq"
-        # I suspect we will  need to extend this to actually use pythons package
-        # loading mechanism, but this is a start.
-        pluginObject = importlib.import_module(plugin)
-
-        # This is where we create the options for the plugin,
-        # which will be passed to the plugin's execute function.
-        # We need to replace this with a more robust mechanism
-        options = pluginObject.default_options
-
-        # This is a unique name for the egress chanel for this plugin. We
-        # can use this in the next plugin 
-        block_egress = "{}_{}".format(plugin, chain_id)
-        options['egress-topics'].append(block_egress)
+    for step in pipeline:
+        """ For each transformer in the pipeline, import the named module. 
+            Then, check to see if there's an existing options block for it.
+            If not, create a new one and attach it.  Then, start the task. 
+        """
+        thisStep = Transformer(step, pipeline_id)
+        block_egress = thisStep.default_egress_topic()
+        thisStep.options['egress-topics'].append(block_egress)
         if last_egress_key:
-            options['ingress-topics'] = [last_egress_key]
-        last_egress_key = block_egress
+            """If this is not the first step in the pipeline, remember to update
+            the last egress key so we know what to hook the next transformer into.
+            Afterwards, update the last_ingress_key for next time.
+            """
+            thisStep.options['ingress-topics'].append(last_egress_key)
+            last_egress_key = block_egress
 
         # Start the plugin, add it to the list of tasks
         # and add this task to the chain of tasks.
-        task = asyncio.create_task(pluginObject.start(options), name=plugin)
+        task = asyncio.create_task(thisStep.start(step.options))
         background_tasks.add(task)
-        chain_tasks.append(task)
+        pipeline_tasks.append(task)
+        logger.info("Starting pipeline task: {}".format(step))
 
-    logger.info("Chain tasks: {}".format(chain_tasks))
-
+    logger.info("Pipeline tasks: {}".format(pipeline_tasks))
 
 
 background_tasks = set()
@@ -109,15 +119,15 @@ async def load_services():
     for projection in projections:
         available_blocks.append("data_projections."+projection)
 
-    r.delete('available_blocks')
-    r.sadd('available_blocks', *available_blocks)
+    await r.delete('available_blocks')
+    await r.sadd('available_blocks', *available_blocks)
 
-    active_chains = r.smembers('active_chains')
+    active_chains = await r.smembers('active_chains')
     for chain in active_chains:
         chain = chain.decode("utf-8")
         chain = chain.split(",")
         logger.info("Chain: {}".format(chain))
-        asyncio.create_task(run_execute_chain(chain))
+        asyncio.create_task(configure_and_start_pipeline(chain))
 
 
 @app.on_event("shutdown")

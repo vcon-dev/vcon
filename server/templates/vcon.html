@@ -114,8 +114,10 @@
 </div>
 
 <script>
+  data_url = "data:{{vcon['dialog'][0]['mimetype']}};base64,{{vcon['dialog'][0]['body']}}"
+
   var player = new Howl({
-    src: ['/static/{{ vcon._id }}_0.mp3'],
+    src: [data_url],
     loop: true,
     volume: 0.5,
     onend: function() {

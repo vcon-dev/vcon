@@ -2,54 +2,69 @@ import asyncio
 import async_timeout
 import redis.asyncio as redis
 import json
+import logging
+import logging.config
 import vcon
 import datetime
-import logging
+from settings import REDIS_URL
+from redis.commands.json.path import Path
 
 logger = logging.getLogger(__name__)
+logger.info("Starting the quiq adapter")
 
-async def start():
-    logger.info("Starting the quiq adapter")
+default_options = {
+    "name": "quiq",
+    "ingress-list": ["quiq-conserver-feed"],
+    "egress-topics":["ingress-vcons"],
+}
+
+async def start(opts=default_options):
+    logger.info("Starting the bria adapter")
     # Setup redis
-    r = redis.Redis(host='localhost', port=6379, db=0)
+    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
     while True:
         try:
             async with async_timeout.timeout(10):
-                list, data = await r.blpop("quiq-conserver-feed")
-                if data is None:
-                    continue
+                for ingress_list in opts["ingress-list"]:
+                    list, data = await r.blpop(ingress_list)
+                    if data is None:
+                        continue
+                    try:
+                        list = list.decode()
+                        payload = json.loads(data.decode())
+                        body = payload.get("default")
+                                        
+                        # Construct empty vCon, set meta data
+                        vCon = vcon.Vcon()
+                        vCon.set_party_parameter("tel", body["src"])
+                        vCon.set_party_parameter("tel", body["dst"])
 
-                list = list.decode()
-                payload = json.loads(data.decode())
-                body = payload.get("default")
-                                
-                # Construct empty vCon, set meta data
-                vCon = vcon.Vcon()
-                caller = body["src"]
-                called = body["dst"]
-                vCon.set_party_parameter("tel", caller)
-                vCon.set_party_parameter("tel", called)
+                        # Set the adapter meta so we know where this thing came from
+                        adapter_meta= {
+                            "adapter": "quiq",
+                            "adapter_version": "0.1.0",
+                            "src": ingress_list,
+                            "type": 'chat_completed',
+                            "received_at": datetime.datetime.now().isoformat(),
+                            "payload": body
+                        }
+                        vCon.attachments.append(adapter_meta)
+                        
+                        # Publish the vCon
+                        logger.info("New vCon created: {}".format(vCon.uuid))
+                        key = "vcon-{}".format(vCon.uuid)
+                        await r.json().set(key, Path.root_path(), vCon)
+                        for egress_topic in opts["egress-topics"]:
+                            await r.publish(egress_topic, vCon.uuid)
+                    except Exception as e:
+                        logger.error("Quiq adapter error: {}".format(e))
 
-                # Set the adapter meta so we know where this thing came from
-                adapter_meta= {}
-                adapter_meta['src'] = 'conserver'
-                adapter_meta['type'] = 'chat_completed'
-                adapter_meta['adapter'] = "quiq"
-                adapter_meta['received_at'] = datetime.datetime.now().isoformat()
-                adapter_meta['payload'] = body
-                vCon.attachments.append(adapter_meta)
-                
-                # Publish the vCon
-                logger.info("New vCon created: {}".format(vCon.uuid))
-                await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
-                await r.publish("ingress-vcons", str(vCon.uuid))
-                await asyncio.sleep(1)
 
         except asyncio.TimeoutError:
             pass
 
         except asyncio.CancelledError:
-            logger.debug("quiq Cancelled")
+            logger.info("quiq Cancelled")
             break
 
         except Exception as e:

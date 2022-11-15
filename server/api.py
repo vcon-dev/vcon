@@ -48,7 +48,7 @@ app.add_middleware(
 VCON_VERSION = "0.1.1"
 MIMETYPE="audio/wav"
 
-async def last_vcons(size=10):
+async def last_vcons(size=200):
     try:
         vcons = []
         vcon_ids = await r.lrange("call_log_list", 0, size)

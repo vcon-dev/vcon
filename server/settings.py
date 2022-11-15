@@ -6,3 +6,4 @@ AWS_KEY_ID=os.environ["AWS_KEY_ID"]
 AWS_SECRET_KEY=os.environ["AWS_SECRET_KEY"]
 AWS_BUCKET=os.environ["AWS_BUCKET"]
 REDIS_URL=os.getenv("REDIS_URL", "redis://localhost")
+LOG_LIMIT=os.getenv("LOG_LIMIT", 100)

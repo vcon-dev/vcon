@@ -4,7 +4,13 @@ The Home Repo for vCons
 ## Introduction
 Its all about conversations and capturing them in a standardized container.
 
-See the [white paper](https://docs.google.com/document/d/1TV8j29knVoOJcZvMHVFDaan0OVfraH_-nrS5gW4-DEA/edit?usp=sharing)
+See the [presentation at TADSummit](https://youtu.be/ZBRJ6FcVblc)
+
+See the [presentation at IETF](https://youtu.be/dJsPzZITr_g?t=243)
+
+Read the [IETF draft proposal](https://datatracker.ietf.org/doc/html/draft-petrie-vcon-00)
+
+Read the [white paper](https://docs.google.com/document/d/1TV8j29knVoOJcZvMHVFDaan0OVfraH_-nrS5gW4-DEA/edit?usp=sharing)
 
 See the [key note proposal for vCons](https://blog.tadsummit.com/2021/12/08/strolid-keynote-vcons/).
 

@@ -46,7 +46,7 @@
             </div>
             <div class="border-t border-gray-200">
               {% for key, value in dialog.items() %}
-                {% if key != 'body' %}
+                {% if key not in ['body', 'url'] %}
                   <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt class="text-sm font-medium text-gray-500">{{key}}</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{value}}</dd>
@@ -57,17 +57,27 @@
                     <dt class="text-sm font-medium text-gray-500">{{key}}</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0 hidden">{{value}}</dd>
                   </div>
-                  <button dialog_id="dialog_{{loop.index}}"> Show</button>
+                {% endif %}
+                {% if key == 'url' %}
+                  <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6" id="dialog_{{loop.index}}">
+                    <dt class="text-sm font-medium text-gray-500">Recording</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
+                     <audio
+                        controls
+                        src="{{value}}">
+                            <a href="{{value}}">
+                                Download audio
+                            </a>
+                     </audio>
+                    </dd>
+                  </div>
                 {% endif %}
               {% endfor %}
-              {% if 'audio' in dialog.mimetype %}
-                <audio controls src="data:{{dialog.mimetype}};base64,{{dialog.body}}">
-                  <p>If you are reading this, it is because your browser does not support the audio element.</p>
-                </audio>
-              {% endif %}
         </div>
       </li>
     {% endfor %}
+  </ul>
+  <ul role="list" class="grid gap-6 grid-cols-1">
     {% for analysis in vcon['analysis'] %}
       <li class="col-span-1 flex flex-col divide-y divide-gray-200 rounded-lg bg-white text-center shadow">
         <div class="flex flex-1 flex-col p-8">
@@ -77,12 +87,10 @@
             </div>
             <div class="border-t border-gray-200">
               {% for key, value in analysis.items() %}
-                {% if key != 'body' %}
                   <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                     <dt class="text-sm font-medium text-gray-500">{{key}}</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{value}}</dd>
                   </div>
-                {% endif %}
               {% endfor %}
         </div>
       </li>
@@ -98,7 +106,7 @@
               {% for key, value in attachment.items() %}
                 {% if key != 'body' %}
                   <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt class="text-sm font-medium text-gray-500">{{key}}</dt>
+                    <dt class="text-sm font-medium text-gray-500 pretty">{{key}}</dt>
                     <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{value}}</dd>
                   </div>
                 {% endif %}
@@ -110,23 +118,14 @@
 </div>
 
 {% endblock %}
-{% block scripts %}
-
-const button = document.querySelector("button");
-const input = document.querySelector("input");
-
-new Audio(url)
-
-button.addEventListener("click", () => {
-  input.toggleAttribute("disabled");
-});
-
-var snd = new Audio("data:audio/wav;base64," + base64string);
-snd.play();
-
-myAudioElement.addEventListener("canplaythrough", (event) => {
-  /* the audio is now playable; play it if permissions allow */
-  myAudioElement.play();
-});
+{% block javascript %}
+  
+  onReady(function() {
+    console.log('ready');
+    const collection = document.getElementsByClassName("pretty"); 
+    for (let i = 0; i < collection.length; i++) {
+      console.log(JSON.stringify(collection[i].innerHTML, null, 2))
+    }
+  });
 
 {% endblock %}

@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 import json
-from settings import REDIS_URL
+from settings import REDIS_URL, HOSTNAME
 
 # Our local modules``
 sys.path.append("..")
@@ -88,6 +88,20 @@ async def show_vcon_details(request: Request, vConUuid: str):
     try:
         key = "vcon-{}".format(vConUuid)
         vcon_details = await r.json().get(key, Path.root_path())
+        # This vCon object might be packed, so unpack it
+        vCon = vcon.Vcon()
+        vCon.loads(json.dumps(vcon_details))
+
+        for index, dialog in enumerate(vCon.dialog): 
+            if dialog['type'] != 'recording':
+                continue
+            # Save this recording to a file
+            bytes = vCon.decode_dialog_inline_body(index) 
+            with open("static/{}".format(dialog['filename']), "wb") as f:
+                f.write(bytes)
+            vcon_details['dialog'][index]['url'] = HOSTNAME + "/static/{}".format(dialog['filename'])
+
+
         return templates.TemplateResponse("vcon.html", {"request": request, "vcon": vcon_details})
     except Exception as e:
         logger.error("Error loading vCon from Redis: %s", e)

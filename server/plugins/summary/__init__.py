@@ -39,7 +39,7 @@ async def start(opts=default_options):
                 message = await p.get_message()
                 if message:
                     vConUuid = message['data'].decode('utf-8')
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
                     vCon = vcon.Vcon()
                     vCon.loads(body)
 

@@ -55,7 +55,7 @@ async def start(opts=default_options):
 
                         # Publish the vCon
                         logger.info("New vCon created: {}".format(vCon.uuid))
-                        key = "vcon-{}".format(vCon.uuid)
+                        key = "vcon:{}".format(vCon.uuid)
                         await r.json().set(key, Path.root_path(), vCon)
                         for egress_topic in opts["egress-topics"]:
                             await r.publish(egress_topic, vCon.uuid)

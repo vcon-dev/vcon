@@ -42,7 +42,7 @@ async def start(opts=default_options):
                     logger.debug("mongo plugin: message: {}".format(message))
                     vConUuid = message['data'].decode('utf-8')
                     logger.info("mongo plugin: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
                     vCon = json.loads(body)
                     for analysis in body['analysis']:
                         if (analysis['kind'] == 'projection'):

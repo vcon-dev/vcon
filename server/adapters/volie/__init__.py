@@ -48,6 +48,7 @@ def create_vcon_from_sms(body):
         called = body.get(body['message_to'], 'unknown')
         vCon.set_party_parameter("tel", caller)
         vCon.set_party_parameter("tel", called)
+        vCon.add_dialog_inline_text(body['message_body'], body['message_sent_at'],0, 0, "MIMETYPE_TEXT_PLAIN")
         return vCon
 
     except Exception as e:
@@ -101,43 +102,48 @@ def create_vcon_from_phone_call(body):
         logger.debug("create_vcon_from_phone_call error: {}".format(e))
         return None
 
-async def start():
+default_options = {
+    "name": "volie",
+    "ingress-list": ["volie-conserver-feed"],
+    "egress-topics":["ingress-vcons"],
+}
+
+async def start(opts=default_options):
     logger.info("Starting the volie adapter")
     # Setup redis
     r = redis.Redis(host='localhost', port=6379, db=0)
     while True:
         try:
             async with async_timeout.timeout(10):
-                list, data = await r.blpop("volie-conserver-feed")
-                if data is None:
-                    continue
-                try:
-                    list = list.decode()
-                    payload = json.loads(data.decode())
-
-                    # Construct empty vCon, set meta data
-                    vCon = vcon.Vcon()
-
-                    message = json.loads(json.loads(data).get("Message"))
-                    body = json.loads(message['default']['body'])
-
-                    # Decode it
-                    kind = body.get('kind', 'unknown')
-                    if kind == 'NEW_MESSAGE':
-                        vCon = create_vcon_from_sms(body)
-                    elif kind == 'NEW_CALL':
-                        vCon = create_vcon_from_phone_call(body)
-                    elif kind == 'NEW_EMAIL':
-                        vCon = create_vcon_from_email(body)
-                    else:
-                        logger.debug("What the heck is this? {}".format(body))
+                for ingress_list in opts["ingress-list"]:
+                    list, data = await r.blpop(ingress_list)
+                    if data is None:
                         continue
-                    logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
-                    cleanvCon = json.loads(vCon.dumps())
-                    await r.set("vcon-{}".format(vCon.uuid), cleanvCon)
-                    await r.publish("ingress-vcons", str(vCon.uuid))
-                except Exception as e:
-                    logger.debug("volie adapter error: {}".format(e))
+                    try:
+                        payload = json.loads(data)
+                        message = json.loads(payload.get("Message"))
+                        body = json.loads(message['default']['body'])
+
+                        # Construct empty vCon, set meta data
+                        vCon = vcon.Vcon()
+
+                        # Decode it
+                        kind = body.get('kind', 'unknown')
+                        if kind == 'NEW_MESSAGE':
+                            vCon = create_vcon_from_sms(body)
+                        elif kind == 'NEW_CALL':
+                            vCon = create_vcon_from_phone_call(body)
+                        elif kind == 'NEW_EMAIL':
+                            vCon = create_vcon_from_email(body)
+                        else:
+                            logger.debug("What the heck is this? {}".format(body))
+                            continue
+                        logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
+                        cleanvCon = json.loads(vCon.dumps())
+                        await r.json().set("vcon:{}".format(vCon.uuid), cleanvCon)
+                        await r.publish("ingress-vcons", str(vCon.uuid))
+                    except Exception as e:
+                        logger.debug("volie adapter error: {}".format(e))
 
         except asyncio.TimeoutError:
             pass    

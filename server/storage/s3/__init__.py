@@ -33,7 +33,7 @@ async def start(opts=default_options):
                 if message:
                     vConUuid = message['data'].decode('utf-8')
                     logger.info("S3: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
 
                     # Save the vCon to S3
                     s3 = boto3.resource(

@@ -33,7 +33,7 @@ async def start(opts=default_options):
                 message = await p.get_message()
                 if message:
                     vConUuid = message['data'].decode('utf-8')
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
                     vCon = vcon.Vcon()
                     vCon.loads(body)
 
@@ -60,7 +60,7 @@ async def start(opts=default_options):
                         adapter_meta['type'] = 'redaction'
                         adapter_meta['data'] = redacted_text
                         vCon.attachments.append(adapter_meta)
-                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    await r.set("vcon:{}".format(vCon.uuid), vCon.dumps())
 
 
                     for topic in opts['egress-topics']:

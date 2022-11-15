@@ -32,7 +32,7 @@ async def start(opts=default_options):
                 if message:
                     vConUuid = message['data'].decode('utf-8')
                     logger.info("mongo plugin: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
                     vCon = json.loads(body)
                     m.conserver.call_log.insert_one(vCon)
                     for topic in opts['egress-topics']:

@@ -62,18 +62,10 @@ async def start(opts=default_options):
                         else:   
                             try:
                                 # Download the recording
-                                recording_bytes = urllib.request.urlopen(recording_url).read()
                                 starttime = payload.get("cdr").get("starttime")
                                 duration = payload.get("cdr").get("duration")
+                                recording_bytes = urllib.request.urlopen(recording_url).read()
 
-                                vCon.add_dialog_inline_recording(
-                                recording_bytes,
-                                starttime,
-                                duration,
-                                [0, 1], # parties recorded
-                                "audio/ogg", # MIME type
-                                recording_filename)
-                                logger.debug("Recording successfully downloaded and attached to vCon")
 
                             except urllib.error.HTTPError as err:
                                 error_msg = "Error retrieving recording from " + recording_url
@@ -81,7 +73,16 @@ async def start(opts=default_options):
                                 error_time = date.today().strftime("%m/%d/%Y, %H:%M:%S")
                                 vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
                                 logger.debug("Recording not downloaded, expired")
+                                recording_bytes = b''
 
+                        vCon.add_dialog_inline_recording(
+                        recording_bytes,
+                        starttime,
+                        duration,
+                        [0, 1], # parties recorded
+                        "audio/ogg", # MIME type
+                        recording_filename)
+                        logger.debug("Recording successfully downloaded and attached to vCon")
 
                         if payload.get("cdr").get("direction") == "IN":
                             caller = payload.get("cdr").get("src")
@@ -90,21 +91,9 @@ async def start(opts=default_options):
                         else:
                             caller = payload.get("cdr").get("dst")
                             called = payload.get("cdr").get("src")
-                            agent_party = 0
-                        vCon.set_party_parameter("tel", caller)
-                        vCon.set_party_parameter("tel", called)
 
-                        agent_party_data = {
-                            "network": payload.get("cdr").get("network"),
-                            "direction": payload.get("cdr").get("direction"),
-                            "orgalias": payload.get("cdr").get("orgalias"),
-                            "pbx_cnum": payload.get("cdr").get("pbx_cnum"),
-                            "pbx_dcontext": payload.get("cdr").get("pbx_dcontext"),
-                            "pbx_dst": payload.get("cdr").get("pbx_dst"),
-                            "releasecausecode": payload.get("cdr").get("releasecausecode"),
-                            "status": payload.get("cdr").get("status"),
-                        }
-                        vCon.parties[agent_party] = agent_party_data
+                        vCon.set_party_parameter("tel", caller, -1)
+                        vCon.set_party_parameter("tel", called, -1)
 
                         # Set the adapter meta so we know where the this came from
                         adapter_meta= {
@@ -119,7 +108,7 @@ async def start(opts=default_options):
 
                         # Publish the vCon
                         logger.info("New vCon created: {}".format(vCon.uuid))
-                        key = "vcon-{}".format(vCon.uuid)
+                        key = "vcon:{}".format(vCon.uuid)
                         cleanVcon = json.loads(vCon.dumps())
                         await r.json().set(key, Path.root_path(), cleanVcon)
                         for egress_topic in opts["egress-topics"]:

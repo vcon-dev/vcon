@@ -30,7 +30,7 @@ async def start(opts=default_options):
                 if message:
                     vConUuid = message['data'].decode('utf-8')
                     logger.info("transcription plugin: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon-{}".format(str(vConUuid)))
+                    body = await r.get("vcon:{}".format(str(vConUuid)))
                     vCon = vcon.Vcon()
                     vCon.loads(body)
 
@@ -62,7 +62,7 @@ async def start(opts=default_options):
                     stabilized_segments = stable_whisper.stabilize_timestamps(transcript["segments"], aggressive=True)
                     transcript['segments'] = stabilized_segments
                     vCon.add_analysis_transcript(0, transcript, "whisper-ai")
-                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    await r.set("vcon:{}".format(vCon.uuid), vCon.dumps())
                     
                     for topic in opts['egress-topics']:
                         await r.publish(topic, vConUuid)

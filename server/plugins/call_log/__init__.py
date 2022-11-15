@@ -31,10 +31,11 @@ async def manage_ended_call(inbound_vcon):
             return
         
         # Check to see if this is a voice call
-        voice = True
-        for party in vCon.parties:
-            if 'mailto' in party:
-                voice = False
+        voice = False
+        for dialog in vCon.dialog:
+            if dialog.get("type") == "recording":
+                voice = True
+                break
 
         if not voice:
             logger.debug("call_log plugin: vCon is not a voice call, skipping")
@@ -81,12 +82,10 @@ async def start(opts=default_options):
                 
                 vConUuid = message['data'].decode('utf-8')
                 logger.info("call_log plugin: received vCon: {}".format(vConUuid))
-                vCon = await r.get("vcon-"+vConUuid)
-                vCon = json.loads(vCon)
+                vCon = await r.json().get("vcon-"+vConUuid)
                 vCon = await manage_ended_call(vCon)
                 if not vCon:
                     continue
-                await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
                 for topic in opts['egress-topics']:
                     await r.publish(topic, vCon.uuid)
             await asyncio.sleep(0.1)

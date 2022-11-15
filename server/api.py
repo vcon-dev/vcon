@@ -54,9 +54,12 @@ async def last_vcons(size=200):
         vcon_ids = await r.lrange("call_log_list", 0, size)
         for vcon_uuid in vcon_ids:
             print("vcon_uuid being added ", vcon_uuid)
-            inbound_vcon = await r.json().get("vcon-{}".format(vcon_uuid), Path.root_path())
-            if inbound_vcon:
-                vcons.append(inbound_vcon)
+            try:
+                inbound_vcon = await r.json().get("vcon:{}".format(vcon_uuid), Path.root_path())
+                if inbound_vcon:
+                    vcons.append(inbound_vcon)
+            except Exception as e:
+                logger.error("Error getting vcon:{}: {}".format(vcon_uuid, e))
         return vcons
     except Exception as e:
         logger.error(e)
@@ -75,7 +78,7 @@ async def homepage(request: Request):
 )
 async def show_vcon(request: Request, vConUuid: str):
     try:
-        key = "vcon-{}".format(vConUuid)
+        key = "vcon:{}".format(vConUuid)
         vCon = await r.json().get(key, Path.root_path())
         return JSONResponse(status_code=status.HTTP_200_OK, content=vCon)  
     except Exception as e:
@@ -86,7 +89,7 @@ async def show_vcon(request: Request, vConUuid: str):
 @app.get("/details/{vConUuid}", response_class=HTMLResponse)
 async def show_vcon_details(request: Request, vConUuid: str):
     try:
-        key = "vcon-{}".format(vConUuid)
+        key = "vcon:{}".format(vConUuid)
         vcon_details = await r.json().get(key, Path.root_path())
         # This vCon object might be packed, so unpack it
         vCon = vcon.Vcon()

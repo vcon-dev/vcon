@@ -30,8 +30,8 @@ async def start(opts=default_options):
                     if data is None:
                         continue
                     try:
-                        list = list.decode()
-                        payload = json.loads(data.decode())
+                        list = list
+                        payload = json.loads(data)
                         body = payload.get("default")
                                         
                         # Construct empty vCon, set meta data
@@ -53,7 +53,8 @@ async def start(opts=default_options):
                         # Publish the vCon
                         logger.info("New vCon created: {}".format(vCon.uuid))
                         key = "vcon-{}".format(vCon.uuid)
-                        await r.json().set(key, Path.root_path(), vCon)
+                        cleanVcon = json.loads(vCon.dumps())
+                        await r.json().set(key, Path.root_path(), cleanVcon)
                         for egress_topic in opts["egress-topics"]:
                             await r.publish(egress_topic, vCon.uuid)
                     except Exception as e:

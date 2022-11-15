@@ -133,7 +133,8 @@ async def start():
                         logger.debug("What the heck is this? {}".format(body))
                         continue
                     logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
-                    await r.set("vcon-{}".format(vCon.uuid), vCon.dumps())
+                    cleanvCon = json.loads(vCon.dumps())
+                    await r.set("vcon-{}".format(vCon.uuid), cleanvCon)
                     await r.publish("ingress-vcons", str(vCon.uuid))
                 except Exception as e:
                     logger.debug("volie adapter error: {}".format(e))

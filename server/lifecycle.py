@@ -1,4 +1,5 @@
 import asyncio
+import async_timeout
 import os
 import logging
 import logging.config
@@ -10,7 +11,7 @@ import shortuuid
 
 from fastapi.applications import FastAPI
 from fastapi_utils.tasks import repeat_every
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL, LOG_LIMIT
 
 
 chains = []
@@ -24,10 +25,25 @@ logger.info('Conserver starting up')
 # Setup redis
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 
+
+# Periodically check for new data to extract
 @app.on_event("startup")
 @repeat_every(seconds=1)
 async def check_sqs():
-    print("Tick")
+    sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
+    queue_names = await r.smembers('queue_names')
+    try:
+        for queue_name in queue_names:
+            q = queue_name
+            queue = sqs.get_queue_by_name(QueueName=q)
+            for message in queue.receive_messages():
+                message.delete()
+                await r.rpush(q, message.body)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+
+
+        
 
 class Transformer: 
     def __init__(self, name, chain_id): 
@@ -41,6 +57,9 @@ class Transformer:
 
     def default_egress_topic(self):
         return "{}_{}".format(self.name, self.chain_id)
+
+    def start(self, options):
+        self.module.start(options)
 
 
 async def configure_and_start_pipeline(pipeline):
@@ -85,7 +104,7 @@ async def configure_and_start_pipeline(pipeline):
 
         # Start the plugin, add it to the list of tasks
         # and add this task to the chain of tasks.
-        task = asyncio.create_task(thisStep.start(step.options))
+        task = asyncio.create_task(thisStep.module.start(thisStep.options))
         background_tasks.add(task)
         pipeline_tasks.append(task)
         logger.info("Starting pipeline task: {}".format(step))
@@ -124,10 +143,42 @@ async def load_services():
 
     active_chains = await r.smembers('active_chains')
     for chain in active_chains:
-        chain = chain.decode("utf-8")
         chain = chain.split(",")
         logger.info("Chain: {}".format(chain))
         asyncio.create_task(configure_and_start_pipeline(chain))
+
+async def observe():
+    logger.info("Observer started")
+    while True:
+        try:
+            async with async_timeout.timeout(10):
+                p = r.pubsub(ignore_subscribe_messages=True)
+                await p.subscribe('ingress-vcons')
+                while True:
+                    try:
+                        message = await p.get_message()
+                        if message:
+                            vConUuid = message['data']
+                            await r.lpush('call_log_list', vConUuid)
+                            await r.ltrim('call_log_list', 0, LOG_LIMIT)
+
+                    except Exception as e:
+                        logger.info("Error: {}".format(e))
+        except asyncio.TimeoutError:
+            pass
+        except asyncio.CancelledError:
+            logger.info("observer Cancelled")
+            break
+
+    logger.info("Observer stopped")
+
+
+@app.on_event("startup")
+async def start_observer():
+    logger.info("Starting observer")
+    task = asyncio.create_task(observe())
+    background_tasks.add(task)
+
 
 
 @app.on_event("shutdown")
@@ -137,3 +188,4 @@ async def shutdown_background_tasks():
         task.cancel()
         await task
         logger.info("Task cancelled: %s", task)
+

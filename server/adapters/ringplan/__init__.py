@@ -33,15 +33,13 @@ async def start(opts=default_options):
                     list, data = await r.blpop(ingress_list)
                     if data is None:
                         continue
-
                     try:
-                        list = list
                         payload = json.loads(data)
                         original_msg = json.loads(payload.get("Message"))
+                        payload = original_msg.get("payload")
 
                         # Construct empty vCon, set meta data
                         vCon = vcon.Vcon()
-                        payload = original_msg.get("payload")
 
                         # Download the recording and attach it to the vCon
                         recording_url = payload.get("recording").get("url")
@@ -65,8 +63,6 @@ async def start(opts=default_options):
                                 starttime = payload.get("cdr").get("starttime")
                                 duration = payload.get("cdr").get("duration")
                                 recording_bytes = urllib.request.urlopen(recording_url).read()
-
-
                             except urllib.error.HTTPError as err:
                                 error_msg = "Error retrieving recording from " + recording_url
                                 error_type = "HTTPError"
@@ -76,12 +72,12 @@ async def start(opts=default_options):
                                 recording_bytes = b''
 
                         vCon.add_dialog_inline_recording(
-                        recording_bytes,
-                        starttime,
-                        duration,
-                        [0, 1], # parties recorded
-                        "audio/ogg", # MIME type
-                        recording_filename)
+                            recording_bytes,
+                            starttime,
+                            duration,
+                            [0, 1], # parties recorded
+                            "audio/ogg", # MIME type
+                            recording_filename)
                         logger.debug("Recording successfully downloaded and attached to vCon")
 
                         if payload.get("cdr").get("direction") == "IN":

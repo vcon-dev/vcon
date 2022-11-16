@@ -7,6 +7,7 @@ import vcon
 import urllib
 import datetime
 import logging 
+from settings import REDIS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ default_options = {
 async def start(opts=default_options):
     logger.info("Starting the volie adapter")
     # Setup redis
-    r = redis.Redis(host='localhost', port=6379, db=0)
+    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
     while True:
         try:
             async with async_timeout.timeout(10):

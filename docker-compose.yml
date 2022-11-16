@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  conserver:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    environment:
+      - MONGODB_URL
+      - DEEPGRAM_KEY
+      - AWS_KEY_ID
+      - AWS_SECRET_KEY
+      - AWS_BUCKET
+      - REDIS_URL
+      - LOG_LIMIT
+      - HOSTNAME
+    networks:
+      - back-tier
+
+  redis:
+    image: "redis/redis-stack:latest"
+    ports:
+      - "6379:6379"
+      - "8001:8001" 
+    networks:
+      - back-tier
+
+networks:
+  front-tier:
+  back-tier:

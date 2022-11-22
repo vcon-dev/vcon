@@ -36,9 +36,22 @@ async def start(opts=default_options):
                                         
                         # Construct empty vCon, set meta data
                         vCon = vcon.Vcon()
-                        vCon.set_party_parameter("tel", body["src"])
-                        vCon.set_party_parameter("tel", body["dst"])
+                        vCon.set_party_parameter("tel", body["src"], -1)
+                        vCon.set_party_parameter("tel", body["dst"], -1)
 
+                        # Copy over the transcript from the message
+                        messages = body['event_payload']['messages']
+                        transcript = ""
+                        start_time = None
+                        for message in messages:
+                            if start_time is None:
+                                timestamp = int(message['timestamp'])
+                                start_time = timestamp/1000  
+                                
+                            line = "{}: {}\n".format(message['author'], message['text'])
+                            transcript += line
+
+                        vCon.add_dialog_inline_text(transcript, start_time, 0, 10000, "MIMETYPE_TEXT_PLAIN")
                         # Set the adapter meta so we know where this thing came from
                         adapter_meta= {
                             "adapter": "quiq",

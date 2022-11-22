@@ -82,7 +82,7 @@ async def start(opts=default_options):
                 
                 vConUuid = message['data'].decode('utf-8')
                 logger.info("call_log plugin: received vCon: {}".format(vConUuid))
-                vCon = await r.json().get("vcon-"+vConUuid)
+                vCon = await r.json().get("vcon:"+vConUuid)
                 vCon = await manage_ended_call(vCon)
                 if not vCon:
                     continue

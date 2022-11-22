@@ -6,6 +6,8 @@ import logging
 import logging.config
 import redis.asyncio as redis
 from settings import REDIS_URL
+from redis.commands.json.path import Path
+
 import vcon
 
 logger = logging.getLogger(__name__)
@@ -30,17 +32,34 @@ async def start(opts=default_options):
                         continue
 
                     try:
-                        list = list.decode('utf-8')
-                        payload = json.loads(data.decode('utf-8'))
-                        message = json.loads(payload.get("Message"))
-                        body = json.loads(message['default']['body'])
+                        payload = json.loads(data)
+                        body = json.loads(payload.get("Message"))
                         logger.info("Bria adapter received")
                         print("Bria adapter received: {}".format(body))
 
                         # Construct empty vCon, set meta data
                         vCon = vcon.Vcon()
-                        vCon.set_party_tel_url(body["to_number"])
-                        vCon.set_party_tel_url(body["from_number"])
+                        email = body.get("email")
+                        username = email.split('@')[0]
+                        first_name = username.split('.')[0]
+                        last_name = username.split('.')[1]
+                        full_name = first_name + " " + last_name
+                        if body.get("direction") == "out":
+                            src = body.get("extension")
+                            dst = body.get("customerNumber")
+                            email = body.get("email")
+                            vCon.set_party_parameter("tel", src, -1)
+                            vCon.set_party_parameter("mailto", email, 0)
+                            vCon.set_party_parameter("name", full_name, 0)
+                            vCon.set_party_parameter("tel", dst, -1)
+
+                        else:
+                            dst = body.get("extension")
+                            src = body.get("customerNumber")
+                            vCon.set_party_parameter("tel", src, -1)
+                            vCon.set_party_parameter("mailto", email, -1)
+                            vCon.set_party_parameter("name", full_name, 1)
+                            vCon.set_party_parameter("tel", dst, 1)
 
                         # Set the adapter meta so we know where the this came from
                         adapter_meta= {
@@ -56,7 +75,8 @@ async def start(opts=default_options):
                         # Publish the vCon
                         logger.info("New vCon created: {}".format(vCon.uuid))
                         key = "vcon:{}".format(vCon.uuid)
-                        await r.json().set(key, Path.root_path(), vCon)
+                        cleanvCon = json.loads(vCon.dumps())
+                        await r.json().set(key, Path.root_path(), cleanvCon)
                         for egress_topic in opts["egress-topics"]:
                             await r.publish(egress_topic, vCon.uuid)
                     except Exception as e:

@@ -20,6 +20,8 @@ import jose.jws
 import jose.jwe
 from datetime import date
 from uuid6 import uuid
+import time    
+
 
 
 _LAST_V8_TIMESTAMP = None
@@ -214,7 +216,8 @@ class Vcon():
     self._vcon_dict[Vcon.DIALOG] = []
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
-    self._vcon_dict[Vcon.CREATED_AT] = datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S %z")
+    self._vcon_dict[Vcon.CREATED_AT] = int(time.time())
+
     self._vcon_dict[Vcon.UUID] = str(uuid.uuid4())
     
 

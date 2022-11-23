@@ -7,9 +7,10 @@ from dataprofiler import Data, Profiler
 from dataprofiler.data_readers.text_data import TextData
 import dataprofiler as dp
 
-import json
-
+from settings import LOG_LEVEL
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "redaction",
     "ingress-topics": ["ingress-vcons"],

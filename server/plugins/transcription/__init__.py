@@ -6,9 +6,12 @@ import whisper
 import vcon
 
 import plugins.transcription.stable_whisper
+from settings import LOG_LEVEL
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "transcription",
     "ingress-topics": ["ingress-vcons"],

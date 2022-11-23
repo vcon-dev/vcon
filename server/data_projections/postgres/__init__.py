@@ -6,8 +6,10 @@ import async_timeout
 import redis.asyncio as redis
 import json
 import logging
+from settings import LOG_LEVEL
 
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
 default_options = {
     "name": "postgres",

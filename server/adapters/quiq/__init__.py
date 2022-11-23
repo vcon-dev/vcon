@@ -6,10 +6,12 @@ import logging
 import logging.config
 import vcon
 import datetime
-from settings import REDIS_URL
+from settings import REDIS_URL, LOG_LEVEL
 from redis.commands.json.path import Path
 
+
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 logger.info("Starting the quiq adapter")
 
 default_options = {

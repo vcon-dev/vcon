@@ -7,10 +7,10 @@ import vcon
 import urllib
 import datetime
 import logging 
-from settings import REDIS_URL
+from settings import REDIS_URL, LOG_LEVEL
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(LOG_LEVEL)
 
 def adapter_meta(body, type):
     meta= {}

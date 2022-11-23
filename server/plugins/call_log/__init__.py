@@ -6,9 +6,11 @@ import asyncio
 import logging
 import datetime
 import whisper
+from settings import LOG_LEVEL
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 model = whisper.load_model("base")
 
 default_options = {

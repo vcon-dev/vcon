@@ -7,7 +7,10 @@ import boto3
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
 import logging
 
+from settings import LOG_LEVEL
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "s3",
     "ingress-topics": ["ingress-vcons"],

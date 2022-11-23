@@ -4,7 +4,10 @@ import json
 import asyncio
 import logging
 
+from settings import LOG_LEVEL
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "redis",
     "ingress-topics": ["ingress-vcons"],

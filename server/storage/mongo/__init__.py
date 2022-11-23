@@ -6,7 +6,10 @@ import pymongo
 from settings import MONGODB_URL
 import logging
 
+from settings import LOG_LEVEL
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "call_log",
     "ingress-topics": ["ingress-vcons"],

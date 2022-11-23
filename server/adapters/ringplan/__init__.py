@@ -11,10 +11,12 @@ import redis.asyncio as redis
 from redis.commands.json.path import Path
 import urllib
 import vcon
-from settings import REDIS_URL
+from settings import REDIS_URL, LOG_LEVEL
 
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 logger.info('RingPlan adapter loading')
+logger.debug("Debuggingly")
 
 default_options = {
     "name": "ringplan",

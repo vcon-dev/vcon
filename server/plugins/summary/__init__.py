@@ -6,9 +6,11 @@ import jose
 from pydub import AudioSegment
 from settings import DEEPGRAM_KEY
 from deepgram import Deepgram
-
+from settings import LOG_LEVEL
 
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+
 default_options = {
     "name": "redaction",
     "ingress-topics": ["test-summary"],

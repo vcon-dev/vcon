@@ -5,12 +5,13 @@ import json
 import logging
 import logging.config
 import redis.asyncio as redis
-from settings import REDIS_URL
+from settings import REDIS_URL, LOG_LEVEL
 from redis.commands.json.path import Path
-
 import vcon
 
+
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 logger.info('Bria adapter loading')
 
 default_options = {

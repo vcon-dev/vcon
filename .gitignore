@@ -1,4 +1,4 @@
-
+*.env
 layers
 venv
 **/__pycache__
@@ -16,3 +16,4 @@ server/.DS_Store
 server/.vscode
 dump.rdb
 server/static
+.data

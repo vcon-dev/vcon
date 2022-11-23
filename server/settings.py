@@ -8,3 +8,4 @@ AWS_BUCKET=os.environ["AWS_BUCKET"]
 REDIS_URL=os.getenv("REDIS_URL", "redis://localhost")
 LOG_LIMIT=os.getenv("LOG_LIMIT", 100)
 HOSTNAME=os.getenv("HOSTNAME", "http://localhost:8000")
+ENV=os.getenv("ENV", "dev")

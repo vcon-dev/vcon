@@ -19,7 +19,6 @@ chains = []
 # Load FastAPI app
 app = FastAPI.conserver_app
 logger = logging.getLogger(__name__)
-logging.config.fileConfig('./logging.conf')
 logger.info('Conserver starting up')
 
 # Setup redis
@@ -149,11 +148,11 @@ async def load_services():
 
 async def observe():
     logger.info("Observer started")
+    p = r.pubsub(ignore_subscribe_messages=True)
+    await p.subscribe('ingress-vcons')
     while True:
         try:
             async with async_timeout.timeout(10):
-                p = r.pubsub(ignore_subscribe_messages=True)
-                await p.subscribe('ingress-vcons')
                 while True:
                     try:
                         message = await p.get_message()
@@ -161,7 +160,7 @@ async def observe():
                             vConUuid = message['data']
                             await r.lpush('call_log_list', vConUuid)
                             await r.ltrim('call_log_list', 0, LOG_LIMIT)
-
+                        await asyncio.sleep(0.01)
                     except Exception as e:
                         logger.info("Error: {}".format(e))
         except asyncio.TimeoutError:

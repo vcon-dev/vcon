@@ -1,7 +1,10 @@
-version: "3.9"
+version: "3.3"
 services:
   conserver:
     build: .
+    command: bash -c "python ./init.py"
+    volumes:
+      - .:/app
     ports:
       - "8000:8000"
     depends_on:
@@ -21,11 +24,14 @@ services:
   redis:
     image: "redis/redis-stack:latest"
     ports:
-      - "6379:6379"
-      - "8001:8001" 
+      - "8001:8001"
+    environment:
+      REDIS_ARGS: --save 20 1
     networks:
       - back-tier
+    volumes:
+       - ./.data:/data
+
 
 networks:
-  front-tier:
   back-tier:

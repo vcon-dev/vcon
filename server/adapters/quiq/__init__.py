@@ -19,7 +19,7 @@ default_options = {
 }
 
 async def start(opts=default_options):
-    logger.info("Starting the bria adapter")
+    logger.info("Starting the quiq adapter")
     # Setup redis
     r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
     while True:

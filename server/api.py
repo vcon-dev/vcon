@@ -21,7 +21,6 @@ sys.path.append("..")
 import vcon
 
 logger = logging.getLogger(__name__)
-logging.config.fileConfig('./logging.conf')
 logger.info('Conserver starting up')
 
 

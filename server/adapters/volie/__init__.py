@@ -7,6 +7,7 @@ import vcon
 import urllib
 import datetime
 import logging 
+from redis.commands.json.path import Path
 from settings import REDIS_URL, LOG_LEVEL
 
 logger = logging.getLogger(__name__)
@@ -141,7 +142,7 @@ async def start(opts=default_options):
                             continue
                         logger.info("Incoming Volie vCon: {}".format(vCon.uuid))
                         cleanvCon = json.loads(vCon.dumps())
-                        await r.json().set("vcon:{}".format(vCon.uuid), cleanvCon)
+                        await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), cleanvCon)
                         await r.publish("ingress-vcons", str(vCon.uuid))
                     except Exception as e:
                         logger.debug("volie adapter error: {}".format(e))

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import whisper
 import vcon
+from redis.commands.json.path import Path
 
 import plugins.transcription.stable_whisper
 from settings import LOG_LEVEL
@@ -65,7 +66,7 @@ async def start(opts=default_options):
                     stabilized_segments = stable_whisper.stabilize_timestamps(transcript["segments"], aggressive=True)
                     transcript['segments'] = stabilized_segments
                     vCon.add_analysis_transcript(0, transcript, "whisper-ai")
-                    await r.set("vcon:{}".format(vCon.uuid), vCon.dumps())
+                    await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), vCon.dumps())
                     
                     for topic in opts['egress-topics']:
                         await r.publish(topic, vConUuid)

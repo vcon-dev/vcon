@@ -6,6 +6,8 @@ import vcon
 from dataprofiler import Data, Profiler
 from dataprofiler.data_readers.text_data import TextData
 import dataprofiler as dp
+from redis.commands.json.path import Path
+
 
 from settings import LOG_LEVEL
 logger = logging.getLogger(__name__)
@@ -61,7 +63,7 @@ async def start(opts=default_options):
                         adapter_meta['type'] = 'redaction'
                         adapter_meta['data'] = redacted_text
                         vCon.attachments.append(adapter_meta)
-                    await r.set("vcon:{}".format(vCon.uuid), vCon.dumps())
+                    await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), vCon.dumps())
 
 
                     for topic in opts['egress-topics']:

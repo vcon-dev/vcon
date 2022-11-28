@@ -33,11 +33,10 @@ async def check_sqs():
     queue_names = await r.smembers('queue_names')
     try:
         for queue_name in queue_names:
-            q = queue_name
-            queue = sqs.get_queue_by_name(QueueName=q)
+            queue = sqs.get_queue_by_name(QueueName=queue_name)
             for message in queue.receive_messages():
                 message.delete()
-                await r.rpush(q, message.body)
+                await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))
 
@@ -148,28 +147,29 @@ async def load_services():
 
 async def observe():
     logger.info("Observer started")
-    p = r.pubsub(ignore_subscribe_messages=True)
-    await p.subscribe('ingress-vcons')
     while True:
         try:
-            async with async_timeout.timeout(10):
-                while True:
-                    try:
-                        message = await p.get_message()
-                        if message:
-                            vConUuid = message['data']
-                            await r.lpush('call_log_list', vConUuid)
-                            await r.ltrim('call_log_list', 0, LOG_LIMIT)
-                        await asyncio.sleep(0.01)
-                    except Exception as e:
-                        logger.info("Error: {}".format(e))
-        except asyncio.TimeoutError:
-            pass
+            p = r.pubsub(ignore_subscribe_messages=True)
+            await p.subscribe('ingress-vcons')
+            async for message in p.listen():
+                await process_vcon_message(message);
         except asyncio.CancelledError:
             logger.info("observer Cancelled")
             break
-
+        except Exception:
+            continue
     logger.info("Observer stopped")
+
+
+    
+
+
+async def process_vcon_message(message):
+    logger.info("Got message %s", message)
+    vConUuid = message['data']
+    await r.lpush('call_log_list', vConUuid)
+    await r.ltrim('call_log_list', 0, LOG_LIMIT)
+    
 
 
 @app.on_event("startup")

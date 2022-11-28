@@ -6,20 +6,13 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "9000:8000"
     depends_on:
       - redis
-    environment:
-      - MONGODB_URL
-      - DEEPGRAM_KEY
-      - AWS_KEY_ID
-      - AWS_SECRET_KEY
-      - AWS_BUCKET
-      - REDIS_URL
-      - LOG_LIMIT
-      - HOSTNAME
     networks:
       - back-tier
+    env_file:
+      - .env
 
   redis:
     image: "redis/redis-stack:latest"
@@ -32,6 +25,19 @@ services:
     volumes:
        - ./.data:/data
 
+  jupyter:
+    build: .
+    command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
+    volumes:
+      - .:/app
+    ports:
+      - "9999:9999"
+    depends_on:
+      - redis
+    networks:
+      - back-tier
+    env_file:
+      - .env
 
 networks:
   back-tier:

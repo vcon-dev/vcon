@@ -8,7 +8,7 @@ server/static/*.ogg
 .DS_Store
 server/.DS_Store
 **/dump.rdb
-
+**/*.ipynb
 
 
 

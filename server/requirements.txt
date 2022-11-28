@@ -46,8 +46,7 @@ jedi==0.18.1
 Jinja2==3.0.0
 jmespath==1.0.1
 jose==1.0.0
-jupyter-client==7.3.4
-jupyter-core==4.11.1
+jupyter==1.0.0
 MarkupSafe==2.1.1
 matplotlib-inline==0.1.3
 mccabe==0.6.1

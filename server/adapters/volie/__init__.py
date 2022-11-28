@@ -8,7 +8,7 @@ import urllib
 import datetime
 import logging 
 from redis.commands.json.path import Path
-from settings import REDIS_URL, LOG_LEVEL
+from settings import REDIS_URL, LOG_LEVEL, ENV
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -106,7 +106,7 @@ def create_vcon_from_phone_call(body):
 
 default_options = {
     "name": "volie",
-    "ingress-list": ["volie-conserver-feed"],
+    "ingress-list": [f"volie-conserver-feed-{ENV}"],
     "egress-topics":["ingress-vcons"],
 }
 

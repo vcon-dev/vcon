@@ -4,7 +4,7 @@
 vCons are PDFs for human conversations, defining them so they can be shared, analyzed and secured. The Conserver is a domain specific data platform based on vCons, converting the raw materials of recorded conversations into self-serve data sources for any team. The Conserver represents the most modern set of tools for data engineers to responsibly and scalably use customer conversations in data pipelines. 
 
 ## vCon Library Quick Start
-Looking to include support for vCons in your software stack? Start here!
+Looking to include support for vCons in your software stack? [Start here](https://github.com/vcon-dev/vcon/wiki/Library-Quick-Start)!
 
 ## Presentations, Whitepapers and Tutorials
 

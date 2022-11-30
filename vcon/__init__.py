@@ -2,6 +2,8 @@
 Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
+import importlib
+import pkgutil
 import typing
 import sys
 import json
@@ -18,8 +20,13 @@ import vcon.security
 import jose.utils
 import jose.jws
 import jose.jwe
+import vcon.filter_plugins
 
 _LAST_V8_TIMESTAMP = None
+
+for finder, module_name, is_package in pkgutil.iter_modules(vcon.filter_plugins.__path__, vcon.filter_plugins.__name__ + "."):
+  print("plugin registration: {}".format(module_name))
+  importlib.import_module(module_name)
 
 def deprecated(reason : str):
   """
@@ -640,6 +647,14 @@ class Vcon():
       return(json.dumps(self._jwe_dict))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
+
+  def load(self, file_handle: typing.TextIO) -> None:
+    """
+    Load the Vcon JSON from the given file_handle and deserialize it.
+    see Vcon.loads for more details.
+    """
+    vcon_json_string = file_handle.read()
+    self.loads(vcon_json_string)
 
   def loads(self, vcon_json : str) -> None:
     """

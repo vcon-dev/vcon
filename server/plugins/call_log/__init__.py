@@ -102,7 +102,6 @@ async def start(opts=default_options):
                 cleanvCon = json.loads(vCon.dumps())
                 await r.json().set(key, Path.root_path(), cleanvCon)
                 for topic in opts['egress-topics']:
-                    logger.info("A3")
                     await r.publish(topic, vCon.uuid)
         except asyncio.CancelledError:
             logger.debug("call log plugin Cancelled")

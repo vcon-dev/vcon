@@ -2,15 +2,17 @@ import asyncio
 import redis.asyncio as redis
 import json
 import vcon
-import asyncio
 import logging
 import datetime
 import whisper
-from settings import LOG_LEVEL
+from settings import LOG_LEVEL, REDIS_URL
+import traceback
+from redis.commands.json.path import Path
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
+
 model = whisper.load_model("base")
 
 default_options = {
@@ -19,7 +21,7 @@ default_options = {
     "transcribe": True,
     "min_transcription_length": 10,
     "deepgram": False,
-    "egress-topics":["egress-vcons-1"],
+    "egress-topics":[],
 }
 
 async def manage_ended_call(inbound_vcon):
@@ -45,13 +47,26 @@ async def manage_ended_call(inbound_vcon):
 
         for dialog in vCon.dialog:
             projection = {}
-            projection['customer_number'] = vCon.parties[0]['tel']
-            projection['dealer_number'] = vCon.parties[1]['tel']
+            if vCon.attachments[0]["payload"]["direction"]=="out":
+                projection['customer_number'] = vCon.parties[1]['tel']
+                projection['extension'] = vCon.parties[0]['tel']
+            else:
+                projection['customer_number'] = vCon.parties[0]['tel']
+                projection['extension'] = vCon.parties[1]['tel']
+            projection['dealer_number'] = vCon.attachments[0]['payload']['dialerId']
             projection['call_started_on'] = dialog['start']
             projection['duration'] = dialog['duration']
             projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            projection['projection'] = 'call_log'
 
+            """
+            attachments: [
+                {adapter: bria, type: call_recording, ...},
+                {projection: call_log, ...},
+                {lead: "cars.com", adf: <adf-data>},
+            ]
+            """
 
             # Check to see if there's more information in the vCon
             for party in vCon.parties:
@@ -64,39 +79,38 @@ async def manage_ended_call(inbound_vcon):
 
         # Send this out to the storage adapters
         return(vCon)
-    
-    except Exception as e:
-        logger.error("call_log plugin: error: {}".format(e))
+    except:
+        logger.error("call_log plugin: error: \n%s", traceback.format_exc())
         logger.error("Shoot!")
-        logger.info("call_log error: {}".format(e))
+
 
 async def start(opts=default_options):
-    logger.info("Starting the call_log plugin")
-
-    try:
-        r = redis.Redis(host='localhost', port=6379, db=0)
-        p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts['ingress-topics'])
-
-        while True:
-            message = await p.get_message()
-            if message:
-                
-                vConUuid = message['data'].decode('utf-8')
+    logger.info("Starting the call_log plugin!!!")
+    while True:
+        try:
+            r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+            p = r.pubsub(ignore_subscribe_messages=True)
+            await p.subscribe(*opts['ingress-topics'])
+            async for message in p.listen():
+                vConUuid = message['data']
                 logger.info("call_log plugin: received vCon: {}".format(vConUuid))
                 vCon = await r.json().get("vcon:"+vConUuid)
                 vCon = await manage_ended_call(vCon)
                 if not vCon:
                     continue
+                key = f"vcon:{vCon.uuid}"
+                cleanvCon = json.loads(vCon.dumps())
+                await r.json().set(key, Path.root_path(), cleanvCon)
                 for topic in opts['egress-topics']:
+                    logger.info("A3")
                     await r.publish(topic, vCon.uuid)
-            await asyncio.sleep(0.1)
-
-    except asyncio.CancelledError:
-        logger.debug("call log plugin Cancelled")
-
-
-    logger.info("call log plugin stopped")    
+        except asyncio.CancelledError:
+            logger.debug("call log plugin Cancelled")
+            break
+        except Exception:
+            logger.error("call_log plugin: error: \n%s", traceback.format_exc())
+            logger.error("Shoot!")
+    logger.info("call log plugin stopped")
 
 
 

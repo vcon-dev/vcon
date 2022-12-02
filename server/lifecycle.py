@@ -80,7 +80,7 @@ async def configure_and_start_pipeline(pipeline):
     executes on each inbound vCon.
     """
     # 
-    # in order. The first 
+    # in order. The first
     pipeline_id = shortuuid.uuid()
     pipeline_tasks = []
     last_egress_key = None
@@ -98,8 +98,7 @@ async def configure_and_start_pipeline(pipeline):
             Afterwards, update the last_ingress_key for next time.
             """
             thisStep.options['ingress-topics'].append(last_egress_key)
-            last_egress_key = block_egress
-
+        last_egress_key = block_egress
         # Start the plugin, add it to the list of tasks
         # and add this task to the chain of tasks.
         task = asyncio.create_task(thisStep.module.start(thisStep.options))

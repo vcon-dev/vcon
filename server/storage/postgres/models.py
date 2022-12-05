@@ -43,6 +43,7 @@ class CallLogs(BaseModel):
     modified_on = DateTimeField(null=True)
     json_version = CharField(null=True)
     cdr_json = BinaryJSONField(null=True)
+    source = CharField(null=True)
 
     class Meta:
         table_name = "call_logs"

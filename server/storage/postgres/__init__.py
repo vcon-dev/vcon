@@ -42,20 +42,21 @@ async def start(opts=default_options):
                     agent_extension = projection["extension"],
                     # agent_cxm_id = CharField(null=True),
                     # agent_cached_details = BinaryJSONField(null=True),
-                    dealer_number = projection["dealer_number"],
+                    dealer_number = projection["dealer_number"].replace("-",""),
                     # dealer_cxm_id = CharField(null=True),
                     # dealer_cached_details = BinaryJSONField(null=True),
-                    customer_number = projection["customer_number"],
-                    direction = payload["direction"],
+                    customer_number = projection["customer_number"].replace("-",""),
+                    direction = payload["direction"].upper(),
                     # disposition = CharField(null=True),
                     s3_key = f"{call_log_id}.wav",
-                    # call_started_on = projection["call_started_on"],
+                    call_started_on = projection["call_started_on"],
                     duration = projection["duration"],
                     # transcript = CharField(null=True),
                     # created_on = projection["created_on"],
                     # modified_on = projection["modified_on"],
                     # json_version = CharField(null=True),
                     # cdr_json = BinaryJSONField(null=True),
+                    source = 'bria'
                 )
                 logger.info("Call log added successfully")
                 # TODO get projection from attachment and save it to Postgres.

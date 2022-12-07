@@ -103,7 +103,7 @@ async def start(opts=default_options):
                         vCon.attachments.append(adapter_meta)
 
                         # Publish the vCon
-                        logger.info("New vCon created: {}".format(vCon.uuid))
+                        logger.debug("New vCon created: {}".format(vCon.uuid))
                         key = "vcon:{}".format(vCon.uuid)
                         cleanVcon = json.loads(vCon.dumps())
                         await r.json().set(key, Path.root_path(), cleanVcon)

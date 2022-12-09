@@ -584,7 +584,7 @@ class Vcon():
     else:
       raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
 
-  def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
+  def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, analysis_type: str = "transcript", vendor_schema : str = None) -> None:
     """
     Add a transcript for the indicated dialog.
 
@@ -598,7 +598,7 @@ class Vcon():
     self._attempting_modify()
 
     analysis_element = {}
-    analysis_element["type"] = "transcript"
+    analysis_element["type"] = analysis_type
     # TODO should validate dialog_index??
     analysis_element["dialog"] = dialog_index
     analysis_element["body"] = transcript

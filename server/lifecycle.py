@@ -1,5 +1,5 @@
 import asyncio
-import async_timeout
+from time import sleep
 import os
 import logging
 import logging.config
@@ -33,34 +33,78 @@ async def check_sqs():
     queue_names = await r.smembers('queue_names')
     try:
         for queue_name in queue_names:
-            queue = sqs.get_queue_by_name(QueueName=queue_name)
-            for message in queue.receive_messages():
-                message.delete()
-                await r.rpush(queue_name, message.body)
+            process_messages = True
+            while process_messages:
+                sleep(0.1)
+                process_messages = False            
+                queue = sqs.get_queue_by_name(QueueName=queue_name)
+                for message in queue.receive_messages(MaxNumberOfMessages=10):
+                    process_messages = True
+                    message.delete()
+                    logging.info(f"Received message from {queue_name}")
+                    await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))
 
 
-        
 
-class Transformer: 
-    def __init__(self, name, chain_id): 
-        self.name = name 
+
+class Transformer:
+
+    def __init__(self, name, chain_id):
+        self.name = name
+        self.chain_id = chain_id
         self.module = importlib.import_module(name)
         self.options = self.module.default_options
-        self.chain_id = chain_id
+        self.options['egress-topics'].append(self.default_egress_topic())
+        self.task = None
 
-    def __str__(self): 
+    def __str__(self):
         return self.name
 
     def default_egress_topic(self):
-        return "{}_{}".format(self.name, self.chain_id)
+        return f"{self.name}_{self.chain_id}"
 
-    def start(self, options):
-        self.module.start(options)
+    def append(self, transformer):
+        transformer.options['ingress-topics'].append(self.default_egress_topic())
 
 
-async def configure_and_start_pipeline(pipeline):
+    def start(self):
+        self.task = asyncio.create_task(self.module.start(self.options))
+
+    async def cancel(self):
+        self.task.cancel()
+        await self.task
+
+    
+
+
+class Pipeline:
+
+    def __init__(self, chain):
+        self.pipeline_id = shortuuid.uuid()
+        self.pipeline_tasks = []
+        for node in chain:
+            transformer = Transformer(node, self.pipeline_id)
+            self.add_to_pipeline(transformer)
+
+    def add_to_pipeline(self, transformer):
+        if len(self.pipeline_tasks) > 0:
+            self.pipeline_tasks[-1].append(transformer)
+        self.pipeline_tasks.append(transformer)
+
+    def start(self):
+        for task in self.pipeline_tasks:
+            task.start();
+
+    async def cancel(self):
+        for task in self.pipeline_tasks:
+            await task.cancel();
+    
+    def __str__(self):
+        return " -> ".join([task.__str__() for task in self.pipeline_tasks])
+
+async def configure_and_start_pipeline(chain):
     """ This function takes a string of transformations and starts them up as a pipeline
 
     This function gets a string that corresponds to a list of transformations 
@@ -79,35 +123,11 @@ async def configure_and_start_pipeline(pipeline):
     Once the pipeline is setup, no other admin is necessary. Each transformer 
     executes on each inbound vCon.
     """
-    # 
-    # in order. The first 
-    pipeline_id = shortuuid.uuid()
-    pipeline_tasks = []
-    last_egress_key = None
-    for step in pipeline:
-        """ For each transformer in the pipeline, import the named module. 
-            Then, check to see if there's an existing options block for it.
-            If not, create a new one and attach it.  Then, start the task. 
-        """
-        thisStep = Transformer(step, pipeline_id)
-        block_egress = thisStep.default_egress_topic()
-        thisStep.options['egress-topics'].append(block_egress)
-        if last_egress_key:
-            """If this is not the first step in the pipeline, remember to update
-            the last egress key so we know what to hook the next transformer into.
-            Afterwards, update the last_ingress_key for next time.
-            """
-            thisStep.options['ingress-topics'].append(last_egress_key)
-            last_egress_key = block_egress
+    pipline = Pipeline(chain)
+    pipline.start()
+    background_tasks.add(pipline)
 
-        # Start the plugin, add it to the list of tasks
-        # and add this task to the chain of tasks.
-        task = asyncio.create_task(thisStep.module.start(thisStep.options))
-        background_tasks.add(task)
-        pipeline_tasks.append(task)
-        logger.info("Starting pipeline task: {}".format(step))
-
-    logger.info("Pipeline tasks: {}".format(pipeline_tasks))
+    logger.info("Pipeline tasks: {}".format(pipline))
 
 
 background_tasks = set()
@@ -165,7 +185,7 @@ async def observe():
 
 
 async def process_vcon_message(message):
-    logger.info("Got message %s", message)
+    logger.debug("Got message %s", message)
     vConUuid = message['data']
     await r.lpush('call_log_list', vConUuid)
     await r.ltrim('call_log_list', 0, LOG_LIMIT)

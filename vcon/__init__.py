@@ -606,7 +606,7 @@ class Vcon():
     self._attempting_modify()
 
     analysis_element = {}
-    analysis_element["type"] = "transcript"
+    analysis_element["type"] = analysis_type
     # TODO should validate dialog_index??
     analysis_element["dialog"] = dialog_index
     analysis_element["body"] = transcript

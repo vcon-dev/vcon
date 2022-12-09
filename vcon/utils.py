@@ -12,14 +12,10 @@ def epoch_to_rfc2822(time : typing.Union[int, float]) -> str:
 def epoch_to_rfc3339(time : typing.Union[int, float]) -> str:
   """ Returns RFC3339 date for given epoch time """
   # This does the epoch conversion to local time zone.
-  date_time = datetime.datetime.fromtimestamp(float(time))
+  date_time = datetime.datetime.utcfromtimestamp(float(time))
   # Assume UTC
   #print("datatime: {} tz: {}".format(date_time, date_time.tzinfo))
-  time_zone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-  #time_zone = datetime.timezone.utc
-  # Have to coerce it back to UTC
-  date_time = date_time.replace(tzinfo = time_zone)
-  date_time = date_time.astimezone(datetime.timezone.utc)
+  date_time = date_time.replace(tzinfo = datetime.timezone.utc)
   #print("datatime utc: {} tz: {}".format(date_time, date_time.tzinfo))
   date_string = date_time.isoformat('T', timespec='milliseconds')
   return(date_string)
@@ -46,7 +42,7 @@ def cannonize_date(date : typing.Union[int, float, str, datetime.datetime]) -> s
       epoch = datetime.datetime(1970, 1, 1)
       epoch = epoch.replace(tzinfo = datetime.timezone.utc)
       epoch = epoch.astimezone(datetime.timezone.utc)
-      
+
       epoch_time = (datetime.datetime.fromisoformat(date) - epoch).total_seconds()
       #print("epoch: {}".format(epoch_time))
 
@@ -70,7 +66,13 @@ def cannonize_date(date : typing.Union[int, float, str, datetime.datetime]) -> s
     epoch = datetime.datetime(1970, 1, 1)
     epoch = epoch.replace(tzinfo = datetime.timezone.utc)
     epoch = epoch.astimezone(datetime.timezone.utc)
-    
+
+    #print("date tc: {}".format(date.tzinfo))
+    # No time zone, assume UTC
+    if(date.tzinfo is None):
+      date = date.replace(tzinfo = datetime.timezone.utc)
+      #print("date tc: {}".format(date.tzinfo))
+
     epoch_time = (date - epoch).total_seconds()
     date_string = epoch_to_rfc3339(epoch_time)
   else:

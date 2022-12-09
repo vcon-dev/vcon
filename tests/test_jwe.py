@@ -119,7 +119,7 @@ def test_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   jwe_serialization["recipients"].append(recipient)
 
   #print("JWE: {}".format(jwe_serialization))
-  print("JWE: {}".format(json.dumps(jwe_serialization, indent=2)))
+  #print("JWE: {}".format(json.dumps(jwe_serialization, indent=2)))
 
 
 def test_x5c_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
@@ -135,7 +135,7 @@ def test_x5c_encrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   jwe_compact_token = jose.jwe.encrypt(plaintext, encryption_key, encryption, encryption_key['alg']).decode('utf-8')
 
   jwe_complete_serialization = vcon.security.jwe_compact_token_to_complete_serialization(jwe_compact_token, enc = encryption, x5c = [])
-  print("JWE complete serialization: {}".format(json.dumps(jwe_complete_serialization, indent=2)))
+  #print("JWE complete serialization: {}".format(json.dumps(jwe_complete_serialization, indent=2)))
 
   jwe_compact_token_reconstructed = vcon.security.jwe_complete_serialization_to_compact_token(jwe_complete_serialization)
 
@@ -162,7 +162,7 @@ def test_encrypt_decrypt(two_party_tel_vcon : vcon.Vcon) -> None:
   two_party_tel_vcon.encrypt(DIVISION_CERT)
 
   encrypted_serialized_vcon = two_party_tel_vcon.dumps()
-  print(encrypted_serialized_vcon)
+  #print(encrypted_serialized_vcon)
 
   assert(two_party_tel_vcon._state == vcon.VconStates.ENCRYPTED)
 

@@ -6,7 +6,7 @@ import vcon
 import vcon.filter_plugins
 
 def test_whisper_registration():
-  options = {"model_size" : "tiny"}
+  options = {"model_size" : "base"}
 
   plugin = vcon.filter_plugins.FilterPluginRegistry.get("whisper")
   assert(plugin is not None)
@@ -15,7 +15,7 @@ def test_whisper_registration():
 def test_whisper_transcribe():
   in_vcon = vcon.Vcon()
 
-  options = {"llanguage" : "en", "model_size" : "tiny", "output_options" : ["vendor", "word_srt", "word_ass"], "whisper" : { "language" : "en"} }
+  options = {"llanguage" : "en", "model_size" : "base", "output_options" : ["vendor", "word_srt", "word_ass"], "whisper" : { "language" : "en"} }
   with open("examples/test.vcon", "r") as vcon_file:
     in_vcon.load(vcon_file)
 

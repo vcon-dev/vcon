@@ -8,6 +8,7 @@ import redis.asyncio as redis
 from settings import REDIS_URL, LOG_LEVEL, ENV
 from redis.commands.json.path import Path
 import vcon
+import dateutil
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,14 @@ default_options = {
     "ingress-list": [f"bria-conserver-feed-{ENV}"], # TODO ask Thomas: Does it use this queue name or the one from Redis? why do we have both?
     "egress-topics":["ingress-vcons"],
 }
+
+
+def time_diff_in_seconds(start_time: str, end_time: str) -> int:
+    start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+    end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+    duration = end_time - start_time
+    return duration.seconds
+
 
 async def start(opts=default_options):
     logger.info("Starting the bria adapter")
@@ -44,13 +53,18 @@ async def start(opts=default_options):
                         # FT.SEARCH idx:adapterIdIndex '@adapter:{bria} @id:{f8be045704cb4ea98d73f60a88590754}'
                         result = await r.ft(index_name="idx:adapterIdIndex").search("@adapter:{bria} @id:{%s}" % bria_call_id)
                         vcon_key = result.docs[0].id
+                        vcon_data = json.loads(result.docs[0].json)
+                        vcon_id = vcon_key[5:] # Remove the "vcon:" prefix from the keyy
+                        payload = vcon_data["attachments"][0]["payload"]
                         dialog_data = {
                             "type": "recording",
                             "filename": s3_object_key,
+                            "start": dateutil.parser.isoparse(payload["connectedAt"]).isoformat(),
+                            "duration": time_diff_in_seconds(payload["connectedAt"], payload["endedAt"])
                         }
                         await r.json().arrinsert(vcon_key, '$.dialog', 0, dialog_data)
                         for egress_topic in opts["egress-topics"]:
-                            await r.publish(egress_topic, vcon_key)
+                            await r.publish(egress_topic, vcon_id)
                     else:
                         logger.info("Bria adapter received")
                         body = json.loads(payload.get("Message"))
@@ -104,7 +118,7 @@ async def start(opts=default_options):
             break
         except asyncio.TimeoutError:
             pass
-        except Exception as e:
-            logger.error("bria adaptor error %s", e)
+        except Exception:
+                logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")

@@ -1,24 +1,98 @@
 import sys
+import os
+import asyncio
 import logging
 import logging.config
-import redis.asyncio as redis
-from redis.commands.json.path import Path
-import simplejson as json
-
-from fastapi import status
-from fastapi.requests import Request
-from fastapi.exceptions import HTTPException
+from datetime import datetime
 from fastapi.applications import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse, HTMLResponse
 from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
-import json
-from settings import REDIS_URL, HOSTNAME
+from settings import REDIS_URL
+import redis.asyncio as redis
+from uuid import UUID
+from pydantic import BaseModel, Json
+from fastapi_pagination import Page, add_pagination, paginate
+from fastapi.responses import JSONResponse
+import importlib
+from redis.commands.json.path import Path
+
+
+class Party(BaseModel):
+    tel: str = None
+    stir: str = None
+    mailto: str = None
+    name: str = None
+    validation: str = None
+    jcard: Json = None
+    gmlpos: str = None
+    civicaddress: str = None
+    timezone: str = None
+
+class DialogType(BaseModel):
+    recording = "recording"
+    text = "text"
+
+class Dialog(BaseModel):
+    type: DialogType
+    start: datetime
+    duration: float
+    parties: list[int]
+    mimetype: str
+    filename: str
+    body: str = None
+    url: str = None
+    encoding: str = None
+    alg: str = None
+    signature: str = None
+
+class Analysis(BaseModel):
+    type: str
+    dialog: int
+    mimetype: str = None
+    filename: str = None
+    vendor: str = None
+    _schema: str = None
+    body: str = None
+    encoding: str = None
+    url: str = None
+    alg: str = None
+    signature: str = None
+
+class Attachment(BaseModel):
+    type: str
+    party: int = None
+    mimetype: str = None
+    filename: str = None
+    body: str = None
+    encoding: str = None
+    url: str = None
+    alg: str = None
+    signature: str = None
+
+class Group(BaseModel):
+    uuid: UUID
+    body: Json = None
+    encoding: str = None
+    url: str = None
+    alg: str = None
+    signature: str = None
+
+
+class Vcon(BaseModel):
+    vcon: str
+    uuid: UUID
+    created_at: int = datetime.now().timestamp()
+    subject: str
+    redacted: dict = None
+    appended: dict = None
+    group: list[Group] = []
+    parties: list[Party] = []
+    dialog: list[Dialog] = []
+    analysis: list[Analysis] = []
+    attachments: list[Attachment] = []
 
 # Our local modules``
 sys.path.append("..")
-import vcon
 
 logger = logging.getLogger(__name__)
 logger.info('Conserver starting up')
@@ -30,81 +104,106 @@ r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 # Load FastAPI app
 app = FastAPI.conserver_app
 
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Environment variables
-VCON_VERSION = "0.1.1"
-MIMETYPE="audio/wav"
+@app.get('/vcon', response_model=Page[str])
+async def get_vcons():
+    keys = await r.keys("vcon:*")
+    uuids = [ key.replace("vcon:", "") for key in keys ]
+    return paginate(uuids)
 
-async def last_vcons(size=200):
+@app.get('/vcon/{vcon_uuid}')
+async def get_vcon(vcon_uuid: UUID):
     try:
-        vcons = []
-        vcon_ids = await r.lrange("call_log_list", 0, size)
-        for vcon_uuid in vcon_ids:
-            print("vcon_uuid being added ", vcon_uuid)
-            try:
-                inbound_vcon = await r.json().get("vcon:{}".format(vcon_uuid), Path.root_path())
-                if inbound_vcon:
-                    vcons.append(inbound_vcon)
-            except Exception as e:
-                logger.error("Error getting vcon:{}: {}".format(vcon_uuid, e))
-        return vcons
+        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
-        logger.error(e)
-        return []
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=vcon)
 
-
-# Home page route
-@app.get("/", response_class=HTMLResponse)
-async def homepage(request: Request):
-    vcons = await last_vcons()
-    return templates.TemplateResponse("index.html", {"request": request, "vCons": vcons})
-
-
-@app.get(
-    "/vcon/{vConUuid}"
-)
-async def show_vcon(request: Request, vConUuid: str):
+@app.get('/vcon/{vcon_uuid}/party', response_model=Page[Party])
+async def get_parties(vcon_uuid: UUID):
     try:
-        key = "vcon:{}".format(vConUuid)
-        vCon = await r.json().get(key, Path.root_path())
-        return JSONResponse(status_code=status.HTTP_200_OK, content=vCon)  
+        parties = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.parties')
     except Exception as e:
-        logger.error("Error loading vCon from Redis: %s", e)
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND)
+        logger.info("Error: {}".format(e))
+        return None
+    return paginate(parties[0])
 
-
-@app.get("/details/{vConUuid}", response_class=HTMLResponse)
-async def show_vcon_details(request: Request, vConUuid: str):
+@app.get('/vcon/{vcon_uuid}/dialog', response_model=Page[Dialog])
+async def get_dialogs(vcon_uuid: UUID):
     try:
-        key = "vcon:{}".format(vConUuid)
-        vcon_details = await r.json().get(key, Path.root_path())
-        # This vCon object might be packed, so unpack it
-        vCon = vcon.Vcon()
-        vCon.loads(json.dumps(vcon_details))
-
-        for index, dialog in enumerate(vCon.dialog): 
-            if dialog['type'] != 'recording':
-                continue
-            # Save this recording to a file
-            bytes = vCon.decode_dialog_inline_body(index) 
-            with open("static/{}".format(dialog['filename']), "wb") as f:
-                f.write(bytes)
-            vcon_details['dialog'][index]['url'] = HOSTNAME + "/static/{}".format(dialog['filename'])
-
-
-        return templates.TemplateResponse("vcon.html", {"request": request, "vcon": vcon_details})
+        dialogs = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.dialog')
     except Exception as e:
-        logger.error("Error loading vCon from Redis: %s", e)
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND)
+        logger.info("Error: {}".format(e))
+        return None
+    return paginate(dialogs[0])
+
+@app.get('/vcon/{vcon_uuid}/analysis', response_model=Page[Analysis])
+async def get_analyses(vcon_uuid: UUID):
+    try:
+        analyses = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.analysis')
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return paginate(analyses[0])
+
+@app.get('/vcon/{vcon_uuid}/attachment', response_model=Page[Attachment])
+async def get_attachments(vcon_uuid: UUID):
+    try:
+        attachments = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.attachments')
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return paginate(attachments[0])
+add_pagination(app)
+
+@app.post('/vcon')
+async def post_vcon(inbound_vcon: Vcon):
+    try:
+        dict_vcon = inbound_vcon.dict()
+        dict_vcon['uuid'] = str(inbound_vcon.uuid)
+        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=dict_vcon)
+
+@app.put('/vcon/{vcon_uuid}')
+async def put_vcon(vcon_uuid: UUID, inbound_vcon: Vcon):
+    try:
+        dict_vcon = inbound_vcon.dict()
+        dict_vcon['uuid'] = str(inbound_vcon.uuid)
+        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=dict_vcon)
+
+@app.patch('/vcon/{vcon_uuid}', response_model=Vcon)
+async def patch_vcon(vcon_uuid: UUID, plugin: str):
+    try:
+        plugin_module = importlib.import_module(plugin)
+        await asyncio.create_task(plugin_module.run(vcon_uuid))
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    dict_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
+    return JSONResponse(content=dict_vcon)
+
+@app.delete('/vcon/{vcon_uuid}')
+async def delete_vcon(vcon_uuid: UUID, status_code=204):
+    try:
+        await r.delete(f"vcon:{str(vcon_uuid)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+

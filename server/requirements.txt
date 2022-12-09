@@ -113,7 +113,7 @@ python-jose==3.3.0
 python-json-logger==2.0.4
 python-multipart==0.0.5
 PyYAML==6.0
-pyzmq==23.2.0
+pyzmq==24.0.0
 qtconsole==5.4.0
 QtPy==2.3.0
 redis==4.3.4
@@ -138,7 +138,7 @@ toml==0.10.2
 torch==1.12.1
 tornado==6.2
 tqdm==4.64.1
-traitlets==5.3.0
+traitlets==5.6.0
 transformers==4.22.2
 typed-ast==1.5.4
 typing-extensions==4.4.0
@@ -150,7 +150,7 @@ webencodings==0.5.1
 webhook-debugger==0.0.3
 websocket-client==1.4.2
 websockets==10.3
-whisper==1.0
+whisper==1.0.0
 widgetsnbextension==4.0.4
 wrapt==1.14.1
 yarl==1.8.1

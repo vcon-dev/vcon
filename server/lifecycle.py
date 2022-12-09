@@ -1,5 +1,5 @@
 import asyncio
-import async_timeout
+from time import sleep
 import os
 import logging
 import logging.config
@@ -33,10 +33,16 @@ async def check_sqs():
     queue_names = await r.smembers('queue_names')
     try:
         for queue_name in queue_names:
-            queue = sqs.get_queue_by_name(QueueName=queue_name)
-            for message in queue.receive_messages():
-                message.delete()
-                await r.rpush(queue_name, message.body)
+            process_messages = True
+            while process_messages:
+                sleep(0.1)
+                process_messages = False            
+                queue = sqs.get_queue_by_name(QueueName=queue_name)
+                for message in queue.receive_messages(MaxNumberOfMessages=10):
+                    process_messages = True
+                    message.delete()
+                    logging.info(f"Received message from {queue_name}")
+                    await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))
 
@@ -165,7 +171,7 @@ async def observe():
 
 
 async def process_vcon_message(message):
-    logger.info("Got message %s", message)
+    logger.debug("Got message %s", message)
     vConUuid = message['data']
     await r.lpush('call_log_list', vConUuid)
     await r.ltrim('call_log_list', 0, LOG_LIMIT)

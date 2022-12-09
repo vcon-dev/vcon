@@ -2,6 +2,8 @@
 Module for creating and modifying vCon conversation containers.
 see https:/vcon.dev
 """
+# need future to reference Vcon type in Vcon methods
+from __future__ import annotations
 import importlib
 import pkgutil
 import typing
@@ -17,10 +19,10 @@ import datetime
 import uuid6
 import vcon.utils
 import vcon.security
+import vcon.filter_plugins
 import jose.utils
 import jose.jws
 import jose.jwe
-import vcon.filter_plugins
 
 _LAST_V8_TIMESTAMP = None
 
@@ -164,10 +166,10 @@ class Vcon():
   ANALYSIS = "analysis"
   ATTACHMENTS = "attachments"
   CREATED_AT = "created_at"
-  ID = "_id"
 
   vcon = VconString(doc = "vCon version string attribute")
   uuid = VconString(doc = "vCon UUID string attribute")
+  created_at = VconString(doc = "vCon creation date string attribute")
   subject = VconString(doc = "vCon subject string attribute")
 
   redacted = VconDict(doc = "redacted Dict for reference or inclusion of less redacted signed or encrypted version of this vCon")
@@ -219,9 +221,7 @@ class Vcon():
     self._vcon_dict[Vcon.DIALOG] = []
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
-    self._vcon_dict[Vcon.CREATED_AT] = datetime.now().strftime("%a, %d %b %Y %H:%M:%S %z")
-    self._vcon_dict[Vcon.ID] = str(uuid.uuid4())
-
+    self._vcon_dict[Vcon.CREATED_AT] = vcon.utils.cannonize_date(datetime.datetime.utcnow())
 
   def _attempting_modify(self) -> None:
     if(self._state != VconStates.UNSIGNED):
@@ -439,6 +439,7 @@ class Vcon():
 
   @deprecated("use Vcon.decode_dialog_inline_body")
   def decode_dialog_inline_recording(self, dialog_index : int) -> bytes:
+    """ depricated use decode_dialog_inline_body """
     return(self.decode_dialog_inline_body(dialog_index))
 
   def decode_dialog_inline_body(self, dialog_index : int) -> typing.Union[str, bytes]:
@@ -585,7 +586,13 @@ class Vcon():
     else:
       raise AttributeError("dialog[{}] alg: {} not supported.  Must be SHA-512 or LMOTS_SHA256_N32_W8".format(dialog_index, dialog['alg']))
 
-  def add_analysis_transcript(self, dialog_index : int, transcript : dict, vendor : str, vendor_schema : str = None) -> None:
+  def add_analysis_transcript(self,
+    dialog_index : int,
+    transcript : dict,
+    vendor : str,
+    vendor_schema : str = None,
+    encoding : str= "json"
+    ) -> None:
     """
     Add a transcript for the indicated dialog.
 
@@ -603,7 +610,7 @@ class Vcon():
     # TODO should validate dialog_index??
     analysis_element["dialog"] = dialog_index
     analysis_element["body"] = transcript
-    analysis_element["encoding"] = "json"
+    analysis_element["encoding"] = encoding
     analysis_element["vendor"] = vendor
     if(vendor_schema is not None):
       analysis_element["vendor_schema"] = vendor_schema
@@ -950,6 +957,40 @@ class Vcon():
     self._attempting_modify()
 
     self._vcon_dict[Vcon.SUBJECT] = subject
+
+  def filter(self, filter_name: str, **options) -> Vcon:
+    """
+    Run this Vcon through the named filter plugin.
+
+    See vcon.filter_plugins.FilterPluginRegistry for the set of registered plugins.
+
+    Parameters:
+      options (kwargs) - passed through to plugin.  The key words are documented by
+        the specified plugin.
+
+    Returns:
+      the filter modified Vcon
+    """
+    plugin = vcon.filter_plugins.FilterPluginRegistry.get(filter_name)
+    if(plugin is None):
+      raise Exception("Vcon.filter plugin: {} not found".format(filter_name))
+
+    return(plugin.filter(self, **options))
+
+  def transcribe(self, **options) -> Vcon:
+    """
+    Used the default filter plugin for transcription to transcribe the dialogs in this Vcon
+    The default plugin used is the one named in vcon.filter_plugins.FilterPluginRegistry for "transcribe"
+
+    Parameters:
+      options (wkargs) specific to the plugin used
+
+    Returns:
+      Vcon with transcription data added to Vcon.analyse
+    """
+    filter_name = vcon.filter_plugins.FilterPluginRegistry.get_type_default_name("transcribe")
+    plugin = vcon.filter_plugins.FilterPluginRegistry.get(filter_name)
+    return(plugin.filter(self, **options))
 
   def set_uuid(self, domain_name: str, replace: bool= False) -> str:
     """

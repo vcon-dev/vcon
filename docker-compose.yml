@@ -1,0 +1,43 @@
+version: "3.3"
+services:
+  conserver:
+    build: .
+    command: bash -c "python ./init.py"
+    volumes:
+      - .:/app
+    ports:
+      - "9000:8000"
+    depends_on:
+      - redis
+    networks:
+      - back-tier
+    env_file:
+      - .env
+
+  redis:
+    image: "redis/redis-stack:latest"
+    ports:
+      - "8001:8001"
+    environment:
+      REDIS_ARGS: --save 20 1
+    networks:
+      - back-tier
+    volumes:
+       - ./.data:/data
+
+  jupyter:
+    build: .
+    command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
+    volumes:
+      - .:/app
+    ports:
+      - "9999:9999"
+    depends_on:
+      - redis
+    networks:
+      - back-tier
+    env_file:
+      - .env
+
+networks:
+  back-tier:

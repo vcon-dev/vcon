@@ -75,9 +75,17 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
       #print("dialog keys: {}".format(dialog.keys()))
       if(dialog["type"] == "recording"):
         if(dialog["mimetype"] in self._supported_media):
-          if("body" in dialog):
-            # Need to base64url decode recording
-            body_bytes = in_vcon.decode_dialog_inline_body(dialog_index)
+          # If inline or externally referenced recording:
+          if(any(key in dialog for key in("body", "url"))):
+            if("body" in dialog):
+              # Need to base64url decode recording
+              body_bytes = in_vcon.decode_dialog_inline_body(dialog_index)
+            elif("url" in dialog):
+              # HTTP GET and verify the externally referenced recording
+              body_bytes = in_vcon.get_dialog_external_recording(dialog_index)
+            else:
+              raise Exception("recording type dialog[{}] has no body or url.  Should not have gotten here.".format(dialog_index))
+
             with tempfile.TemporaryDirectory() as temp_dir:
               transcript = None
               with tempfile.NamedTemporaryFile(prefix= temp_dir + os.sep, suffix=".wav") as temp_audio_file:
@@ -123,9 +131,6 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
                   ass_bytes = temp_ass_file.read()
                   out_vcon.add_analysis_transcript(dialog_index, ass_bytes.decode("utf-8"), "Whisper", "whisper_word_ass", encoding = "none")
 
-          elif("url" in dialog):
-            #TODO support indirect content
-            pass
           else:
             pass # ignore??
 

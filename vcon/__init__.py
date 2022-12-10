@@ -17,6 +17,7 @@ import functools
 import warnings
 import datetime
 import uuid6
+import requests
 import vcon.utils
 import vcon.security
 import vcon.filter_plugins
@@ -138,10 +139,7 @@ class Vcon():
   Constructor, Serializer and Deserializer for vCon conversation data container.
 
   Attributes:
-    parties (List[dict]): containing information on each party to the conversation
-    dialog (List[dict]): containing information dialog exchanges (text or audio/video recordings)
-    analysis (List[dict]): containing analysis information on the dialog
-    attachments (List[dict]): containing meta data about as well as the documents exchanged during the conversation
+    See Data descriptors under help(vcon.Vcon)
 
   """
 
@@ -238,6 +236,8 @@ class Vcon():
     Returns:
       party index in the list
     """
+    self._attempting_modify()
+
     party = index
     if(party == -1):
       self._vcon_dict[Vcon.PARTIES].append({})
@@ -503,7 +503,7 @@ class Vcon():
                      "LM-OTS" use Leighton-Micali One Time Signature (RFC8554
 
     Returns:
-            Number of bytes read from body.
+            Index to the added dialog
     """
     # TODO should return dialog index not byte count
 
@@ -540,9 +540,33 @@ class Vcon():
     if(self.dialog is None):
       self._vcon_dict[Vcon.DIALOG] = []
 
+    dialog_index = len(self.dialog)
     self._vcon_dict[Vcon.DIALOG].append(new_dialog)
 
-    return(len(body))
+    return(dialog_index)
+
+  def get_dialog_external_recording(self, dialog_index : int) -> bytes:
+    """
+    Get the externally referenced dialog recording via the dialog's url
+    and verify its integrity using the signature in the dialog object,
+    blocking on its return.
+
+    Parameters:
+      dialog_index (int) - index into the Vcon.dialog array indicating
+        which external recording is to be retrieved and verified.
+
+    Returns:
+      verified content/bytes for the recording
+    """
+    # Get body from URL using requests
+    url = self.dialog[dialog_index]["url"]
+    req = requests.get(url)
+    body = req.content
+
+    # verify the body
+    self.verify_dialog_external_recording(dialog_index, body)
+
+    return(body)
 
   def verify_dialog_external_recording(self, dialog_index : int, body : bytes) -> None:
     """
@@ -579,7 +603,7 @@ class Vcon():
     elif(dialog['alg'] == 'SHA-512'):
       sig_hash = vcon.security.sha_512_hash(body)
       if( dialog['signature'] != sig_hash):
-        print("dialog[\"signature\"]: {} hash: {}".format(dialog['signature'], sig_hash))
+        print("dialog[\"signature\"]: {} hash: {} size: {}".format(dialog['signature'], sig_hash, len(body)))
         print("dialog: {}".format(json.dumps(dialog, indent=2)))
         raise InvalidVconHash("SHA-512 hash in signature does not match the given body for dialog[{}]".format(dialog_index))
 
@@ -591,6 +615,7 @@ class Vcon():
     transcript : dict,
     vendor : str,
     vendor_schema : str = None,
+    analysis_type: str = "transcript",
     encoding : str= "json"
     ) -> None:
     """
@@ -681,6 +706,7 @@ class Vcon():
 
     #TODO: Should check unsafe stuff is not loaded
 
+    # TODO should use self._attempting_modify() ???
     if(self._state != VconStates.UNSIGNED):
       raise InvalidVconState("Cannot load Vcon unless current state is UNSIGNED.  Current state: {}".format(self._state))
 
@@ -971,6 +997,8 @@ class Vcon():
     Returns:
       the filter modified Vcon
     """
+    self._attempting_modify()
+
     plugin = vcon.filter_plugins.FilterPluginRegistry.get(filter_name)
     if(plugin is None):
       raise Exception("Vcon.filter plugin: {} not found".format(filter_name))

@@ -5,6 +5,7 @@ Leighton-Micali One Time Signature (RFC8554).
 """
 
 import os
+import datetime
 import pytest
 import vcon
 import vcon.security
@@ -62,6 +63,47 @@ def test_lm_ots_sign() -> None:
 
   except hsslms.utils.INVALID as invalid_error:
     # Expect this to be raised as we have modified signature
+    pass
+
+def test_get_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
+  # Add external ref
+  file_path = "examples/agent_sample.wav"
+  url = "https://github.com/vcon-dev/vcon/blob/main/examples/agent_sample.wav?raw=true"
+  file_content = b""
+  with open(file_path, "rb") as file_handle:
+    file_content = file_handle.read()
+    print("body length: {}".format(len(file_content)))
+    assert(len(file_content) > 10000)
+
+  dialog_index = two_party_tel_vcon.add_dialog_external_recording(file_content,
+    datetime.datetime.utcnow(),
+    0, # duration TODO
+    [0,1],
+    url,
+    vcon.Vcon.MIMETYPE_AUDIO_WAV,
+    os.path.basename(file_path))
+
+  assert(dialog_index == 0)
+
+  body_bytes = two_party_tel_vcon.get_dialog_external_recording(dialog_index)
+  assert(len(file_content) == len(body_bytes))
+  assert(file_content == body_bytes)
+
+  # This should be valid
+  two_party_tel_vcon.verify_dialog_external_recording(0, body_bytes)
+  
+  body_byte_array = bytearray(body_bytes)
+  body_byte_array[0] = body_bytes[0] + 1
+  body_bytes = bytes(body_byte_array)
+  assert(file_content != body_bytes)
+
+  try:
+    #We modified the body_bytes so this should fail
+    two_party_tel_vcon.verify_dialog_external_recording(0, body_bytes)
+    raise Exception("Should have thrown invalid as body_bytes is not identical")
+
+  except vcon.InvalidVconHash as invalid_body_error:
+    # We expect this to occur
     pass
 
 def test_external_recording_lm_ots(two_party_tel_vcon : vcon.Vcon) -> None:

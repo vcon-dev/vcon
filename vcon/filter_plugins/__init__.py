@@ -75,7 +75,7 @@ class FilterPluginRegistration:
     succeed = False
     if(not self._module_load_attempted):
       try:
-        print("importing: {} for plugin: {}".format(self._module_name, self.name))
+        print("importing: {} for plugin: {}".format(self._module_name, self.name), file=sys.stderr)
         module = importlib.import_module(self._module_name)
         self._module_load_attempted = True
         self._module_not_found = False
@@ -131,8 +131,17 @@ class FilterPluginRegistry:
 
   @staticmethod
   def __add_plugin(plugin: FilterPluginRegistration, replace=False):
-    if(FilterPluginRegistry._registry.get(plugin.name) is None or replace):
-     FilterPluginRegistry._registry[plugin.name] = plugin
+
+    name_registered = FilterPluginRegistry._registry.get(plugin.name)
+    if(name_registered is None):
+      # TODO: fix circular import dependency problem
+      #import vcon
+      #if(vcon.Vcon.attribute_exists(plugin.name)):
+      #  raise AttributeError("{} is a reserved name already used as a Vcon class or instance name".format(plugin.name))
+      pass
+
+    if(name_registered is None or replace):
+      FilterPluginRegistry._registry[plugin.name] = plugin
     else:
       raise Exception("Plugin {} already exists".format(plugin.name))
 
@@ -186,11 +195,21 @@ class FilterPluginRegistry:
     return(FilterPluginRegistry._defaults.get(plugin_type, None))
 
   @staticmethod
+  def get_types() -> typing.List[str]:
+    """
+    Get the set of FilterPlugin types.
+
+    Returns:
+      list(str) - names of all the types for which a default is set.
+    """
+    return(FilterPluginRegistry._defaults.keys())
+
+  @staticmethod
   def get_type_default_plugin(plugin_type: str) -> typing.Union[FilterPluginRegistration, None]:
     """ Get the default FilterPlauginRegistration for the named filter type """
     name = FilterPluginRegistry.get_type_default_name(plugin_type)
     if(name is None):
-      return(None)
+      raise PluginFilterNotRegistered("Filter plugin default type {} is not set".format(name))
     return(FilterPluginRegistry.get(name))
 
 class TranscriptionFilter(FilterPlugin):

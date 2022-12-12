@@ -6,7 +6,7 @@ import logging
 import logging.config
 import vcon
 import datetime
-from settings import REDIS_URL, LOG_LEVEL
+from settings import REDIS_URL, LOG_LEVEL, ENV
 from redis.commands.json.path import Path
 
 
@@ -16,7 +16,7 @@ logger.info("Starting the quiq adapter")
 
 default_options = {
     "name": "quiq",
-    "ingress-list": ["quiq-conserver-feed"],
+    "ingress-list": [f"quiq-conserver-feed-{ENV}"],
     "egress-topics":["ingress-vcons"],
 }
 

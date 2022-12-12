@@ -11,7 +11,7 @@ import redis.asyncio as redis
 from redis.commands.json.path import Path
 import urllib
 import vcon
-from settings import REDIS_URL, LOG_LEVEL
+from settings import REDIS_URL, LOG_LEVEL, ENV
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -20,7 +20,7 @@ logger.debug("Debuggingly")
 
 default_options = {
     "name": "ringplan",
-    "ingress-list": ["ringplan-conserver-feed"],
+    "ingress-list": [f"ringplan-conserver-feed-{ENV}"],
     "egress-topics":["ingress-vcons"],
 }
 

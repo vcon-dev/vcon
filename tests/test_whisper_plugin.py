@@ -14,6 +14,9 @@ def test_whisper_registration():
   assert(plugin is not None)
   assert(plugin.import_plugin(**options) == True)
 
+def test_plugin_method_add():
+  in_vcon = vcon.Vcon()
+
 def test_whisper_transcribe_inline_dialog():
   in_vcon = vcon.Vcon()
 
@@ -24,7 +27,8 @@ def test_whisper_transcribe_inline_dialog():
   assert(len(in_vcon.dialog) > 0)
 
   anal_count = len(in_vcon.analysis)
-  out_vcon = in_vcon.transcribe(**options)
+  out_vcon = in_vcon.whisper(**options)
+  assert(len(in_vcon.analysis) == anal_count + 3) # Whisper transcript, srt file and ass file
   assert(len(out_vcon.analysis) == anal_count + 3) # Whisper transcript, srt file and ass file
   #print(json.dumps(out_vcon.analysis[0], indent=2))
 

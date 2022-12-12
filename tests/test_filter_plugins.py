@@ -80,3 +80,9 @@ def test_registry():
 
   except vcon.filter_plugins.PluginFilterNotRegistered as not_reg_error:
     print(not_reg_error, file=sys.stderr)
+
+  import tests.bar_reg
+
+  v2 = vcon.Vcon()
+
+  v2.barp()

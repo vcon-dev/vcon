@@ -27,6 +27,18 @@ def test_registry():
     print("got {}".format(not_found_error), file=sys.stderr)
     #raise not_found_error
 
+  # this time test foop using its registered name as a method
+  try:
+    in_vcon = vcon.Vcon()
+    out_vcon = in_vcon.foop()
+    # SHould not get here
+    raise Exception("Should have thrown a PluginFilterNotImplemented exception")
+
+  except vcon.filter_plugins.PluginFilterNotImplemented as not_found_error:
+    # We are expecting this exception
+    print("got {}".format(not_found_error), file=sys.stderr)
+    #raise not_found_error
+
   try:
     plugin_barp = vcon.filter_plugins.FilterPluginRegistry.get("barp")
     raise Exception("Expected not to fine barp and throw exception")
@@ -38,6 +50,18 @@ def test_registry():
   assert(vcon.filter_plugins.FilterPluginRegistry.get_type_default_name("exclaim") == "foop")
   assert(vcon.filter_plugins.FilterPluginRegistry.get_type_default_name("bar") == None)
   assert(vcon.filter_plugins.FilterPluginRegistry.get_type_default_plugin("exclaim") == plugin_foop)
+
+  # this time test foop using it set as default type exclaim name as a method
+  try:
+    in_vcon = vcon.Vcon()
+    out_vcon = in_vcon.exclaim()
+    # SHould not get here
+    raise Exception("Should have thrown a PluginFilterNotImplemented exception")
+
+  except vcon.filter_plugins.PluginFilterNotImplemented as not_found_error:
+    # We are expecting this exception
+    print("got {}".format(not_found_error), file=sys.stderr)
+    #raise not_found_error
 
 
   # Test that real plugin was registered

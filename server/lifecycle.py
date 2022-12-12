@@ -41,7 +41,6 @@ async def check_sqs():
                 for message in queue.receive_messages(MaxNumberOfMessages=10):
                     process_messages = True
                     message.delete()
-                    logging.info(f"Received message from {queue_name}")
                     await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))

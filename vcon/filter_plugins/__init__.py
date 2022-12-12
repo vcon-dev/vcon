@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import typing
 import sys
+import traceback
 
 # This package is dependent upon the vcon package only for typing purposes.
 # This creates a circular dependency which we avoid by importing annotations
@@ -75,7 +76,7 @@ class FilterPluginRegistration:
     succeed = False
     if(not self._module_load_attempted):
       try:
-        print("importing: {} for plugin: {}".format(self._module_name, self.name), file=sys.stderr)
+        print("importing: {} for registered filter plugin: {}".format(self._module_name, self.name), file=sys.stderr)
         module = importlib.import_module(self._module_name)
         self._module_load_attempted = True
         self._module_not_found = False
@@ -92,6 +93,7 @@ class FilterPluginRegistration:
 
       except ModuleNotFoundError as mod_error:
         print(mod_error, file=sys.stderr)
+        print(traceback.format_exc(limit=-1), file=sys.stderr)
         self._module_not_found = True
 
     elif(self._plugin is not None):

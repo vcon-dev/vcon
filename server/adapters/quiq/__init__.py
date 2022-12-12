@@ -16,7 +16,7 @@ logger.info("Starting the quiq adapter")
 
 default_options = {
     "name": "quiq",
-    "ingress-list": [f"quiq-conserver-feed-{ENV}"],
+    "ingress-list": ["quiq-conserver-feed"],
     "egress-topics":["ingress-vcons"],
 }
 
@@ -28,11 +28,10 @@ async def start(opts=default_options):
         try:
             async with async_timeout.timeout(10):
                 for ingress_list in opts["ingress-list"]:
-                    list, data = await r.blpop(ingress_list)
+                    data = await r.lpop(ingress_list)
                     if data is None:
                         continue
                     try:
-                        list = list
                         payload = json.loads(data)
                         body = payload.get("default")
                                         

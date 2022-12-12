@@ -17,7 +17,7 @@ logger.info('Bria adapter loading')
 
 default_options = {
     "name": "bria",
-    "ingress-list": [f"bria-conserver-feed-{ENV}"], # TODO ask Thomas: Does it use this queue name or the one from Redis? why do we have both?
+    "ingress-list": [f"bria-conserver-feed-{ENV}", "bria-conserver-feed"], # TODO ask Thomas: Does it use this queue name or the one from Redis? why do we have both?
     "egress-topics":["ingress-vcons"],
 }
 
@@ -38,8 +38,7 @@ async def start(opts=default_options):
         try:
             async with async_timeout.timeout(10):
                 for ingress_list in opts["ingress-list"]:
-                    list, data = await r.blpop(ingress_list)
-                    logger.info("Getting from list %s", ingress_list)
+                    data = await r.lpop(ingress_list)
                     if data is None:
                         continue
                     payload = json.loads(data)

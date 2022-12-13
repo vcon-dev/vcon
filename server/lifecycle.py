@@ -203,7 +203,6 @@ async def start_observer():
 async def shutdown_background_tasks():
     logger.info("Shutting down background tasks")
     for task in background_tasks:
-        task.cancel()
-        await task
+        await task.cancel()
         logger.info("Task cancelled: %s", task)
 

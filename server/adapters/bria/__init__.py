@@ -9,6 +9,7 @@ from settings import REDIS_URL, LOG_LEVEL, ENV
 from redis.commands.json.path import Path
 import vcon
 from dateutil.parser import parse
+import traceback
 
 
 logger = logging.getLogger(__name__)
@@ -111,9 +112,7 @@ async def start(opts=default_options):
         except asyncio.CancelledError:
             logger.info("Bria Cancelled")
             break
-        except asyncio.TimeoutError:
-            pass
         except Exception:
-                logger.error("bria adaptor error:\n%s", traceback.format_exc())
+            logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")

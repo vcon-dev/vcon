@@ -31,7 +31,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   import time
   import socket
  
-  parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion")
+  parser = argparse.ArgumentParser("vCon operations such as construction, signing, encryption, verification, decrytpion, filtering")
   input_group = parser.add_mutually_exclusive_group()
   input_group.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
   input_group.add_argument("-n", "--newvcon", action="store_true")
@@ -62,6 +62,12 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   subparsers_extract = extractparser.add_subparsers(dest="extract_command")
   extract_dialog_subparsers = subparsers_extract.add_parser("dialog")
   extract_dialog_subparsers.add_argument("index", metavar='dialog_index', nargs=1, type=int, default=None)
+
+  filter_parser = subparsers_command.add_parser("filter")
+  fn_help = "Name of filter plugin or default type filter plugin name"
+  filter_parser.add_argument("filter_name", metavar="filter_plugin_name", nargs=1, type=str, help=fn_help, default=None, action="append")
+  fo_help="JSON object (kwargs) with key name values which are options passed to the filter. (e.g. \'{\"a\" : 1, \"b\" : \"two\"}\' )"
+  filter_parser.add_argument("-fo", "--filter-options", metavar='filter_options', nargs=1, type=str, help=fo_help, action="append")
 
   sign_parser = subparsers_command.add_parser("sign")
   sign_parser.add_argument("privkey", metavar='private_key_file', nargs=1, type=pathlib.Path, default=None)
@@ -167,6 +173,30 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
     # Assuming that generally if someone is verifying the vCon, they want the
     # unsigned JSON version as output.
     signed_json = False
+
+  elif(args.command == "filter"):
+    plugin_name = args.filter_name[0][0]
+    print("filter name: \"{}\"".format(plugin_name))
+    try:
+      filter_options_dict = json.loads(args.filter_options[0][0])
+    except Exception as opt_error:
+      print(opt_error)
+      filter_options_dict = None
+    if(not isinstance(filter_options_dict, dict)):
+      print("filter_options should be a well formed dict.  Got: {}".format(args.filter_options[0][0]))
+      exit(2)
+    print("filter options: \"{}\"".format(filter_options_dict))
+    try:
+      plugin = vcon.filter_plugins.FilterPluginRegistry.get(plugin_name)
+      print("got plugin for: {}".format(plugin))
+    except Exception as pname_error:
+      try:
+        default_type = vcon.filter_plugins.FilterPluginRegistry.get_type_default_name(plugin_name)
+        print("got default type plugin for: {}".format(plugin_name))
+      except Exception as ptype_error:
+        raise Exception("{} is neither a registered filter plugin name or a default filter plugin type name".format(plugin_name))
+
+    in_vcon = in_vcon.filter(plugin_name, **filter_options_dict)
 
   elif(args.command == "encrypt"):
     print("state: {}".format(in_vcon._state), file=sys.stderr)

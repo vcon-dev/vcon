@@ -209,9 +209,12 @@ class FilterPluginRegistry:
   @staticmethod
   def get_type_default_plugin(plugin_type: str) -> typing.Union[FilterPluginRegistration, None]:
     """ Get the default FilterPlauginRegistration for the named filter type """
+    if(not isinstance(plugin_type, str)):
+      raise AttributeError("plugin_type argument should be a string, not {}".format(type(plugin_type)))
+
     name = FilterPluginRegistry.get_type_default_name(plugin_type)
     if(name is None):
-      raise PluginFilterNotRegistered("Filter plugin default type {} is not set".format(name))
+      raise PluginFilterNotRegistered("Filter plugin default type name {} is not set".format(plugin_type))
     return(FilterPluginRegistry.get(name))
 
 class TranscriptionFilter(FilterPlugin):

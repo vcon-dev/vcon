@@ -150,7 +150,7 @@ webencodings==0.5.1
 webhook-debugger==0.0.3
 websocket-client==1.4.2
 websockets==10.3
-whisper==1.0.0
+whisper @ git+https://github.com/openai/whisper.git@d18e9ea5dd2ca57c697e8e55f9e654f06ede25d0
 widgetsnbextension==4.0.4
 wrapt==1.14.1
 yarl==1.8.1

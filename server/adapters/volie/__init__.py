@@ -7,8 +7,9 @@ import vcon
 import urllib
 import datetime
 import logging 
+import jose
 from redis.commands.json.path import Path
-from settings import REDIS_URL, LOG_LEVEL, ENV
+from settings import REDIS_URL, LOG_LEVEL, ENV, HOSTNAME
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -84,14 +85,22 @@ def create_vcon_from_phone_call(body):
                 starttime = body.get('call_date', None)
                 duration = body.get('call_duration', None)
 
+                # Download the recording
 
-                vCon.add_dialog_inline_recording(
-                recording_bytes,
-                starttime,
-                duration,
-                [0, 1], # parties recorded
-                "audio/x-wav", # MIME type
-                recording_filename)
+                # Store this in local file system
+                local_filename = f"static/{str(vCon.uuid)}_{0}.wav"
+                f=open(local_filename, "wb")
+                f.write(recording_bytes)
+                f.close()
+                external_url = f"{HOSTNAME}/static/{str(vCon.uuid)}_{0}.wav"
+                vCon.add_dialog_external_recording(
+                    recording_bytes,
+                    starttime,
+                    duration,
+                    [0, 1], # parties recorded
+                    external_url
+                )
+                logger.debug("Recording successfully downloaded and attached to vCon")
 
             except urllib.error.HTTPError as err:
                 error_msg = "Error retrieving recording from " + recording_url
@@ -106,7 +115,7 @@ def create_vcon_from_phone_call(body):
 
 default_options = {
     "name": "volie",
-    "ingress-list": [f"volie-conserver-feed-{ENV}"],
+    "ingress-list": [f"volie-conserver-feed-{ENV}", "volie-conserver-feed"],
     "egress-topics":["ingress-vcons"],
 }
 
@@ -118,7 +127,7 @@ async def start(opts=default_options):
         try:
             async with async_timeout.timeout(10):
                 for ingress_list in opts["ingress-list"]:
-                    list, data = await r.blpop(ingress_list)
+                    data = await r.lpop(ingress_list)
                     if data is None:
                         continue
                     try:

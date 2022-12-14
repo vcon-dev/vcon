@@ -11,7 +11,8 @@ import redis.asyncio as redis
 from redis.commands.json.path import Path
 import urllib
 import vcon
-from settings import REDIS_URL, LOG_LEVEL
+from settings import REDIS_URL, LOG_LEVEL, ENV, HOSTNAME
+import jose
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -20,7 +21,7 @@ logger.debug("Debuggingly")
 
 default_options = {
     "name": "ringplan",
-    "ingress-list": ["ringplan-conserver-feed"],
+    "ingress-list": [f"ringplan-conserver-feed-{ENV}", "ringplan-conserver-feed"],
     "egress-topics":["ingress-vcons"],
 }
 
@@ -32,7 +33,7 @@ async def start(opts=default_options):
         try:
             async with async_timeout.timeout(10):
                 for ingress_list in opts["ingress-list"]:
-                    list, data = await r.blpop(ingress_list)
+                    data = await r.lpop(ingress_list)
                     if data is None:
                         continue
                     try:
@@ -65,20 +66,28 @@ async def start(opts=default_options):
                                 starttime = payload.get("cdr").get("starttime")
                                 duration = payload.get("cdr").get("duration")
                                 recording_bytes = urllib.request.urlopen(recording_url).read()
-                                vCon.add_dialog_inline_recording(
+
+                                # Store this in local file system
+                                local_filename = f"static/{str(vCon.uuid)}_{0}.wav"
+                                f=open(local_filename, "wb")
+                                f.write(recording_bytes)
+                                f.close()
+                                external_url = f"{HOSTNAME}/static/{str(vCon.uuid)}_{0}.wav"
+                                vCon.add_dialog_external_recording(
                                     recording_bytes,
                                     starttime,
                                     duration,
                                     [0, 1], # parties recorded
-                                    "audio/ogg", # MIME type
-                                    recording_filename)
+                                    external_url,
+                                    file_name=recording_filename
+                                )
                                 logger.debug("Recording successfully downloaded and attached to vCon")
                             except urllib.error.HTTPError as err:
                                 error_msg = "Error retrieving recording from " + recording_url
                                 error_type = "HTTPError"
                                 error_time = date.today().strftime("%m/%d/%Y, %H:%M:%S")
                                 vCon.attachments.append({"error_msg": error_msg, "error_type": error_type, "error_time": error_time})
-                                logger.debug("Recording not downloaded, expired")
+                                logger.debug(f"Recording not downloaded: {error_msg}, {error_type}, {error_time}")
         
                         if payload.get("cdr").get("direction") == "IN":
                             caller = payload.get("cdr").get("src")

@@ -22,68 +22,54 @@ default_options = {
 }
 options = {}
 
-# Utility functions
-def has_voice(vCon):
-    for party in vCon.parties:
-        if "tel" in party:
-            return True
-    return False
 async def run(vcon_uuid, opts=default_options, ):
     inbound_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
     vCon = vcon.Vcon()
     vCon.loads(json.dumps(inbound_vcon))
+    for index, dialog in enumerate(vCon.dialog):
+        if dialog["type"] != "recording":
+            continue
+        
+        # convert mp3 file to wav file
+        filename = f"static/{str(vcon_uuid)}_{index}.wav"
+        try:
+            dg_client = Deepgram(DEEPGRAM_KEY)
+            audio = open(filename, 'rb')
+            source = {
+            'buffer': audio,
+            'mimetype': 'audio/x-wav'
+            }
+            transcription = await dg_client.transcription.prerecorded(source, 
+                {   
+                    'summarize': True,
+                    'detect_topics': True,
+                    'redact': 'pci',
+                    'redact': 'ssn'
 
-    if has_voice(vCon):
-        for index, dialog in enumerate(vCon.dialog): 
-            wav_filename = f"static/{str(vcon_uuid)}_{index}.wav"
-            decoded_body = jose.utils.base64url_decode(bytes(dialog["body"], 'utf-8'))
-            f = open(wav_filename, "wb")
-            f.write(decoded_body)
-            f.close()
-
-            # convert mp3 file to wav file
-            sound = AudioSegment.from_file(wav_filename)
-            sound.export(wav_filename, format="wav")
-            
-            try:
-                dg_client = Deepgram(DEEPGRAM_KEY)
-                audio = open(wav_filename, 'rb')
-                source = {
-                'buffer': audio,
-                'mimetype': 'audio/x-wav'
-                }
-                transcription = await dg_client.transcription.prerecorded(source, 
-                    {   
-                        'summarize': True,
-                        'detect_topics': True,
-                        'redact': 'pci',
-                        'redact': 'ssn'
-
-                    })
-                os.remove(wav_filename)
-                result = transcription['results']['channels'][0]['alternatives'][0]
-                full_summary = ""
-                for summary in result['summaries']:
-                    full_summary += summary['summary'] + ". "
-                transcript = result['transcript']
-                words = result['words']
-                topics = []
-                for topic in result['topics']:
-                    topics += topic['topics']
-                vCon.add_analysis_transcript(index, transcript, "deepgram", analysis_type="transcript")
-                vCon.add_analysis_transcript(index, full_summary, "deepgram", analysis_type="summary")
-                vCon.add_analysis_transcript(index, words, "deepgram", analysis_type="word_map")
-                vCon.add_analysis_transcript(index, topics, "deepgram", analysis_type="topics")
+                })
+            result = transcription['results']['channels'][0]['alternatives'][0]
+            full_summary = ""
+            for summary in result['summaries']:
+                full_summary += summary['summary'] + ". "
+            transcript = result['transcript']
+            words = result['words']
+            topics = []
+            for topic in result['topics']:
+                topics += topic['topics']
+            vCon.add_analysis_transcript(index, transcript, "deepgram", analysis_type="transcript")
+            vCon.add_analysis_transcript(index, full_summary, "deepgram", analysis_type="summary")
+            vCon.add_analysis_transcript(index, words, "deepgram", analysis_type="word_map")
+            vCon.add_analysis_transcript(index, topics, "deepgram", analysis_type="topics")
 
 
-                # Remove the NAN
-                str_vcon = vCon.dumps()
-                json_vcon = json.loads(str_vcon)
-                str_vcon = json.dumps(json_vcon, ignore_nan=True)
-                json_vcon = json.loads(str_vcon) 
-                await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon)
-            except Exception as e:
-                logger.error("transcription plugin: error: {}".format(e))
+            # Remove the NAN
+            str_vcon = vCon.dumps()
+            json_vcon = json.loads(str_vcon)
+            str_vcon = json.dumps(json_vcon, ignore_nan=True)
+            json_vcon = json.loads(str_vcon) 
+            await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon)
+        except Exception as e:
+            logger.error("transcription plugin: error: {}".format(e))
 
         
 async def start(opts=default_options):

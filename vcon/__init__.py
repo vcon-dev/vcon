@@ -285,6 +285,11 @@ class Vcon():
     self._vcon_dict[Vcon.ANALYSIS] = []
     self._vcon_dict[Vcon.ATTACHMENTS] = []
     self._vcon_dict[Vcon.CREATED_AT] = vcon.utils.cannonize_date(datetime.datetime.utcnow())
+    self._vcon_dict[Vcon.REDACTED] = {}
+    self.set_uuid()
+
+
+
 
   def _attempting_modify(self) -> None:
     if(self._state != VconStates.UNSIGNED):
@@ -352,7 +357,7 @@ class Vcon():
 
     self._attempting_modify()
 
-    parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+    parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone", "role", "extension"]
     if(parameter_name not in parties_object_string_parameters):
       raise AttributeError(
         "Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".
@@ -587,20 +592,21 @@ class Vcon():
     if(file_name is not None):
       new_dialog['filename'] = file_name
 
-    if(sign_type == "LM-OTS"):
-      print("Warning: \"LM-OTS\" may be depricated", file=sys.stderr)
-      key, signature = vcon.security.lm_one_time_signature(body)
-      new_dialog['key'] = key
-      new_dialog['signature'] = signature
-      new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
+    if (body):
+      if(sign_type == "LM-OTS"):
+        print("Warning: \"LM-OTS\" may be depricated", file=sys.stderr)
+        key, signature = vcon.security.lm_one_time_signature(body)
+        new_dialog['key'] = key
+        new_dialog['signature'] = signature
+        new_dialog['alg'] = "LMOTS_SHA256_N32_W8"
 
-    elif(sign_type == "SHA-512"):
-      sig_hash = vcon.security.sha_512_hash(body)
-      new_dialog['signature'] = sig_hash
-      new_dialog['alg'] = "SHA-512"
+      elif(sign_type == "SHA-512"):
+        sig_hash = vcon.security.sha_512_hash(body)
+        new_dialog['signature'] = sig_hash
+        new_dialog['alg'] = "SHA-512"
 
-    else:
-      raise AttributeError("Unsupported signature type: {}.  Please use \"SHA-512\" or \"LM-OTS\"".format(sign_type))
+      else:
+        raise AttributeError("Unsupported signature type: {}.  Please use \"SHA-512\" or \"LM-OTS\"".format(sign_type))
 
     if(self.dialog is None):
       self._vcon_dict[Vcon.DIALOG] = []
@@ -1074,7 +1080,7 @@ class Vcon():
 
     return(plugin.filter(self, **options))
 
-  def set_uuid(self, domain_name: str, replace: bool= False) -> str:
+  def set_uuid(self, domain_name: str="vcon.dev", replace: bool= False) -> str:
     """
     Generate a UUID for this vCon and set the parameter
 

@@ -37,12 +37,15 @@ async def start(opts=default_options):
                 payload = vcon_dict["attachments"][0]["payload"]
                 projection = vcon_dict["attachments"][1]
                 call_log_id = payload["id"]
+                dealer_number = None
+                if projection.get("dealer_number"):
+                    dealer_number = projection["dealer_number"].replace("-","")
                 CallLogs.create(
                     id = call_log_id,
                     agent_extension = projection["extension"],
                     # agent_cxm_id = CharField(null=True),
                     # agent_cached_details = BinaryJSONField(null=True),
-                    dealer_number = projection["dealer_number"].replace("-",""),
+                    dealer_number = dealer_number,
                     # dealer_cxm_id = CharField(null=True),
                     # dealer_cached_details = BinaryJSONField(null=True),
                     customer_number = projection["customer_number"].replace("-",""),

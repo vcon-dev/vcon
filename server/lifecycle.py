@@ -41,7 +41,6 @@ async def check_sqs():
                 for message in queue.receive_messages(MaxNumberOfMessages=10):
                     process_messages = True
                     message.delete()
-                    logging.info(f"Received message from {queue_name}")
                     await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -204,7 +203,6 @@ async def start_observer():
 async def shutdown_background_tasks():
     logger.info("Shutting down background tasks")
     for task in background_tasks:
-        task.cancel()
-        await task
+        await task.cancel()
         logger.info("Task cancelled: %s", task)
 

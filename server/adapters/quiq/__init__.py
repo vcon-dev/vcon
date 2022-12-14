@@ -6,7 +6,7 @@ import logging
 import logging.config
 import vcon
 import datetime
-from settings import REDIS_URL, LOG_LEVEL
+from settings import REDIS_URL, LOG_LEVEL, ENV
 from redis.commands.json.path import Path
 
 
@@ -28,11 +28,10 @@ async def start(opts=default_options):
         try:
             async with async_timeout.timeout(10):
                 for ingress_list in opts["ingress-list"]:
-                    list, data = await r.blpop(ingress_list)
+                    data = await r.lpop(ingress_list)
                     if data is None:
                         continue
                     try:
-                        list = list
                         payload = json.loads(data)
                         body = payload.get("default")
                                         

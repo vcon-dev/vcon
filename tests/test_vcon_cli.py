@@ -32,7 +32,7 @@ def test_vcon_new(capsys):
 
 def test_filter(capsys):
   """ Test cases for the filter command to run filer plugins """
-  command_args = "-i {} filter transcribe -fo '{{\"model_size\":\"tiny\"}}'".format(VCON_WITH_DIALOG_FILE_NAME).split()
+  command_args = "-i {} filter transcribe -fo '{{\"model_size\":\"base\"}}'".format(VCON_WITH_DIALOG_FILE_NAME).split()
   assert(len(command_args) == 6)
 
   vcon.cli.main(command_args)

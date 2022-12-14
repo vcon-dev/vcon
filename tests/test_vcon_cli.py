@@ -30,6 +30,32 @@ def test_vcon_new(capsys):
   assert(len(new_vcon.uuid) == 36)
   assert(new_vcon.vcon == "0.0.1")
 
+def test_filter_plugin_register(capsys):
+  """ Test cases for the register filter plugin CLI option -r """
+  command_args = "-n -r foo2 doesnotexist.foo Foo filter foo2".format(VCON_WITH_DIALOG_FILE_NAME).split()
+  # Filter registered, but module not found
+  # expect vcon.filter_plugins.PluginModuleNotFound
+  assert(len(command_args) == 7)
+
+  try:
+    vcon.cli.main(command_args)
+    raise Exception("Expected this to throw vcon.filter_plugins.PluginModuleNotFound as the module name is wrong")
+
+  except vcon.filter_plugins.PluginModuleNotFound as no_mod_error:
+    print("Got {}".format(no_mod_error))
+
+  command_args = "-n -r foo2 tests.foo Foo filter foo2".format(VCON_WITH_DIALOG_FILE_NAME).split()
+  # Filter register and loaded, but not completely implemented
+  # expect vcon.filter_plugins.PluginFilterNotImplemented
+  assert(len(command_args) == 7)
+
+  try:
+    vcon.cli.main(command_args)
+    raise Exception("Expected this to throw vcon.filter_plugins.PluginFilterNotImplemented as the module name is wrong")
+
+  except vcon.filter_plugins.PluginFilterNotImplemented as mod_not_impl_error:
+    print("Got {}".format(mod_not_impl_error))
+
 def test_filter(capsys):
   """ Test cases for the filter command to run filer plugins """
   command_args = "-i {} filter transcribe -fo '{{\"model_size\":\"base\"}}'".format(VCON_WITH_DIALOG_FILE_NAME).split()

@@ -39,7 +39,7 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
     super().__init__(**options)
     # make model size configurable
     self.whisper_model_size = options.get("model_size", "base")
-    print("using whisper model size: {}".format(self.whisper_model_size), file=sys.stderr)
+    print("Initializing whisper model size: {}".format(self.whisper_model_size), file=sys.stderr)
     self.whisper_model = stable_whisper.load_model(self.whisper_model_size)
     #stable_whisper.modify_model(self.whisper_model)
 

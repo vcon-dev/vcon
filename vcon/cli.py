@@ -40,6 +40,9 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
 
   parser.add_argument("-o", "--outfile", metavar='outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
 
+  parser.add_argument("-r", "--register-filter-plugin", nargs=3, 
+    action="append", type=str, default=[])
+
   subparsers_command = parser.add_subparsers(dest="command")
 
   addparser = subparsers_command.add_parser("add")
@@ -92,6 +95,14 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
 
   print("command: {}".format(args.command), file=sys.stderr)
 
+  for filter_plugin_registration in args.register_filter_plugin:
+    vcon.filter_plugins.FilterPluginRegistry.register(
+      filter_plugin_registration[0],
+      filter_plugin_registration[1],
+      filter_plugin_registration[2],
+      filter_plugin_registration[0],
+      replace=True)
+
   if(args.command == "sign"):
     print("priv key files: {}".format(len(args.privkey)), file=sys.stderr)
     if(args.privkey[0].exists()):
@@ -128,7 +139,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
 
   """
   Options: 
-    [-n | -i <file_name>][-o <file_name>]
+    [-n | -i <file_name>][-o <file_name>][-r filter_plugin_name plugin_module plugin_class_name [-r ...]]
  
   Commands:
     add in-recording <file_name> <start_date> <parties>
@@ -151,6 +162,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   print("out: {}".format(type(args.outfile)), file=sys.stderr)
   print("in: {}".format(type(args.infile)), file=sys.stderr)
   print("new in {}".format(args.newvcon), file=sys.stderr)
+  print("filter plugin registrations in {}".format(args.register_filter_plugin), file=sys.stderr)
   in_vcon = vcon.Vcon()
   if(not args.newvcon):
     in_vcon_json = args.infile.read()
@@ -179,14 +191,18 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   elif(args.command == "filter"):
     plugin_name = args.filter_name[0][0].strip(" '\"")
     print("filter name: \"{}\"".format(plugin_name), file=sys.stderr)
-    try:
-      filter_options_dict = json.loads(args.filter_options[0][0].strip(" '\""))
-    except Exception as opt_error:
-      print(opt_error, file=sys.stderr)
-      filter_options_dict = None
-    if(not isinstance(filter_options_dict, dict)):
-      print("filter_options should be a well formed dict.  Got: {}".format(args.filter_options[0][0]), file=sys.stderr)
-      sys.exit(2)
+    if(args.filter_options is not None):
+      try:
+        filter_options_dict = json.loads(args.filter_options[0][0].strip(" '\""))
+      except Exception as opt_error:
+        print(opt_error, file=sys.stderr)
+        print("filter options: {}".format(args.filter_options))
+        filter_options_dict = None
+      if(not isinstance(filter_options_dict, dict)):
+        print("filter_options should be a well formed dict.  Got: {}".format(args.filter_options[0][0]), file=sys.stderr)
+        sys.exit(2)
+    else:
+      filter_options_dict = {}
     print("filter options: \"{}\"".format(filter_options_dict), file=sys.stderr)
     try:
       plugin = vcon.filter_plugins.FilterPluginRegistry.get(plugin_name)

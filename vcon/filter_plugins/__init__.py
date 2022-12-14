@@ -23,6 +23,9 @@ class PluginFilterNotImplemented(Exception):
 class PluginFilterNotRegistered(Exception):
   """ Thrown when plugin is not found in the FilterPluginRegistry """
 
+class PluginFilterAlreadyRegistered(Exception):
+  """ Thrown when plugin already exists in the FilterPluginRegistry """
+
 class FilterPlugin:
   """ Abstract Vcon filter plugin class.  Implementations derive from this clss and must implement the filter method """
   def __init__(self, **options):
@@ -42,8 +45,9 @@ class FilterPlugin:
     """
     raise PluginFilterNotImplemented("{}.filter not implemented".format(type(self)))
 
-  def uninit(self):
+  def __del__(self):
     """ Teardown/uninitialization method for the plugin """
+    print("deleting {}".format(self.__class__))
 
 class FilterPluginRegistration:
   """ Class containing info and heloer methods on the registration for a single named plugin filter """
@@ -143,9 +147,10 @@ class FilterPluginRegistry:
       pass
 
     if(name_registered is None or replace):
+         
       FilterPluginRegistry._registry[plugin.name] = plugin
     else:
-      raise Exception("Plugin {} already exists".format(plugin.name))
+      raise PluginFilterAlreadyRegistered("Plugin {} already registered".format(plugin.name))
 
 
   @staticmethod
@@ -165,8 +170,10 @@ class FilterPluginRegistry:
       replace (bool) - if True replace the already registered plugin of the same name
                        if False throw an exception if a plugin of the same name is already register
     """
+    print("Registering FilterPlugin: {}".format(locals()), file=sys.stderr)
     entry = FilterPluginRegistration(name, module_name, class_name, description)
     FilterPluginRegistry.__add_plugin(entry, replace)
+
 
   @staticmethod
   def get(name: str) -> FilterPluginRegistration:

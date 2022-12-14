@@ -85,4 +85,11 @@ def test_registry():
 
   v2 = vcon.Vcon()
 
-  v2.barp()
+  try:
+    v2.barp()
+    raise Exception("expect exception as filter plugin bar trys to import a non-existant package")
+
+  except vcon.filter_plugins.PluginModuleNotFound as fp_no_mod_error:
+    # should get here
+    print("got {}".format(fp_no_mod_error))
+

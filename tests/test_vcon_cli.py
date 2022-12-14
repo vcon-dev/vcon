@@ -13,6 +13,7 @@ IN_VCON_JSON = '{"uuid": "0183878b-dacf-8e27-973a-91e26eb8001b", "vcon": "0.0.1"
 WAVE_FILE_NAME = "examples/agent_sample.wav"
 WAVE_FILE_URL = "https://github.com/vcon-dev/vcon/blob/main/examples/agent_sample.wav?raw=true"
 WAVE_FILE_SIZE = os.path.getsize(WAVE_FILE_NAME)
+VCON_WITH_DIALOG_FILE_NAME = "examples/test.vcon"
 
 def test_vcon_new(capsys):
   """test vcon -n"""
@@ -28,6 +29,31 @@ def test_vcon_new(capsys):
   new_vcon.loads(new_vcon_json)
   assert(len(new_vcon.uuid) == 36)
   assert(new_vcon.vcon == "0.0.1")
+
+def test_filter(capsys):
+  """ Test cases for the filter command to run filer plugins """
+  command_args = "-i {} filter transcribe -fo '{{\"model_size\":\"tiny\"}}'".format(VCON_WITH_DIALOG_FILE_NAME).split()
+  assert(len(command_args) == 6)
+
+  vcon.cli.main(command_args)
+
+  # Get stdout and stderr
+  out_vcon_json, error = capsys.readouterr()
+
+  # As we captured the stderr, we need to re-emmit it for unit test feedback
+  print("stderr: {}".format(error), file=sys.stderr)
+
+  # stdout should be a Vcon with analysis added
+  out_vcon = vcon.Vcon()
+  try:
+    out_vcon.loads(out_vcon_json)
+  except Exception as e:
+    print("output Vcon JSON: {}".format(out_vcon_json[0:30]))
+    raise e
+
+
+  assert(len(out_vcon.dialog) == 1)
+  assert(len(out_vcon.analysis) == 3)
 
 def test_ext_recording(capsys):
   """test vcon add ex-recording"""

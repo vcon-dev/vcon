@@ -6,9 +6,11 @@ script file so that it coould more easily be tested with pytest.
 import sys
 import pathlib
 import typing
+import contextlib
 import vcon
 
 def get_mime_type(file_name):
+  """ derive mimetype from fle extension """
   path = pathlib.PurePath(file_name)
   extension = path.suffix.lower()
 
@@ -18,7 +20,7 @@ def get_mime_type(file_name):
     mimetype = vcon.Vcon.MIMETYPE_AUDIO_WAV
 
   else:
-    raise UnrecognizedMimeType("MIME type not defined for extension: {}".format(extension))
+    raise Exception("MIME type not defined for extension: {}".format(extension))
 
   return(mimetype)
 
@@ -35,9 +37,9 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   input_group = parser.add_mutually_exclusive_group()
   input_group.add_argument("-i", "--infile", metavar='infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
   input_group.add_argument("-n", "--newvcon", action="store_true")
-  
+
   parser.add_argument("-o", "--outfile", metavar='outfile', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
- 
+
   subparsers_command = parser.add_subparsers(dest="command")
 
   addparser = subparsers_command.add_parser("add")
@@ -84,20 +86,20 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   decrypt_parser.add_argument("pubkey", metavar='public_key_file', nargs=1, type=pathlib.Path, default=None)
 
   args = parser.parse_args(argv)
-  
+
   print("args: {}".format(args), file=sys.stderr)
   print("args dir: {}".format(dir(args)), file=sys.stderr)
- 
+
   print("command: {}".format(args.command), file=sys.stderr)
 
   if(args.command == "sign"):
-    print("priv key files: {}".format(len(args.privkey)), file=sys.stderr) 
+    print("priv key files: {}".format(len(args.privkey)), file=sys.stderr)
     if(args.privkey[0].exists()):
       print("priv key: {} exists".format(str(args.privkey[0])), file=sys.stderr)
     else:
       print("priv key: {} does NOT exist".format(str(args.privkey[0])), file=sys.stderr)
 
-    print("pub key files: {}".format(len(args.pubkey)), file=sys.stderr) 
+    print("pub key files: {}".format(len(args.pubkey)), file=sys.stderr)
 
   if(args.command == "verify"):
     if(args.pubkey[0].exists()):
@@ -122,18 +124,18 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
       print("priv key: {} does NOT exist".format(str(args.privkey[0])), file=sys.stderr)
 
   if(args.command == "add"):
-    print("add: {}".format(args.add_command), file=sys.stderr) 
+    print("add: {}".format(args.add_command), file=sys.stderr)
 
   """
   Options: 
-    -i <file_name>
-  
-    -o <file_name>
+    [-n | -i <file_name>][-o <file_name>]
  
   Commands:
     add in-recording <file_name> <start_date> <parties>
     add ex-recording <file_name> <start_date> <parties> <url>
-  
+ 
+    filter filter-name [-fo filter-options-dict] 
+
     sign private_key x5c1[, x5c2]... 
   
     verify ca_cert
@@ -150,7 +152,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   print("in: {}".format(type(args.infile)), file=sys.stderr)
   print("new in {}".format(args.newvcon), file=sys.stderr)
   in_vcon = vcon.Vcon()
-  if(args.newvcon == False):
+  if(not args.newvcon):
     in_vcon_json = args.infile.read()
     if(in_vcon_json is not None and len(in_vcon_json) > 0):
       in_vcon.loads(in_vcon_json)
@@ -175,27 +177,35 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
     signed_json = False
 
   elif(args.command == "filter"):
-    plugin_name = args.filter_name[0][0]
-    print("filter name: \"{}\"".format(plugin_name))
+    plugin_name = args.filter_name[0][0].strip(" '\"")
+    print("filter name: \"{}\"".format(plugin_name), file=sys.stderr)
     try:
-      filter_options_dict = json.loads(args.filter_options[0][0])
+      filter_options_dict = json.loads(args.filter_options[0][0].strip(" '\""))
     except Exception as opt_error:
-      print(opt_error)
+      print(opt_error, file=sys.stderr)
       filter_options_dict = None
     if(not isinstance(filter_options_dict, dict)):
-      print("filter_options should be a well formed dict.  Got: {}".format(args.filter_options[0][0]))
-      exit(2)
-    print("filter options: \"{}\"".format(filter_options_dict))
+      print("filter_options should be a well formed dict.  Got: {}".format(args.filter_options[0][0]), file=sys.stderr)
+      sys.exit(2)
+    print("filter options: \"{}\"".format(filter_options_dict), file=sys.stderr)
     try:
       plugin = vcon.filter_plugins.FilterPluginRegistry.get(plugin_name)
-      print("got plugin for: {}".format(plugin))
+      print("got plugin for: {}".format(plugin), file=sys.stderr)
     except Exception as pname_error:
       try:
         default_type = vcon.filter_plugins.FilterPluginRegistry.get_type_default_name(plugin_name)
-        print("got default type plugin for: {}".format(plugin_name))
+        print("got default type {} plugin for: {}".format(default_type, plugin_name), file=sys.stderr)
       except Exception as ptype_error:
-        raise Exception("{} is neither a registered filter plugin name or a default filter plugin type name".format(plugin_name))
+        raise Exception(
+          "{} is neither a registered filter plugin name or a default filter plugin type name".format(
+         plugin_name)) from pname_error
 
+    # send print statements that we want to go to stderr
+    #
+    # Leaving this here commented out for diagnostic purposes.  I kind of
+    # like it that the unit test fails if there is any print to stdout
+    # noise to force clean up.
+    #with contextlib.redirect_stdout(sys.stderr):
     in_vcon = in_vcon.filter(plugin_name, **filter_options_dict)
 
   elif(args.command == "encrypt"):
@@ -205,9 +215,9 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
   elif(args.command == "decrypt"):
     print("state: {}".format(in_vcon._state), file=sys.stderr)
     in_vcon.decrypt(args.privkey[0], args.pubkey[0])
-  
+
   elif(args.command == "add"):
-    if(args.add_command == "in-recording" or args.add_command == "ex-recording"):
+    if(args.add_command in ["in-recording", "ex-recording"]):
       if(not args.recfile[0].exists()):
         raise Exception("Recording file: {} does not exist".format(args.recfile[0]))
 
@@ -293,7 +303,7 @@ def main(argv : typing.Optional[typing.Sequence[str]] = None) -> int:
       num_dialogs = len(in_vcon.dialog)
       if(dialog_index > num_dialogs):
         raise AttributeError("Dialog index: {} must be less than the number of dialog in the vCon: {}".format(dialog_index, num_dialogs))
-  
+
       recording_bytes = in_vcon.decode_dialog_inline_body(dialog_index)
       stdout_vcon = False
       if(isinstance(recording_bytes, bytes)):

@@ -10,6 +10,7 @@ from redis.commands.json.path import Path
 import vcon
 from dateutil.parser import parse
 import traceback
+import phonenumbers
 
 
 logger = logging.getLogger(__name__)
@@ -61,8 +62,8 @@ async def start(opts=default_options):
                     duration = time_diff_in_seconds(start_time, end_time)
                     dealer_did = None
                     if body.get("dialerId", None):
-                        dealer_did = "1"+body.get("dialerId").replace("-", "").replace("(", "").replace(")", "")
-                    customerNumber = "1"+body.get("customerNumber").replace("-", "").replace("(", "").replace(")", "")
+                        dealer_did = get_e164_number(body.get("dialerId"))
+                    customerNumber = get_e164_number(body.get("customerNumber"))
                     extension = body.get("extension")
 
 
@@ -116,3 +117,10 @@ async def start(opts=default_options):
             logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
+
+
+def get_e164_number(phone_number):
+    parsed = phonenumbers.parse(phone_number, "US")
+    the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+    logger.info("The return %s", the_return)
+    return the_return

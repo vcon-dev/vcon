@@ -37,18 +37,15 @@ async def start(opts=default_options):
                 payload = vcon_dict["attachments"][0]["payload"]
                 projection = vcon_dict["attachments"][1]
                 call_log_id = payload["id"]
-                dealer_number = None
-                if projection.get("dealer_number"):
-                    dealer_number = projection["dealer_number"].replace("-","")
                 CallLogs.create(
                     id = call_log_id,
                     agent_extension = projection["extension"],
                     # agent_cxm_id = CharField(null=True),
                     # agent_cached_details = BinaryJSONField(null=True),
-                    dealer_number = dealer_number,
+                    dealer_number = projection.get("dealer_number"),
                     # dealer_cxm_id = CharField(null=True),
                     # dealer_cached_details = BinaryJSONField(null=True),
-                    customer_number = projection["customer_number"].replace("-",""),
+                    customer_number = projection.get("customer_number"),
                     direction = payload["direction"].upper(),
                     # disposition = CharField(null=True),
                     s3_key = f"{call_log_id}.wav",
@@ -74,6 +71,3 @@ async def start(opts=default_options):
             logger.error("posgres plugin: error: \n%s", traceback.format_exc())
             logger.error("Shoot!")
     logger.info("posgres plugin stopped")
-
-
-

@@ -1,0 +1,12 @@
+pylint
+mypy
+flake8
+pytest
+sox
+python-jose
+cryptography
+hsslms
+uuid6
+whisper
+stable-ts
+

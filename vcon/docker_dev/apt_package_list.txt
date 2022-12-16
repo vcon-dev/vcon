@@ -1,0 +1,20 @@
+# Dev only packages
+vim
+screen
+less
+git
+jq
+wget
+curl
+sudo
+apt-file
+procps
+iproute2
+
+# Runtime packages
+python3.8
+python3-pip
+sox
+ffmpeg
+# may want to: pip3 install git+https://github.com/openai/whisper.git
+

@@ -36,7 +36,7 @@ async def check_sqs():
             process_messages = True
             while process_messages:
                 sleep(0.1)
-                process_messages = False            
+                process_messages = False
                 queue = sqs.get_queue_by_name(QueueName=queue_name)
                 for message in queue.receive_messages(MaxNumberOfMessages=10):
                     process_messages = True

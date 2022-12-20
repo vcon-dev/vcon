@@ -25,6 +25,8 @@ services:
     mem_limit: 500mb
     volumes:
        - ./.data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli","ping"]
 
   jupyter:
     build: .

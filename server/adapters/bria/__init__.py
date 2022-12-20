@@ -32,28 +32,6 @@ def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     return duration.seconds
 
 
-async def handle_bria_s3_recording_event(record, opts, r):
-    logger.info("Processing s3 %s", record)
-    s3_object_key = record["s3"]["object"]["key"]
-    bria_call_id = s3_object_key.replace('.wav', '')
-    # lookup the vCon in redis using this ID
-    # FT.SEARCH idx:adapterIdIndex '@adapter:{bria} @id:{f8be045704cb4ea98d73f60a88590754}'
-    result = await r.ft(index_name="idx:adapterIdIndex").search("@adapter:{bria} @id:{%s}" % bria_call_id)
-    vcon_key = result.docs[0].id
-    vcon_data = json.loads(result.docs[0].json)
-    vcon_id = vcon_key[5:] # Remove the "vcon:" prefix from the keyy
-    payload = vcon_data["attachments"][0]["payload"]
-    dialog_data = {
-        "type": "recording",
-        "filename": s3_object_key,
-        "start": dateutil.parser.isoparse(payload["connectedAt"]).isoformat(),
-        "duration": time_diff_in_seconds(payload["connectedAt"], payload["endedAt"])
-    }
-    await r.json().arrinsert(vcon_key, '$.dialog', 0, dialog_data)
-    for egress_topic in opts["egress-topics"]:
-        await r.publish(egress_topic, vcon_id)
-
-
 async def handle_bria_call_ended_event(body, opts, r):
     logger.info("Bria adapter received: %s", body)
 
@@ -130,15 +108,8 @@ async def start(opts=default_options):
                     if data is None:
                         continue
                     payload = json.loads(data)
-
-                    records = payload.get("Records")
-                    if records:
-                        for record in records:
-                            await handle_bria_s3_recording_event(record, opts, r)
-                    else:
-                        body = json.loads(payload.get("Message"))
-                        await handle_bria_call_ended_event(body, opts, r)
-
+                    body = json.loads(payload.get("Message"))
+                    await handle_bria_call_ended_event(body, opts, r)
         except asyncio.CancelledError:
             logger.info("Bria Cancelled")
             break

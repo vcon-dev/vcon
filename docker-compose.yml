@@ -26,7 +26,10 @@ services:
     volumes:
        - ./.data:/data
     healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
 
   jupyter:
     build: .

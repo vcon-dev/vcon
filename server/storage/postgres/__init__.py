@@ -44,7 +44,7 @@ async def start(opts=default_options):
                     # agent_cached_details = BinaryJSONField(null=True),
                     dealer_number = projection.get("dealer_number"),
                     # dealer_cxm_id = CharField(null=True),
-                    # dealer_cached_details = BinaryJSONField(null=True),
+                    dealer_cached_details = projection.get("dealer_cached_details"),
                     customer_number = projection.get("customer_number"),
                     direction = payload["direction"].upper(),
                     # disposition = CharField(null=True),

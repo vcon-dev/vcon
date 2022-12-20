@@ -56,7 +56,9 @@ async def run(vcon_uuid, opts=default_options):
 
         projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        projection["dealer_cached_details"] = {"name": vCon.attachments[0]["payload"]["dealerName"]}
+        dealer_name = vCon.attachments[0]["payload"].get("dealerName")
+        if dealer_name:
+            projection["dealer_cached_details"] = {"name": dealer_name}
         vCon.attachments.append(projection)
 
         # Send this out to the storage adapters

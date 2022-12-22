@@ -11,6 +11,7 @@ import vcon
 from dateutil.parser import parse
 import traceback
 import phonenumbers
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,69 @@ def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     return duration.seconds
 
 
+async def handle_bria_call_ended_event(body, opts, r):
+    logger.info("Bria adapter received: %s", body)
+
+    # Construct empty vCon, set meta data
+    vCon = vcon.Vcon()
+    email = body.get("email")
+    username = email.split('@')[0]
+    first_name = username.split('.')[0]
+    last_name = username.split('.')[1]
+    full_name = first_name + " " + last_name
+
+    start_time = body['startedAt']
+    end_time = body['endedAt']
+    duration = time_diff_in_seconds(start_time, end_time)
+    dealer_did = get_e164_number(body.get("dialerId"))
+    customerNumber = get_e164_number(body.get("customerNumber"))
+    extension = body.get("extension")
+
+    if body.get("direction") == "out":
+        email = body.get("email")
+        vCon.set_party_parameter("tel", dealer_did, -1)
+        vCon.set_party_parameter("mailto", email, 0)
+        vCon.set_party_parameter("name", full_name, 0)
+        vCon.set_party_parameter("role", "agent", 0)
+        vCon.set_party_parameter("extension", extension, 0)
+        vCon.set_party_parameter("tel", customerNumber, -1)
+        vCon.set_party_parameter("role", "customer", 1)
+    else:
+        vCon.set_party_parameter("tel", customerNumber, -1)
+        vCon.set_party_parameter("role", "customer", 0)
+        vCon.set_party_parameter("tel", dealer_did, -1)
+        vCon.set_party_parameter("mailto", email, 1)
+        vCon.set_party_parameter("name", full_name, 1)
+        vCon.set_party_parameter("role", "agent", 1)
+        vCon.set_party_parameter("extension", extension, 1)
+
+    # We don't have the recording, but we have the rest of the dialog
+    try:
+        vCon.add_dialog_external_recording(b'', parse(start_time), duration, [0,1], external_url="")
+    except Exception as e:
+        logger.error("Error adding dialog recording: %s", e)
+
+
+    # Set the adapter meta so we know where the this came from
+    adapter_meta= {
+        "adapter": "bria",
+        "adapter_version": "0.1.0",
+        "src": opts['ingress-list'],
+        "type": 'call_completed',
+        "received_at": datetime.now().isoformat(),
+        "payload": body
+    }
+    vCon.attachments.append(adapter_meta)
+
+    # Publish the vCon
+    logger.info("New vCon created: %s", vCon.uuid)
+    key = f"vcon:{vCon.uuid}"
+    cleanvCon = json.loads(vCon.dumps())
+    await r.json().set(key, Path.root_path(), cleanvCon)
+    for egress_topic in opts["egress-topics"]:
+        await r.publish(egress_topic, vCon.uuid)
+
+
 async def start(opts=default_options):
     logger.info("Starting the bria adapter")
     # Setup redis
@@ -44,72 +108,8 @@ async def start(opts=default_options):
                     if data is None:
                         continue
                     payload = json.loads(data)
-                    logger.info("Bria adapter received")
                     body = json.loads(payload.get("Message"))
-                    logger.info("Bria adapter received")
-                    logger.info("Bria adapter received: %s", body)
-
-                    # Construct empty vCon, set meta data
-                    vCon = vcon.Vcon()
-                    email = body.get("email")
-                    username = email.split('@')[0]
-                    first_name = username.split('.')[0]
-                    last_name = username.split('.')[1]
-                    full_name = first_name + " " + last_name
-
-                    start_time = body['startedAt']
-                    end_time = body['endedAt']
-                    duration = time_diff_in_seconds(start_time, end_time)
-                    dealer_did = None
-                    if body.get("dialerId", None):
-                        dealer_did = get_e164_number(body.get("dialerId"))
-                    customerNumber = get_e164_number(body.get("customerNumber"))
-                    extension = body.get("extension")
-
-
-                    if body.get("direction") == "out":
-                        email = body.get("email")
-                        vCon.set_party_parameter("tel", dealer_did, -1)
-                        vCon.set_party_parameter("mailto", email, 0)
-                        vCon.set_party_parameter("name", full_name, 0)
-                        vCon.set_party_parameter("role", "agent", 0)
-                        vCon.set_party_parameter("extension", extension, 0)
-                        vCon.set_party_parameter("tel", customerNumber, -1)
-                        vCon.set_party_parameter("role", "customer", 1)
-                    else:
-                        vCon.set_party_parameter("tel", customerNumber, -1)
-                        vCon.set_party_parameter("role", "customer", 0)
-                        vCon.set_party_parameter("tel", dealer_did, -1)
-                        vCon.set_party_parameter("mailto", email, 1)
-                        vCon.set_party_parameter("name", full_name, 1)
-                        vCon.set_party_parameter("role", "agent", 1)
-                        vCon.set_party_parameter("extension", extension, 1)
-
-                    # We don't have the recording, but we have the rest of the dialog
-                    try:
-                        vCon.add_dialog_external_recording(b'', parse(start_time), duration, [0,1], external_url="")
-                    except Exception as e:
-                        logger.error("Error adding dialog recording: %s", e)
-
-
-                    # Set the adapter meta so we know where the this came from
-                    adapter_meta= {
-                        "adapter": "bria",
-                        "adapter_version": "0.1.0",
-                        "src": ingress_list,
-                        "type": 'call_completed',
-                        "received_at": datetime.now().isoformat(),
-                        "payload": body
-                    }
-                    vCon.attachments.append(adapter_meta)
-
-                    # Publish the vCon
-                    logger.info("New vCon created: %s", vCon.uuid)
-                    key = f"vcon:{vCon.uuid}"
-                    cleanvCon = json.loads(vCon.dumps())
-                    await r.json().set(key, Path.root_path(), cleanvCon)
-                    for egress_topic in opts["egress-topics"]:
-                        await r.publish(egress_topic, vCon.uuid)
+                    await handle_bria_call_ended_event(body, opts, r)
         except asyncio.CancelledError:
             logger.info("Bria Cancelled")
             break
@@ -119,7 +119,9 @@ async def start(opts=default_options):
     logger.info("Bria adapter stopped")
 
 
-def get_e164_number(phone_number):
+def get_e164_number(phone_number: Optional[str]) -> str:
+    if not phone_number:
+        return ''
     parsed = phonenumbers.parse(phone_number, "US")
     the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     logger.info("The return %s", the_return)

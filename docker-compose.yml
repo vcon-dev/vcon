@@ -25,6 +25,11 @@ services:
     mem_limit: 500mb
     volumes:
        - ./.data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
 
   jupyter:
     build: .

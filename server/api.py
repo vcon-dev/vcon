@@ -29,7 +29,7 @@ class Party(BaseModel):
     civicaddress: str = None
     timezone: str = None
 
-class DialogType(enum.Enum):
+class DialogType(str, enum.Enum):
     recording = "recording"
     text = "text"
 

@@ -15,7 +15,8 @@ from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.responses import JSONResponse
 import importlib
 from redis.commands.json.path import Path
-
+import typing
+import enum
 
 class Party(BaseModel):
     tel: str = None
@@ -28,17 +29,17 @@ class Party(BaseModel):
     civicaddress: str = None
     timezone: str = None
 
-class DialogType(BaseModel):
+class DialogType(enum.Enum):
     recording = "recording"
     text = "text"
 
 class Dialog(BaseModel):
     type: DialogType
-    start: datetime
-    duration: float
-    parties: list[int]
-    mimetype: str
-    filename: str
+    start: typing.Union[int, str, datetime]
+    duration: float = None
+    parties: typing.Union[int, typing.List[typing.Union[int, typing.List[int]]]]
+    mimetype: str = None
+    filename: str = None
     body: str = None
     url: str = None
     encoding: str = None
@@ -81,15 +82,15 @@ class Group(BaseModel):
 class Vcon(BaseModel):
     vcon: str
     uuid: UUID
-    created_at: int = datetime.now().timestamp()
-    subject: str
+    created_at: typing.Union[int, str, datetime] = datetime.now().timestamp()
+    subject: str = None
     redacted: dict = None
     appended: dict = None
-    group: list[Group] = []
-    parties: list[Party] = []
-    dialog: list[Dialog] = []
-    analysis: list[Analysis] = []
-    attachments: list[Attachment] = []
+    group: typing.List[Group] = []
+    parties: typing.List[Party] = []
+    dialog: typing.List[Dialog] = []
+    analysis: typing.List[Analysis] = []
+    attachments: typing.List[Attachment] = []
 
 # Our local modules``
 sys.path.append("..")

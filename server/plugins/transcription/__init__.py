@@ -41,7 +41,10 @@ async def run(vcon_uuid, opts=default_options, ):
         # Gotta find that audio file
         vCon = vcon.Vcon()
         vCon.loads(json.dumps(inbound_vcon))
-        bytes = vCon.decode_dialog_inline_recording(i)
+        if(vCon.dialog[i].get("body", None) is not None):
+            bytes = vCon.decode_dialog_inline_recording(i)
+        elif(len(vCon.dialog[i].get("url", "")) > 0):
+            bytes = vCon.get_dialog_external_recording(i)
         # Load the audio from the vCon, use a temporary
         # file to avoid loading the entire audio into memory
         tmp_file = open("_temp_file", 'wb')

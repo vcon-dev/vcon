@@ -30,42 +30,28 @@ options = {}
 async def run(vcon_uuid, opts=default_options, ):
     inbound_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
 
-    # Make sure that this vCon actually has a dialog to transcribe
-    # If not, just return
-    for i, dialog in enumerate(inbound_vcon['dialog']):
-        if dialog["type"] != 'recording':
-            continue
+    vCon = vcon.Vcon()
+    vCon.loads(json.dumps(inbound_vcon))
+    original_analysis_count = len(vCon.analysis)
 
-        # Look, there's a dialog
-        # Let's transcribe it. 
-        # Gotta find that audio file
-        vCon = vcon.Vcon()
-        vCon.loads(json.dumps(inbound_vcon))
-        if(vCon.dialog[i].get("body", None) is not None):
-            bytes = vCon.decode_dialog_inline_recording(i)
-        elif(len(vCon.dialog[i].get("url", "")) > 0):
-            bytes = vCon.get_dialog_external_recording(i)
-        # Load the audio from the vCon, use a temporary
-        # file to avoid loading the entire audio into memory
-        tmp_file = open("_temp_file", 'wb')
-        tmp_file.write(bytes)
-        tmp_file.close()
-        results = model.transcribe("_temp_file", ts_num=7, stab=False, fp16=False, verbose=True)
-        # Remove temp file
-        os.remove("_temp_file")
+    annotated_vcon = vCon.transcribe(**options)
 
-        vCon.add_analysis_transcript(i, results, "whisper-ai")
-        str_vcon = vCon.dumps()
-        json_vcon = json.loads(str_vcon)
-        # Remove the NAN
-        str_vcon = json.dumps(json_vcon, ignore_nan=True)
-        json_vcon = json.loads(str_vcon) 
+    new_analysis_count = len(annotated_vcon.analysis)
+
+    logger.info("transcribe plugin: vCon: {} analysis was: {} now: {}".format(
+        vcon_uuid, original_analysis_count, new_analysis_count))
+
+    # If we added any analysis, save it
+    if(new_analysis_count != original_analysis_count):
+        vcon_json_string = annotated_vcon.dumps()
+        json_vcon_object = json.loads(vcon_json_string) 
+
         try:
-            await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon)
+            await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon_object)
         except Exception as e:
             logger.error("transcription plugin: error: {}".format(e))
 
-    
+
 
 async def start(opts=default_options):
     logger.info("Starting the transcription plugin")
@@ -78,7 +64,7 @@ async def start(opts=default_options):
                 message = await p.get_message()
                 if message:
                     vConUuid = message['data'].decode('utf-8')
-                    logger.info("transcription plugin: received vCon: {}".format(vConUuid))
+                    logger.info("transcribe plugin: received vCon: {}".format(vConUuid))
                     run(opts, vConUuid)
                     for topic in opts['egress-topics']:
                         await r.publish(topic, vConUuid)

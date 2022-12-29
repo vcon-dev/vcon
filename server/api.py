@@ -101,6 +101,9 @@ logger.info('Conserver starting up')
 
 # Setup redis
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+logger.info('redis connection: host: {} port: {}'.format(
+    r.connection_pool.connection_kwargs.get("host", "None"), 
+    r.connection_pool.connection_kwargs.get("port", "None")))
 
 # Load FastAPI app
 app = FastAPI.conserver_app
@@ -128,6 +131,17 @@ async def get_vcon(vcon_uuid: UUID):
         logger.info("Error: {}".format(e))
         return None
     return JSONResponse(content=vcon)
+
+@app.get('/vcon/{vcon_uuid}/JSONPath', response_model=Page[Party])
+async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
+    try:
+        logger.info("JSONPath query string: {}".format(path_string))
+        query_result = await r.json().get(f"vcon:{str(vcon_uuid)}", path_string)
+        logger.info("JSONPath query result: {}".format(query_result))
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=query_result)
 
 @app.get('/vcon/{vcon_uuid}/party', response_model=Page[Party])
 async def get_parties(vcon_uuid: UUID):

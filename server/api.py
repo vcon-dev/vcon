@@ -17,6 +17,7 @@ import importlib
 from redis.commands.json.path import Path
 import typing
 import enum
+import pyjq
 
 class Party(BaseModel):
     tel: str = None
@@ -131,6 +132,19 @@ async def get_vcon(vcon_uuid: UUID):
         logger.info("Error: {}".format(e))
         return None
     return JSONResponse(content=vcon)
+
+@app.get('/vcon/{vcon_uuid}/jq')
+async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
+    try:
+        logger.info("jq transform string: {}".format(jq_transform))
+        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
+        query_result = pyjq.all(jq_transform, vcon)
+        logger.info("jq  transform result: {}".format(query_result))
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+
+    return JSONResponse(content=query_result)
 
 @app.get('/vcon/{vcon_uuid}/JSONPath', response_model=Page[Party])
 async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):

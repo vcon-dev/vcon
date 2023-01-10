@@ -17,3 +17,4 @@ server/.vscode
 dump.rdb
 server/static
 .data
+tmp

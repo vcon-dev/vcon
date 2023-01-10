@@ -95,3 +95,5 @@ SADD active_chains "plugins.call_log"
 
 FT.CREATE idx:adapterIdIndex ON JSON SCHEMA $.attachments[0].adapter AS adapter TAG $.attachments[0].payload.id AS id TAG
 
+
+FT.CREATE idx:adapterIdsIndex ON JSON SCHEMA $.attachments[0:].adapter AS adapter TAG $.attachments[0:].payload.id AS id TAG

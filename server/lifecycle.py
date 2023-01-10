@@ -39,6 +39,7 @@ async def check_sqs():
                 process_messages = False
                 queue = sqs.get_queue_by_name(QueueName=queue_name)
                 for message in queue.receive_messages(MaxNumberOfMessages=10):
+                    logger.info("Received message from the SQS")
                     process_messages = True
                     message.delete()
                     await r.rpush(queue_name, message.body)
@@ -205,4 +206,3 @@ async def shutdown_background_tasks():
     for task in background_tasks:
         await task.cancel()
         logger.info("Task cancelled: %s", task)
-

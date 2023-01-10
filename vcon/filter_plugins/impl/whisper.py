@@ -77,10 +77,10 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
         if(dialog["mimetype"] in self._supported_media):
           # If inline or externally referenced recording:
           if(any(key in dialog for key in("body", "url"))):
-            if("body" in dialog):
+            if("body" in dialog and dialog["body"] is not None and dialog["body"] != ""):
               # Need to base64url decode recording
               body_bytes = in_vcon.decode_dialog_inline_body(dialog_index)
-            elif("url" in dialog):
+            elif("url" in dialog and dialog["url"] is not None and dialog["url"] != ""):
               # HTTP GET and verify the externally referenced recording
               body_bytes = in_vcon.get_dialog_external_recording(dialog_index)
             else:

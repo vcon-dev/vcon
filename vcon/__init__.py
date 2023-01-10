@@ -8,7 +8,16 @@ import importlib
 import pkgutil
 import typing
 import sys
-import json
+
+try:
+  import simplejson as json
+  dumps_options = {"ignore_nan" : True}
+  print("using simplejson", file=sys.stderr)
+except Exception as import_error:
+  import json
+  dumps_options = {}
+  print("using json", file=sys.stderr)
+
 import enum
 import time
 import hashlib
@@ -737,17 +746,17 @@ class Vcon():
       if(self.uuid is None or len(self.uuid) < 1):
         raise InvalidVconState("vCon has no UUID set.  Use set_uuid method.")
 
-      return(json.dumps(self._vcon_dict))
+      return(json.dumps(self._vcon_dict, **dumps_options))
 
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
       if(signed is False and self._state != VconStates.UNVERIFIED):
-        return(json.dumps(self._vcon_dict))
-      return(json.dumps(self._jws_dict))
+        return(json.dumps(self._vcon_dict, **dumps_options))
+      return(json.dumps(self._jws_dict, **dumps_options))
 
     if(self._state in [VconStates.ENCRYPTED, VconStates.DECRYPTED]):
       if(signed is False):
         raise AttributeError("not supported: unsigned JSON output for encrypted vCon")
-      return(json.dumps(self._jwe_dict))
+      return(json.dumps(self._jwe_dict, **dumps_options))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
 
@@ -996,7 +1005,7 @@ class Vcon():
 
     encryption_key = vcon.security.build_encryption_jwk_from_pem_file(cert_pem_file_name)
 
-    plaintext = json.dumps(self._jws_dict)
+    plaintext = json.dumps(self._jws_dict, **dumps_options)
 
     jwe_compact_token = jose.jwe.encrypt(plaintext, encryption_key, encryption, encryption_key['alg']).decode('utf-8')
     jwe_complete_serialization = vcon.security.jwe_compact_token_to_complete_serialization(jwe_compact_token, enc = encryption, x5c = [])

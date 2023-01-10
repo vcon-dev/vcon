@@ -103,7 +103,7 @@ logger.info('Conserver starting up')
 # Setup redis
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 logger.info('redis connection: host: {} port: {}'.format(
-    r.connection_pool.connection_kwargs.get("host", "None"), 
+    r.connection_pool.connection_kwargs.get("host", "None"),
     r.connection_pool.connection_kwargs.get("port", "None")))
 
 # Load FastAPI app
@@ -131,6 +131,7 @@ async def get_vcon(vcon_uuid: UUID):
     except Exception as e:
         logger.info("Error: {}".format(e))
         return None
+    logger.debug("Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None))
     return JSONResponse(content=vcon)
 
 @app.get('/vcon/{vcon_uuid}/jq')
@@ -139,7 +140,7 @@ async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
         logger.info("jq transform string: {}".format(jq_transform))
         vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
         query_result = pyjq.all(jq_transform, vcon)
-        logger.info("jq  transform result: {}".format(query_result))
+        logger.debug("jq  transform result: {}".format(query_result))
     except Exception as e:
         logger.info("Error: {}".format(e))
         return None
@@ -151,7 +152,7 @@ async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
     try:
         logger.info("JSONPath query string: {}".format(path_string))
         query_result = await r.json().get(f"vcon:{str(vcon_uuid)}", path_string)
-        logger.info("JSONPath query result: {}".format(query_result))
+        logger.debug("JSONPath query result: {}".format(query_result))
     except Exception as e:
         logger.info("Error: {}".format(e))
         return None
@@ -203,6 +204,7 @@ async def post_vcon(inbound_vcon: Vcon):
     except Exception as e:
         logger.info("Error: {}".format(e))
         return None
+    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
     return JSONResponse(content=dict_vcon)
 
 @app.put('/vcon/{vcon_uuid}')

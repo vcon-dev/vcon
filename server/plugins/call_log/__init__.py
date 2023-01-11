@@ -62,7 +62,7 @@ def get_projection(vCon):
             projection['dealer_number'] = party['tel']
     
     
-    projection['direction'] = "inbound" if vCon.attachments[0]["payload"]["direction"] == "in" else "outbound"
+    projection['direction'] = vCon.attachments[0]["payload"]["direction"].upper()
 
     projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")

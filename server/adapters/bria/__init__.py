@@ -194,7 +194,7 @@ def create_sha512_hash_for_s3_file(bucket_name: str, object_key: str) -> str:
     return fingerprint
 
 
-HUNDREAD_YEARS_SECONDS = 3.156e8
+TEN_YEARS_SECONDS = 3.156e8
 
 
 async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis):
@@ -221,7 +221,7 @@ async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis)
         if dialog.get("filename") == f"{bria_call_id}.wav":
             # TODO https:// find a way to get https link with permenent access
             v_con.dialog[index]["url"] = create_presigned_url(
-                s3_bucket_name, s3_object_key, HUNDREAD_YEARS_SECONDS
+                s3_bucket_name, s3_object_key, TEN_YEARS_SECONDS
             )
             v_con.dialog[index]["signature"] = create_sha512_hash_for_s3_file(
                 s3_bucket_name, s3_object_key

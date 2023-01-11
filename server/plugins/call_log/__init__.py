@@ -8,10 +8,10 @@ import whisper
 from settings import LOG_LEVEL, REDIS_URL
 import traceback
 from redis.commands.json.path import Path
-
+from server.lib.vcon_redis import VconRedis
 
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-
+vcon_redis = VconRedis(redis_client=r)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -27,63 +27,65 @@ default_options = {
     "egress-topics":[],
 }
 
-async def run(vcon_uuid, opts=default_options):
-    inbound_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
+async def run(vcon_uuid):
     try:
         # Construct empty vCon, set meta data
-        vCon = vcon.Vcon()
-        vCon.loads(json.dumps(inbound_vcon))
-
-        projection = {}
-        # Extract the parties from the vCon
-        projection['projection'] = 'call_log'
-        for party in vCon.parties:
-            if party['role'] == 'customer':
-                projection['customer_number'] = party['tel']
-            if party['role'] == 'agent':
-                projection['extension'] = party['extension']
-                projection['dealer_number'] = party['tel']
-        
-        if vCon.parties[0]['role'] == 'customer':
-            projection['direction'] = 'inbound'
+        vCon = await vcon_redis.get_vcon(vcon_uuid)
+        projection_index = -1
+        for index,attachment in enumerate(vCon.attachments):
+            if attachment.get("projection") == "call_log":
+                projection_index = index
+                break
+            
+        projection = get_projection(vCon)
+        if projection_index>-1:
+            vCon.attachments[projection_index] = projection
         else:
-            projection['direction'] = 'outbound'
-
-        for dialog in vCon.dialog:
-            if dialog['type'] == 'recording':
-                projection['call_started_on'] = dialog['start']
-                projection['duration'] = dialog['duration']
-
-        projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        dealer_name = vCon.attachments[0]["payload"].get("dealerName")
-        if dealer_name:
-            projection["dealer_cached_details"] = {"name": dealer_name}
-        vCon.attachments.append(projection)
-
-        # Send this out to the storage adapters
-        str_vcon = vCon.dumps()
-        json_vcon = json.loads(str_vcon)
-        await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon)
-
+            vCon.attachments.append(projection)
+        await vcon_redis.store_vcon(vCon)
         return(vCon)
-    except:
+
+    except Exception:
         logger.error("call_log plugin: error: \n%s", traceback.format_exc())
         logger.error("Shoot!")
+
+
+def get_projection(vCon):
+    projection = {}
+    # Extract the parties from the vCon
+    projection['projection'] = 'call_log'
+    for party in vCon.parties:
+        if party['role'] == 'customer':
+            projection['customer_number'] = party['tel']
+        if party['role'] == 'agent':
+            projection['extension'] = party['extension']
+            projection['dealer_number'] = party['tel']
+    
+    
+    projection['direction'] = "inbound" if vCon.attachments[0]["payload"]["direction"] == "in" else "outbound"
+
+    projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    projection['id'] = vCon.uuid
+    projection['dialog'] = vCon.dialog
+    dealer_name = vCon.attachments[0]["payload"].get("dealerName")
+    if dealer_name:
+        projection["dealer_cached_details"] = {"name": dealer_name}
+    # vCon.attachments.append(projection)
+    return projection
 
 async def start(opts=default_options):
     logger.info("Starting the call_log plugin")
     try:
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts['ingress-topics'])
-
         while True:
             try:
                 message = await p.get_message()
                 if message:
                     vConUuid = message['data']
                     logger.info(f"call_log plugin: received vCon: {vConUuid}")
-                    await run(vConUuid, opts)
+                    await run(vConUuid)
                     for topic in opts['egress-topics']:
                         await r.publish(topic, vConUuid)
                 await asyncio.sleep(0.1)

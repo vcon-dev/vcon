@@ -203,6 +203,8 @@ class Vcon():
   ATTACHMENTS = "attachments"
   CREATED_AT = "created_at"
 
+  PARTIES_OBJECT_STRING_PARAMETERS = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone", "role", "extension"]
+
   vcon = VconString(doc = "vCon version string attribute")
   uuid = VconString(doc = "vCon UUID string attribute")
   created_at = VconString(doc = "vCon creation date string attribute")
@@ -289,6 +291,7 @@ class Vcon():
 
     self._vcon_dict = {}
     self._vcon_dict[Vcon.VCON_VERSION] = "0.0.1"
+    self._vcon_dict[Vcon.GROUP] = []
     self._vcon_dict[Vcon.PARTIES] = []
     self._vcon_dict[Vcon.DIALOG] = []
     self._vcon_dict[Vcon.ANALYSIS] = []
@@ -296,8 +299,6 @@ class Vcon():
     self._vcon_dict[Vcon.CREATED_AT] = vcon.utils.cannonize_date(datetime.datetime.utcnow())
     self._vcon_dict[Vcon.REDACTED] = {}
     self.set_uuid()
-
-
 
 
   def _attempting_modify(self) -> None:
@@ -366,11 +367,10 @@ class Vcon():
 
     self._attempting_modify()
 
-    parties_object_string_parameters = ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone", "role", "extension"]
-    if(parameter_name not in parties_object_string_parameters):
+    if(parameter_name not in Vcon.PARTIES_OBJECT_STRING_PARAMETERS):
       raise AttributeError(
         "Not supported: setting of Parties Object parameter: {}.  Must be one of the following:  {}".
-        format(parameter_name, parties_object_string_parameters))
+        format(parameter_name, Vcon.PARTIES_OBJECT_STRING_PARAMETERS))
 
     party_index = self.__add_new_party(party_index)
 
@@ -378,6 +378,27 @@ class Vcon():
     self._vcon_dict[Vcon.PARTIES][party_index][parameter_name] = parameter_value
 
     return(party_index)
+
+  def add_party(self, party_dict: dict) -> int:
+    """
+    Add a new party to the vCon Parties Object array.
+
+    Parameters:
+      party_dict (dict) dict representing the parameter name and value pairs
+                  Dict key must beone of the following: ["tel", "stir", "mailto", "name", "validation", "gmlpos", "timezone"]
+
+    Returns:
+    int: if success, positive int index of party in list
+    """
+    self._attempting_modify()
+    for key in party_dict.keys():
+      if(key not in Vcon.PARTIES_OBJECT_STRING_PARAMETERS):
+        raise AttributeError(f"Not supported: setting of Parties Object parameter: {key}.  Must be one of the following:  {Vcon.PARTIES_OBJECT_STRING_PARAMETERS}")
+    # TODO parameter specific validation
+    self._vcon_dict[Vcon.PARTIES].append(party_dict)
+    party_index = len(self._vcon_dict[Vcon.PARTIES]) - 1
+    return party_index
+
 
   @deprecated("use Vcon.set_party_parameter")
   def set_party_tel_url(self, tel_url : str, party_index : int =-1) -> int:

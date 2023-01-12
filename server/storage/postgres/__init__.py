@@ -50,9 +50,9 @@ async def start(opts=default_options):
                         dealer_cached_details = projection.get("dealer_cached_details"),
                         customer_number = projection.get("customer_number"),
                         direction = projection.get("direction"),
-                        # disposition = CharField(null=True),
+                        disposition = projection.get("disposition"),
                         # s3_key = projection.get("s3_key"),
-                        # call_started_on = projection.get("call_started_on"),
+                        call_started_on = projection.get("call_started_on"),
                         duration = projection.get("duration"),
                         dialog_json = projection.get("dialog"),
                         # transcript = CharField(null=True),
@@ -63,7 +63,7 @@ async def start(opts=default_options):
                         source = 'bria'
                     ).on_conflict(
                         action="update",
-                        preserve=["dialog_json"],
+                        preserve=["agent_extension","disposition","duration","dialog_json","modified_on"],
                         conflict_target=[CallLogs.id],
                     ).execute()
                     logger.info("Call log added successfully")

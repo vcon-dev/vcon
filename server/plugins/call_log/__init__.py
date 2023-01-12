@@ -66,13 +66,37 @@ def get_projection(vCon):
 
     projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    projection['call_started_on'] = vCon.attachments[0]["payload"]["startedAt"]
     projection['id'] = vCon.uuid
-    projection['dialog'] = vCon.dialog
+    projection['dialog'] = vCon.dialog.copy()
+    add_agent_extension_to_dialog(vCon, projection['dialog'])
+    projection['disposition'] = get_overall_disposition(vCon.dialog)
+    projection['duration'] = calculate_duration(vCon.dialog)
     dealer_name = vCon.attachments[0]["payload"].get("dealerName")
     if dealer_name:
         projection["dealer_cached_details"] = {"name": dealer_name}
     # vCon.attachments.append(projection)
     return projection
+
+def calculate_duration(dialog):
+    duration = 0
+    for dialog_item in dialog:
+        duration += dialog_item["duration"]
+    return duration
+
+def get_overall_disposition(dialog):
+    for dialog_item in dialog:
+        if dialog_item["disposition"] == 'ANSWERED':
+            return 'ANSWERED'
+
+    return 'MISSED'
+
+def add_agent_extension_to_dialog(vCon, dialog):
+    for dialog_item in dialog:
+        # get the agent's extension
+        agent_idx = dialog_item["parties"][-1]
+        dialog_item["agent_extension"] = vCon.parties[agent_idx]["extension"]
+
 
 async def start(opts=default_options):
     logger.info("Starting the call_log plugin")

@@ -16,7 +16,7 @@ from dateutil.parser import parse
 from redis.commands.json.path import Path
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
-import vcon
+import vcon 
 from server.lib.vcon_redis import VconRedis
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def add_dialog(vcon, body):
     start_time = body["startedAt"]
     end_time = body["endedAt"]
     duration = time_diff_in_seconds(start_time, end_time)
-
+    state = body["state"]
     email = body.get("email")
     username = email.split("@")[0]
     first_name = username.split(".")[0]
@@ -114,6 +114,7 @@ def add_dialog(vcon, body):
     vcon.add_dialog_external_recording(
         body=None,
         start_time=start_time,
+        disposition=state,
         duration=duration,
         parties=[customer_index, agent_index],
         mime_type="audio/x-wav",

@@ -81,6 +81,7 @@ def create_vcon_from_phone_call(body):
             # Download the recording
             try:
                 # Download the recording
+                logger.info("#################### Downloading file from %s", recording_url)
                 recording_bytes = urllib.request.urlopen(recording_url).read()
                 starttime = body.get('call_date', None)
                 duration = body.get('call_duration', None)
@@ -154,13 +155,15 @@ async def start(opts=default_options):
                         await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), cleanvCon)
                         await r.publish("ingress-vcons", str(vCon.uuid))
                     except Exception as e:
-                        logger.debug("volie adapter error: {}".format(e))
+                        logger.error("volie adapter error: {}".format(e))
 
         except asyncio.TimeoutError:
             pass    
         except asyncio.CancelledError:
             logger.info("Volie Cancelled")
             break
+        except Exception as e:
+            logger.error("volie adapter error: {}".format(e))
 
-    logger.info("Volie Adapter stopped")    
+    logger.info("Volie Adapter stopped")
 

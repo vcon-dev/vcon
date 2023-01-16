@@ -90,6 +90,7 @@ def add_dialog(vcon, body):
     dealer_did = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
     extension = body.get("extension")
+    direction = body.get("direction")
 
     customer_index = get_party_index(vcon, tel=customer_number)
     if customer_index == -1:
@@ -120,6 +121,7 @@ def add_dialog(vcon, body):
         mime_type="audio/x-wav",
         file_name=f"{body['id']}.wav",
         external_url=None,
+        direction=direction
     )
 
 
@@ -293,6 +295,8 @@ def get_e164_number(phone_number: Optional[str]) -> str:
     """
     if not phone_number:
         return ""
+    if len(phone_number) < 10:
+        return phone_number
     parsed = phonenumbers.parse(phone_number, "US")
     the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     logger.info("The return %s", the_return)

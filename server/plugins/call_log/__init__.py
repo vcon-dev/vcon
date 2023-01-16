@@ -9,6 +9,7 @@ from settings import LOG_LEVEL, REDIS_URL
 import traceback
 from redis.commands.json.path import Path
 from server.lib.vcon_redis import VconRedis
+import copy
 
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 vcon_redis = VconRedis(redis_client=r)
@@ -68,7 +69,7 @@ def get_projection(vCon):
     projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     projection['call_started_on'] = vCon.attachments[0]["payload"]["startedAt"]
     projection['id'] = vCon.uuid
-    projection['dialog'] = vCon.dialog.copy()
+    projection['dialog'] = copy.deepcopy(vCon.dialog)
     add_agent_extension_to_dialog(vCon, projection['dialog'])
     projection['disposition'] = get_overall_disposition(vCon.dialog)
     projection['duration'] = calculate_duration(vCon.dialog)
@@ -96,6 +97,7 @@ def add_agent_extension_to_dialog(vCon, dialog):
         # get the agent's extension
         agent_idx = dialog_item["parties"][-1]
         dialog_item["agent_extension"] = vCon.parties[agent_idx]["extension"]
+        dialog_item["agent_name"] = vCon.parties[agent_idx]["name"]
 
 
 async def start(opts=default_options):

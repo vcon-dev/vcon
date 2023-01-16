@@ -81,7 +81,6 @@ def create_vcon_from_phone_call(body):
             # Download the recording
             try:
                 # Download the recording
-                logger.info("#################### Downloading file from %s", recording_url)
                 recording_bytes = urllib.request.urlopen(recording_url).read()
                 starttime = body.get('call_date', None)
                 duration = body.get('call_duration', None)

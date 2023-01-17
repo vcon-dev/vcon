@@ -22,7 +22,7 @@ services:
       REDIS_ARGS: --save 20 1
     networks:
       - back-tier
-    mem_limit: 500mb
+    mem_limit: 1gb
     volumes:
        - ./.data:/data
     healthcheck:

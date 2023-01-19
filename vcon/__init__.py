@@ -577,6 +577,8 @@ class Vcon():
     start_time : typing.Union[str, int, float, datetime.datetime],
     duration : typing.Union[int, float],
     parties : typing.Union[int, typing.List[int], typing.List[typing.List[int]]],
+    disposition : str,
+    direction:str,
     external_url: str,
     mime_type : str = None,
     file_name : str = None,
@@ -615,6 +617,8 @@ class Vcon():
     new_dialog['type'] = "recording"
     new_dialog['start'] = vcon.utils.cannonize_date(start_time)
     new_dialog['duration'] = duration
+    new_dialog['disposition'] = disposition
+    new_dialog['direction'] = direction
     new_dialog['parties'] = parties
     new_dialog['url'] = external_url
     if(mime_type is not None):

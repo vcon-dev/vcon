@@ -154,13 +154,19 @@ async def start(opts=default_options):
                         await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), cleanvCon)
                         await r.publish("ingress-vcons", str(vCon.uuid))
                     except Exception as e:
-                        logger.debug("volie adapter error: {}".format(e))
+                        logger.error("volie adapter error: {}".format(e))
 
         except asyncio.TimeoutError:
+            logger.info("volie async timeout")
             pass    
         except asyncio.CancelledError:
             logger.info("Volie Cancelled")
             break
+        except Exception as e:
+            logger.error("volie adapter error: {}".format(e))
 
-    logger.info("Volie Adapter stopped")    
+    logger.info("Volie Adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 

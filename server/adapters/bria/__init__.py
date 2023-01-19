@@ -16,7 +16,7 @@ from dateutil.parser import parse
 from redis.commands.json.path import Path
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
-import vcon
+import vcon 
 from server.lib.vcon_redis import VconRedis
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def add_dialog(vcon, body):
     start_time = body["startedAt"]
     end_time = body["endedAt"]
     duration = time_diff_in_seconds(start_time, end_time)
-
+    state = body["state"]
     email = body.get("email")
     username = email.split("@")[0]
     first_name = username.split(".")[0]
@@ -90,6 +90,7 @@ def add_dialog(vcon, body):
     dealer_did = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
     extension = body.get("extension")
+    direction = body.get("direction")
 
     customer_index = get_party_index(vcon, tel=customer_number)
     if customer_index == -1:
@@ -114,11 +115,13 @@ def add_dialog(vcon, body):
     vcon.add_dialog_external_recording(
         body=None,
         start_time=start_time,
+        disposition=state,
         duration=duration,
         parties=[customer_index, agent_index],
         mime_type="audio/x-wav",
         file_name=f"{body['id']}.wav",
         external_url=None,
+        direction=direction
     )
 
 
@@ -279,6 +282,9 @@ async def start(opts=None):
             logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 
 
 def get_e164_number(phone_number: Optional[str]) -> str:
@@ -292,6 +298,8 @@ def get_e164_number(phone_number: Optional[str]) -> str:
     """
     if not phone_number:
         return ""
+    if len(phone_number) < 10:
+        return phone_number
     parsed = phonenumbers.parse(phone_number, "US")
     the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     logger.info("The return %s", the_return)

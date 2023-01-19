@@ -1,18 +1,18 @@
 import asyncio
 from time import sleep
 import os
+import sys
 import logging
 import logging.config
 import boto3
-import redis.asyncio as redis
 from redis.commands.json.path import Path
 import importlib
 import shortuuid
 
 from fastapi.applications import FastAPI
 from fastapi_utils.tasks import repeat_every
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL, LOG_LIMIT
-
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, LOG_LIMIT
+import redis_mgr
 
 chains = []
 
@@ -21,15 +21,25 @@ app = FastAPI.conserver_app
 logger = logging.getLogger(__name__)
 logger.info('Conserver starting up')
 
-# Setup redis
-r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-
-
 # Periodically check for new data to extract
 @app.on_event("startup")
 @repeat_every(seconds=1)
 async def check_sqs():
+    logger.info("Starting check_sqs")
+
+    # Don't want to create a pool every iteration, this function gets called
+    # every second.
+    if(redis_mgr.REDIS_POOL is None):
+      logger.error("redis pool not initialized in check_sqs")
+      redis_mgr.create_pool()
+    try:
+      r = redis_mgr.get_client()
+    except Exception:
+      redis_mgr.create_pool()
+      r = redis_mgr.get_client()
+
     sqs = boto3.resource('sqs', region_name='us-east-1', aws_access_key_id=AWS_KEY_ID, aws_secret_access_key=AWS_SECRET_KEY)
+
     queue_names = await r.smembers('queue_names')
     try:
         for queue_name in queue_names:
@@ -45,8 +55,6 @@ async def check_sqs():
                     await r.rpush(queue_name, message.body)
     except Exception as e:
         logger.info("Error: {}".format(e))
-
-
 
 
 class Transformer:
@@ -104,6 +112,64 @@ class Pipeline:
     def __str__(self):
         return " -> ".join([task.__str__() for task in self.pipeline_tasks])
 
+class TaskMonitor:
+  def __init__(self):
+    self._task_dict = {}
+    self._check_period = 1
+    self._running = None
+
+  def stop(self):
+    if(self._running is not None):
+      self._running.cancel()
+      self._running = None
+
+  def schedule(self):
+    logger.info("TaskMonitor.scheduling running: {} cancelled: {}".format(self._running is not None, 
+      "N/A" if self._running is None else self._running.cancelled()))
+    if(self._running is None or self._running.cancelled()):
+      loop = asyncio.get_event_loop()
+      logger.info("Scheduling TaskMonitor")
+      self._running = loop.call_later(self._check_period, self.check_tasks)
+
+  def check_tasks(self):
+    self.show_task_diff()
+
+    if(self._running is not None):
+      self.schedule()
+
+  def show_task_diff(self):
+    tasks = asyncio.all_tasks()
+    new_task_dict = {}
+    for task in tasks:
+      new_task_dict[task.get_name()] = task
+
+    added_tasks = set(new_task_dict.keys()).difference(self._task_dict.keys())
+    removed_tasks = set(self._task_dict.keys()).difference(new_task_dict.keys())
+
+    tasks_changed = False
+
+    for task_name in added_tasks:
+      tasks_changed = True
+      logger.info("Task {} added".format(task_name))
+
+    for task_name in removed_tasks:
+      tasks_changed = True
+      logger.info("Task {} removed".format(task_name))
+
+    if(tasks_changed):
+      logger.info("{} Tasks running".format(len(new_task_dict.keys())))
+
+    self._task_dict = new_task_dict
+
+  def show_running_tasks(self):
+
+    for task_name in self._task_dict.keys():
+      task = self._task_dict[task_name]
+      logger.info("Task: {} stack: {}".format(task.get_name(), task.get_stack()))
+
+task_monitor = TaskMonitor()
+task_monitor.schedule()
+
 async def configure_and_start_pipeline(chain):
     """ This function takes a string of transformations and starts them up as a pipeline
 
@@ -134,6 +200,14 @@ background_tasks = set()
 
 @app.on_event("startup")
 async def load_services():
+    logger.info("Starting load_service")
+    redis_mgr.create_pool()
+    task_monitor.schedule()
+    if(redis_mgr.REDIS_POOL is None):
+      logger.error("redis pool not initialized in load_services")
+      redis_mgr.create_pool()
+    r = redis_mgr.get_client()
+
     adapters = os.listdir("adapters")
     for adapter in adapters:
         try:
@@ -167,6 +241,11 @@ async def load_services():
 
 async def observe():
     logger.info("Observer started")
+    if(redis_mgr.REDIS_POOL is None):
+      logger.error("redis pool not initialized in observe")
+      redis_mgr.create_pool()
+    r = redis_mgr.get_client()
+
     while True:
         try:
             p = r.pubsub(ignore_subscribe_messages=True)
@@ -179,30 +258,47 @@ async def observe():
         except Exception:
             continue
     logger.info("Observer stopped")
+    if(logger.isEnabledFor(logging.DEBUG)):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
+      for task in async_tasks:
+        logger.debug("task running: {}".format(task.get_name()))
+        logger.debug(task.get_stack())
+        #logger.debug("tasks running: {}".format(task if task.get_name().startswith("Task") else task.get_name()))
 
-
-    
 
 
 async def process_vcon_message(message):
     logger.debug("Got message %s", message)
+    if(redis_mgr.REDIS_POOL is None):
+      logger.error("redis pool not initialized in process_vcon_message")
+      redis_mgr.create_pool()
+    r = redis_mgr.get_client()
+
     vConUuid = message['data']
     await r.lpush('call_log_list', vConUuid)
     await r.ltrim('call_log_list', 0, LOG_LIMIT)
     
 
-
 @app.on_event("startup")
 async def start_observer():
-    logger.info("Starting observer")
-    task = asyncio.create_task(observe())
+    logger.info("Starting start_observer")
+    redis_mgr.create_pool()
+    task = asyncio.create_task(observe(), name="observer")
     background_tasks.add(task)
-
-
 
 @app.on_event("shutdown")
 async def shutdown_background_tasks():
     logger.info("Shutting down background tasks")
     for task in background_tasks:
-        await task.cancel()
+        task.cancel()
+        await task
         logger.info("Task cancelled: %s", task)
+
+    logger.info("stopping redis connections")
+    await redis_mgr.shutdown_pool()
+    logger.info("redis connections stopped ")
+    task_monitor.stop()
+    task_monitor.show_task_diff()
+    task_monitor.show_running_tasks()
+

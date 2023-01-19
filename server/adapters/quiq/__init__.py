@@ -22,6 +22,10 @@ default_options = {
 
 async def start(opts=default_options):
     logger.info("Starting the quiq adapter")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
+
     # Setup redis
     r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
     while True:
@@ -76,6 +80,7 @@ async def start(opts=default_options):
 
 
         except asyncio.TimeoutError:
+            logger.info("quiq async timeout")
             pass
 
         except asyncio.CancelledError:
@@ -85,7 +90,10 @@ async def start(opts=default_options):
         except Exception as e:
             logger.debug("quiq adapter error: {}".format(e))
 
-    logger.info("Quiq adapter stopped")    
+    logger.info("Quiq adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 
 
 

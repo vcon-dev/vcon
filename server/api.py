@@ -4,11 +4,10 @@ import asyncio
 import logging
 import logging.config
 from datetime import datetime
+from fastapi import HTTPException
 from fastapi.applications import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
-from settings import REDIS_URL
-import redis.asyncio as redis
 from uuid import UUID
 from pydantic import BaseModel, Json
 from fastapi_pagination import Page, add_pagination, paginate
@@ -18,6 +17,8 @@ from redis.commands.json.path import Path
 import typing
 import enum
 import pyjq
+
+import redis_mgr
 
 class Party(BaseModel):
     tel: str = None
@@ -100,12 +101,6 @@ logger = logging.getLogger(__name__)
 logger.info('Conserver starting up')
 
 
-# Setup redis
-r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-logger.info('redis connection: host: {} port: {}'.format(
-    r.connection_pool.connection_kwargs.get("host", "None"),
-    r.connection_pool.connection_kwargs.get("port", "None")))
-
 # Load FastAPI app
 app = FastAPI.conserver_app
 
@@ -120,6 +115,7 @@ app.add_middleware(
 
 @app.get('/vcon', response_model=Page[str])
 async def get_vcons():
+    r = redis_mgr.get_client()
     keys = await r.keys("vcon:*")
     uuids = [ key.replace("vcon:", "") for key in keys ]
     return paginate(uuids)
@@ -127,6 +123,7 @@ async def get_vcons():
 @app.get('/vcon/{vcon_uuid}')
 async def get_vcon(vcon_uuid: UUID):
     try:
+        r = redis_mgr.get_client()
         vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -138,6 +135,7 @@ async def get_vcon(vcon_uuid: UUID):
 async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
     try:
         logger.info("jq transform string: {}".format(jq_transform))
+        r = redis_mgr.get_client()
         vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
         query_result = pyjq.all(jq_transform, vcon)
         logger.debug("jq  transform result: {}".format(query_result))
@@ -151,6 +149,7 @@ async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
 async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
     try:
         logger.info("JSONPath query string: {}".format(path_string))
+        r = redis_mgr.get_client()
         query_result = await r.json().get(f"vcon:{str(vcon_uuid)}", path_string)
         logger.debug("JSONPath query result: {}".format(query_result))
     except Exception as e:
@@ -161,6 +160,7 @@ async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
 @app.get('/vcon/{vcon_uuid}/party', response_model=Page[Party])
 async def get_parties(vcon_uuid: UUID):
     try:
+        r = redis_mgr.get_client()
         parties = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.parties')
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -170,6 +170,7 @@ async def get_parties(vcon_uuid: UUID):
 @app.get('/vcon/{vcon_uuid}/dialog', response_model=Page[Dialog])
 async def get_dialogs(vcon_uuid: UUID):
     try:
+        r = redis_mgr.get_client()
         dialogs = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.dialog')
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -179,6 +180,7 @@ async def get_dialogs(vcon_uuid: UUID):
 @app.get('/vcon/{vcon_uuid}/analysis', response_model=Page[Analysis])
 async def get_analyses(vcon_uuid: UUID):
     try:
+        r = redis_mgr.get_client()
         analyses = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.analysis')
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -188,6 +190,7 @@ async def get_analyses(vcon_uuid: UUID):
 @app.get('/vcon/{vcon_uuid}/attachment', response_model=Page[Attachment])
 async def get_attachments(vcon_uuid: UUID):
     try:
+        r = redis_mgr.get_client()
         attachments = await r.json().get(f"vcon:{str(vcon_uuid)}", '$.attachments')
     except Exception as e:
         logger.info("Error: {}".format(e))
@@ -198,6 +201,7 @@ add_pagination(app)
 @app.post('/vcon')
 async def post_vcon(inbound_vcon: Vcon):
     try:
+        r = redis_mgr.get_client()
         dict_vcon = inbound_vcon.dict()
         dict_vcon['uuid'] = str(inbound_vcon.uuid)
         await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
@@ -210,6 +214,7 @@ async def post_vcon(inbound_vcon: Vcon):
 @app.put('/vcon/{vcon_uuid}')
 async def put_vcon(vcon_uuid: UUID, inbound_vcon: Vcon):
     try:
+        r = redis_mgr.get_client()
         dict_vcon = inbound_vcon.dict()
         dict_vcon['uuid'] = str(inbound_vcon.uuid)
         await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
@@ -220,18 +225,28 @@ async def put_vcon(vcon_uuid: UUID, inbound_vcon: Vcon):
 
 @app.patch('/vcon/{vcon_uuid}', response_model=Vcon)
 async def patch_vcon(vcon_uuid: UUID, plugin: str):
+    r = redis_mgr.get_client()
     try:
         plugin_module = importlib.import_module(plugin)
         await asyncio.create_task(plugin_module.run(vcon_uuid))
     except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
+        message = "Error in plugin: {} {}".format(plugin, e)
+        logger.info(message)
+        raise HTTPException(status_code=500, detail="server error in plugin: {}".format(plugin))
+
     dict_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
+
+    if(dict_vcon is None):
+      message = "Error: patch plugin {} results for Vcon {} not found".format(vcon_uuid)
+      logger.info(message)
+      raise HTTPException(status_code=500, detail="server error, no result from plugin: {}".format(plugin))
+
     return JSONResponse(content=dict_vcon)
 
 @app.delete('/vcon/{vcon_uuid}')
 async def delete_vcon(vcon_uuid: UUID, status_code=204):
     try:
+        r = redis_mgr.get_client()
         await r.delete(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
         logger.info("Error: {}".format(e))

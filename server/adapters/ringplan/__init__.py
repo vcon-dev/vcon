@@ -125,10 +125,14 @@ async def start(opts=default_options):
             logger.info("ringplan Cancelled")
             break
         except asyncio.TimeoutError:
+            logger.info("ringplan async timeout")
             pass    
 
 
-    logger.info("RingPlan adapter stopped")    
+    logger.info("RingPlan adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 
 
 

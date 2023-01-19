@@ -279,6 +279,9 @@ async def start(opts=None):
             logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 
 
 def get_e164_number(phone_number: Optional[str]) -> str:

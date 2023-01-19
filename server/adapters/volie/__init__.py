@@ -157,10 +157,14 @@ async def start(opts=default_options):
                         logger.debug("volie adapter error: {}".format(e))
 
         except asyncio.TimeoutError:
+            logger.info("volie async timeout")
             pass    
         except asyncio.CancelledError:
             logger.info("Volie Cancelled")
             break
 
-    logger.info("Volie Adapter stopped")    
+    logger.info("Volie Adapter stopped")
+    if(logger.isEnabledFor(logging.DEBUG):
+      async_tasks = asyncio.all_tasks()
+      logger.debug("{} tasks".format(len(async_tasks)))
 

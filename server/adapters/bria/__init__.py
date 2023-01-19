@@ -16,7 +16,7 @@ from dateutil.parser import parse
 from redis.commands.json.path import Path
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
-import vcon
+import vcon 
 from server.lib.vcon_redis import VconRedis
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def add_dialog(vcon, body):
     start_time = body["startedAt"]
     end_time = body["endedAt"]
     duration = time_diff_in_seconds(start_time, end_time)
-
+    state = body["state"]
     email = body.get("email")
     username = email.split("@")[0]
     first_name = username.split(".")[0]
@@ -90,6 +90,7 @@ def add_dialog(vcon, body):
     dealer_did = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
     extension = body.get("extension")
+    direction = body.get("direction")
 
     customer_index = get_party_index(vcon, tel=customer_number)
     if customer_index == -1:
@@ -114,11 +115,13 @@ def add_dialog(vcon, body):
     vcon.add_dialog_external_recording(
         body=None,
         start_time=start_time,
+        disposition=state,
         duration=duration,
         parties=[customer_index, agent_index],
         mime_type="audio/x-wav",
         file_name=f"{body['id']}.wav",
         external_url=None,
+        direction=direction
     )
 
 
@@ -194,7 +197,7 @@ def create_sha512_hash_for_s3_file(bucket_name: str, object_key: str) -> str:
     return fingerprint
 
 
-HUNDREAD_YEARS_SECONDS = 3.156e8
+TEN_YEARS_SECONDS = 3.156e8
 
 
 async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis):
@@ -221,7 +224,7 @@ async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis)
         if dialog.get("filename") == f"{bria_call_id}.wav":
             # TODO https:// find a way to get https link with permenent access
             v_con.dialog[index]["url"] = create_presigned_url(
-                s3_bucket_name, s3_object_key, HUNDREAD_YEARS_SECONDS
+                s3_bucket_name, s3_object_key, TEN_YEARS_SECONDS
             )
             v_con.dialog[index]["signature"] = create_sha512_hash_for_s3_file(
                 s3_bucket_name, s3_object_key
@@ -295,6 +298,8 @@ def get_e164_number(phone_number: Optional[str]) -> str:
     """
     if not phone_number:
         return ""
+    if len(phone_number) < 10:
+        return phone_number
     parsed = phonenumbers.parse(phone_number, "US")
     the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     logger.info("The return %s", the_return)

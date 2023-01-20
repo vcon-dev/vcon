@@ -11,7 +11,7 @@ The Vcon library consists of two primary components:
 ## Table of Contents
 
   + [Presentations, Whitepapers and Tutorials](#presentations-whitepapers-and-tutorials)
-  + [vCon Library Quick Start for Python]((https://github.com/vcon-dev/vcon/wiki/Library-Quick-Start)!
+  + [vCon Library Quick Start for Python](https://github.com/vcon-dev/vcon/wiki/Library-Quick-Start)
   + [Testing the Vcon Package](#testing-the-vcon-package)
   + [Testing the conserver](#testing-the-conserver)
 

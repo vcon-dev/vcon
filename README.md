@@ -42,8 +42,22 @@ These can be run using the following command in the current directory:
 A suite of pytest unit tests exist for the conserver in: [server/tests](server/tests)
 
 Running and testing the conserver requires a running instance of Redis.
-Be sure to edit the server/.env file to reflect your redis server address and port.
-These can be run using the following command in the server directory:
+Be sure to create and edit your server/.env file to reflect your redis server address and port.
+It can be generated like the following command line:
+
+    cat <<EOF>.env
+    #!/usr/bin/sh
+    export AWS_BUCKET=vcon-storage
+    export AWS_KEY_ID=aaaaaaaaaaaaaaa
+    export AWS_SECRET_KEY=bbbbbbbbbbb
+    export DEEPGRAM_KEY=ccccccccccccc
+    export ENV=dev
+    export HOSTNAME=http://0.0.0.0:8000
+    export REDIS_URL=redis://172.17.0.4:6379
+    #export MONOREPO_DATABASE_URL=postgresql://password:userid@your.postgres.domain.com:5432/postgres
+    EOF
+
+The unit tests for the conserver can be run using the following command in the server directory:
 
     source .env
     pytest -v -rP tests

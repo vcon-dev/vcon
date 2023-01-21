@@ -10,18 +10,13 @@ import vcon
 import conserver
 import lifecycle
 import redis_mgr
+import conserver_test
 
 logging.config.fileConfig('tests/logging.conf')
 logger = logging.getLogger(__name__)
 
-UUID = "01855517-ac4e-8edf-84fd-77776666acbe"
-
-#got_client = fastapi.testclient.TestClient(conserver.app)
-#def get_client():
-#  return(got_client)
-
 def delete_test_vcon():
-  #delete_response = get_client().delete("/vcon/{}".format(UUID))
+  #delete_response = get_client().delete("/vcon/{}".format(conserver_test.UUID))
   #print("delete response: {}".format(delete_response.status_code))
   pass
 
@@ -34,12 +29,12 @@ def setup_teardown():
   lifecycle.task_monitor.schedule()
 
   dialog_count = 0
-  #get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+  #get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
   #assert(get_response.status_code == 200)
   #get_json_object = get_response.json()
   #if(get_json_object is None):
   #  # try again
-  #  get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+  #  get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
   #  assert(get_response.status_code == 200)
   #  get_json_object = get_response.json()
 
@@ -55,12 +50,12 @@ def setup_teardown():
   yield
 
   # After test
-  #get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+  #get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
   #assert(get_response.status_code == 200)
   #get_json_object = get_response.json()
   #if(get_json_object is None):
   #  # try again
-  #  get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+  #  get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
   #  assert(get_response.status_code == 200)
   #  get_json_object = get_response.json()
 
@@ -76,22 +71,6 @@ def setup_teardown():
   print("done dialogs: {} (should be 0)".format(dialog_count))
   #delete_test_vcon()
 
-#@pytest.fixture(scope="function")
-#def client():
-#  print("New client")
-#  return(fastapi.testclient.TestClient(conserver.app))
-
-#def pytest_runtest_makereport(item, call):
-#    if "incremental" in item.keywords:
-#        if call.excinfo is not None:
-#            parent = item.parent
-#            parent._previousfailed = item
-#
-#def pytest_runtest_setup(item):
-#    previousfailed = getattr(item.parent, "_previousfailed", None)
-#    if previousfailed is not None:
-#        pytest.xfail("previous test failed (%s)" % previousfailed.name)
-
 class TestTranscribe:
   test_get_dialog_vcon = {}
   file_path = "../examples/agent_sample.wav"
@@ -106,7 +85,7 @@ class TestTranscribe:
     assert(not loop.is_closed())
     with fastapi.testclient.TestClient(conserver.app) as client:
       print("{} client type: {}".format(__name__, type(client)))
-      get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+      get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
       print("get response: {}".format(get_response))
       print("response stream consumed: {}".format(get_response.is_stream_consumed))
       print("response text: {}".format(get_response.text))
@@ -115,8 +94,8 @@ class TestTranscribe:
       get_json_object = get_response.json()
       if(get_json_object is None):
         # try again
-        print("WARNING: re-getting /vcon/{}".format(UUID))
-        get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+        print("WARNING: re-getting /vcon/{}".format(conserver_test.UUID))
+        get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
         assert(get_response.status_code == 200)
         get_json_object = get_response.json()
 
@@ -140,12 +119,12 @@ class TestTranscribe:
       with fastapi.testclient.TestClient(conserver.app) as client:
         assert(not loop.is_closed())
         logger.info("starting test_21_get_dialog_vcon")
-        get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+        get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
         get_json_object = get_response.json()
         if(get_json_object is None):
           # try again
-          print("WARNING: re-getting /vcon/{}".format(UUID))
-          get_response = client.get("/vcon/{}".format(UUID), headers={ "accept" : "application/json"})
+          print("WARNING: re-getting /vcon/{}".format(conserver_test.UUID))
+          get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
           assert(get_response.status_code == 200)
           get_json_object = get_response.json()
 
@@ -173,7 +152,7 @@ class TestTranscribe:
       loop.set_debug(True)
       with fastapi.testclient.TestClient(conserver.app) as client:
         query_parameters = { "plugin" : "plugins.transcribe" }
-        transcribe_response = client.patch("/vcon/{}".format(UUID), params=query_parameters)
+        transcribe_response = client.patch("/vcon/{}".format(conserver_test.UUID), params=query_parameters)
         TestTranscribe._transcribe_runs += 1
         if(transcribe_response.status_code != 200):
           print("patch error: {}".format(transcribe_response.text))
@@ -182,7 +161,7 @@ class TestTranscribe:
 
         transcribed_vcon = vcon.Vcon()
         transcribed_vcon.loads(transcribe_response.text)
-        assert(transcribed_vcon.uuid == UUID)
+        assert(transcribed_vcon.uuid == conserver_test.UUID)
         assert(len(transcribed_vcon.analysis) == TestTranscribe._transcribe_runs * 3)
 
   @pytest.mark.dependency(depends=["TestTranscribe::test_21_get_dialog_vcon"])
@@ -191,12 +170,12 @@ class TestTranscribe:
       loop.set_debug(True)
       with fastapi.testclient.TestClient(conserver.app) as client:
         query_parameters = { "plugin" : "plugins.transcribe" }
-        transcribe_response = client.patch("/vcon/{}".format(UUID), params=query_parameters)
+        transcribe_response = client.patch("/vcon/{}".format(conserver_test.UUID), params=query_parameters)
         TestTranscribe._transcribe_runs += 1
         assert(transcribe_response.status_code == 200)
 
         transcribed_vcon = vcon.Vcon()
         transcribed_vcon.loads(transcribe_response.text)
-        assert(transcribed_vcon.uuid == UUID)
+        assert(transcribed_vcon.uuid == conserver_test.UUID)
         assert(len(transcribed_vcon.analysis) == TestTranscribe._transcribe_runs * 3)
 

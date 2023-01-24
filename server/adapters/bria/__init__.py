@@ -137,10 +137,12 @@ def add_dialog(vcon, body):
 #         await r.expire(key, 3600)
 
 
-async def handle_bria_call_ended_event(body, opts, r, vcon_redis):
+async def handle_bria_call_ended_event(body, opts, r):
+    vcon_redis = VconRedis(redis_client=r)
     logger.info("Processing call ENDED event %s", body)
     # Construct empty vCon, set meta data
     redis_key = compute_redis_key(body)
+    logger.info("computed_redis_key is %s", redis_key)
     vcon_id = await r.get(redis_key)
     vCon = None
     if not vcon_id:
@@ -200,15 +202,15 @@ def create_sha512_hash_for_s3_file(bucket_name: str, object_key: str) -> str:
 TEN_YEARS_SECONDS = 3.156e8
 
 
-async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis):
+async def handle_bria_s3_recording_event(record, opts, redis_client):
     """Called when new s3 event is received. This function will update dialog object in vcon with correct url for recording and hash checksum
 
     Args:
         record (s3 event): s3 event object
         opts (dict): _description_
-        r (redis_client): Redis client
-        vcon_redis (VconRedis): Instance of vcon redis
+        redis_client (redis_client): Redis client
     """
+    vcon_redis = VconRedis(redis_client=redis_client)
     logger.info("Processing s3 recording %s", record)
     s3_object_key = record["s3"]["object"]["key"]
     s3_bucket_name = record["s3"]["bucket"]["name"]
@@ -218,6 +220,8 @@ async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis)
     result = await redis_client.ft(index_name="idx:adapterIdsIndex").search(
         f"@adapter:{{bria}} @id:{{{bria_call_id}}}"
     )
+    if len(result.docs) <= 0:
+        return
     v_con = vcon.Vcon()
     v_con.loads(result.docs[0].json)
     for index, dialog in enumerate(v_con.dialog):
@@ -235,6 +239,37 @@ async def handle_bria_s3_recording_event(record, opts, redis_client, vcon_redis)
         await redis_client.publish(egress_topic, v_con.uuid)
 
 
+async def listen_list(r, list_name):
+    while True:
+        values = await r.blpop([list_name])
+        logger.info(f"Got the value {values}")
+        if values:
+            yield values[1]
+
+
+async def handle_list(list_name, r, opts):
+    async for data in listen_list(r, list_name):
+        logger.info(f"We got data from {list_name} list {data}")
+        payload = json.loads(data)
+        records = payload.get("Records")
+        if records:
+            for record in records:
+                await handle_bria_s3_recording_event(
+                    record, opts, r
+                )
+        else:
+            body = json.loads(payload.get("Message"))
+            event_type = payload["MessageAttributes"]["kind"]["Value"]
+            if event_type == "call_ended":
+                await handle_bria_call_ended_event(
+                    body, opts, r
+                )
+            # elif event_type == "call_started":
+            #     await handle_bria_call_started_event(body, r, vcon_redis)
+            else:
+                logger.info(f"Ignoring the Event Type : {event_type}")
+
+
 async def start(opts=None):
     """Starts the bria adaptor as co-routine. This adaptor will run till it's killed.
 
@@ -246,43 +281,21 @@ async def start(opts=None):
     logger.info("Starting the bria adapter")
     # Setup redis
     r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-    vcon_redis = VconRedis(redis_client=r)
-    while True:
-        # logger.info("Bria adaptor loop")
-        try:
-            # Terminate if it takes longer than 10 sec
-            async with async_timeout.timeout(10):
-                for ingress_list in opts["ingress-list"]:
-                    data = await r.lpop(ingress_list)
-                    if data is None:
-                        # If ingress_list is not exists in the Redis it will return None
-                        continue
-                    payload = json.loads(data)
-                    records = payload.get("Records")
-                    if records:
-                        for record in records:
-                            await handle_bria_s3_recording_event(
-                                record, opts, r, vcon_redis
-                            )
-                    else:
-                        body = json.loads(payload.get("Message"))
-                        event_type = payload["MessageAttributes"]["kind"]["Value"]
-                        if event_type == "call_ended":
-                            await handle_bria_call_ended_event(
-                                body, opts, r, vcon_redis
-                            )
-                        # elif event_type == "call_started":
-                        #     await handle_bria_call_started_event(body, r, vcon_redis)
-                        else:
-                            logger.info(f"Ignoring the Event Type : {event_type}")
-        except asyncio.CancelledError:
-            logger.info("Bria Cancelled")
-            break
-        except Exception:
-            logger.error("bria adaptor error:\n%s", traceback.format_exc())
+
+    try:
+        logger.info("Bria started")
+        tasks = []
+        for ingress_list in opts["ingress-list"]:
+            task = asyncio.create_task(handle_list(ingress_list, r, opts))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        logger.info("Bria Cancelled")
+    except Exception:
+        logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
-    if(logger.isEnabledFor(logging.DEBUG):
+    if logger.isEnabledFor(logging.DEBUG):
       async_tasks = asyncio.all_tasks()
       logger.debug("{} tasks".format(len(async_tasks)))
 

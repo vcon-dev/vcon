@@ -35,7 +35,7 @@ def create_pool():
       REDIS_POOL.max_connections,
       REDIS_POOL_INITIALIZATION_COUNT))
 
-  logger.info(dir(REDIS_POOL))
+  logger.debug(dir(REDIS_POOL))
 
 async def shutdown_pool():
   global REDIS_POOL

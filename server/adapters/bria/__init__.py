@@ -8,12 +8,9 @@ from datetime import datetime
 from typing import Optional
 import copy
 
-import async_timeout
 import boto3
 import phonenumbers
 import redis.asyncio as redis
-from dateutil.parser import parse
-from redis.commands.json.path import Path
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
 import vcon 
@@ -128,16 +125,11 @@ def add_dialog(vcon, body):
     )
 
 
-# async def handle_bria_call_started_event(body, r, vcon_redis):
-#     logger.info("Processing call STARTED event %s", body)
-#     key = compute_redis_key(body)
-#     if (await r.exists(key)):
-#         await r.persist(key) # reset the expire timeout so that key stays there till call ends
-#     else:
-#         vCon = vcon.Vcon() # TODO what additional data we need to add here
-#         await vcon_redis.store_vcon(vCon)
-#         await r.set(key, vCon.uuid) # NOTE what if we never receive call ended? The key will be infinite.
-#         await r.expire(key, 3600)
+async def handle_bria_call_started_event(body, r):
+    logger.info("Processing call STARTED event %s", body)
+    key = compute_redis_key(body)
+    if (await r.exists(key)):
+        await r.persist(key)
 
 
 async def handle_bria_call_ended_event(body, opts, r):
@@ -154,7 +146,7 @@ async def handle_bria_call_ended_event(body, opts, r):
     else:
         vCon = await vcon_redis.get_vcon(vcon_id)
     logger.info(f"The vcon id is {vCon.uuid}")
-    await r.expire(redis_key, 3600)
+    await r.expire(redis_key, 60)
     add_dialog(vCon, body)
     add_bria_attachment(vCon, body, opts)
     await vcon_redis.store_vcon(vCon)
@@ -267,8 +259,8 @@ async def handle_list(list_name, r, opts):
                 await handle_bria_call_ended_event(
                     body, opts, r
                 )
-            # elif event_type == "call_started":
-            #     await handle_bria_call_started_event(body, r, vcon_redis)
+            elif event_type == "call_started":
+                await handle_bria_call_started_event(body, r)
             else:
                 logger.info(f"Ignoring the Event Type : {event_type}")
 

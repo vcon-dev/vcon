@@ -60,6 +60,7 @@ def get_projection(vCon):
             projection['customer_number'] = party['tel']
         if party['role'] == 'agent':
             projection['extension'] = party['extension']
+            projection['agent_name'] = party['name']
             projection['dealer_number'] = party['tel']
     
     

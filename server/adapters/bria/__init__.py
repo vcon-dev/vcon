@@ -84,9 +84,12 @@ def add_dialog(vcon, body):
     state = body["state"]
     email = body.get("email")
     username = email.split("@")[0]
-    first_name = username.split(".")[0]
-    last_name = username.split(".")[1]
-    full_name = first_name + " " + last_name
+    if "." in username:
+        first_name = username.split(".")[0].title()
+        last_name = username.split(".")[1].title()
+        full_name = first_name + " " + last_name
+    else:
+        full_name = username.title()
     dealer_did = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
     extension = body.get("extension")

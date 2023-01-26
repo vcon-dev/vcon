@@ -15,9 +15,14 @@ from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
 import vcon 
 from server.lib.vcon_redis import VconRedis
+from lib.sentry import init_sentry
+from lib.logging_utils import init_logger
+import sentry_sdk
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+
+init_sentry()
+
+logger = init_logger(__name__)
 logger.info("Bria adapter loading")
 
 default_options = {
@@ -154,6 +159,7 @@ async def handle_bria_call_ended_event(body, opts, r):
         await r.publish(egress_topic, vCon.uuid)
 
 
+
 def create_presigned_url(
     bucket_name: str, object_key: str, expiration: int = 3600
 ) -> str:
@@ -244,25 +250,29 @@ async def listen_list(r, list_name):
 
 async def handle_list(list_name, r, opts):
     async for data in listen_list(r, list_name):
-        logger.info(f"We got data from {list_name} list {data}")
-        payload = json.loads(data)
-        records = payload.get("Records")
-        if records:
-            for record in records:
-                await handle_bria_s3_recording_event(
-                    record, opts, r
-                )
-        else:
-            body = json.loads(payload.get("Message"))
-            event_type = payload["MessageAttributes"]["kind"]["Value"]
-            if event_type == "call_ended":
-                await handle_bria_call_ended_event(
-                    body, opts, r
-                )
-            elif event_type == "call_started":
-                await handle_bria_call_started_event(body, r)
+        try:
+            logger.info(f"We got data from {list_name} list {data}")
+            payload = json.loads(data)
+            records = payload.get("Records")
+            if records:
+                for record in records:
+                    await handle_bria_s3_recording_event(
+                        record, opts, r
+                    )
             else:
-                logger.info(f"Ignoring the Event Type : {event_type}")
+                body = json.loads(payload.get("Message"))
+                event_type = payload["MessageAttributes"]["kind"]["Value"]
+                if event_type == "call_ended":
+                    await handle_bria_call_ended_event(
+                        body, opts, r
+                    )
+                elif event_type == "call_started":
+                    await handle_bria_call_started_event(body, r)
+                else:
+                    logger.info(f"Ignoring the Event Type : {event_type}")
+        except Exception as e:
+            logger.error(e)
+            sentry_sdk.capture_exception(e)
 
 
 async def start(opts=None):

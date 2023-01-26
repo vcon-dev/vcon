@@ -66,7 +66,7 @@ def load_adaptors():
             adapter_processes.append(process)
             logger.info("Adapter started: %s", adapter)
         except Exception as e:
-            logger.info("Error loading adapter: %s %s", adapter, e)
+            logger.error("Error loading adapter: %s %s", adapter, e)
     return adapter_processes
 
 

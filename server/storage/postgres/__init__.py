@@ -63,7 +63,7 @@ async def start(opts=default_options):
                         source = 'bria'
                     ).on_conflict(
                         action="update",
-                        preserve=["agent_extension","agent_cached_details","disposition","duration","dialog_json","modified_on"],
+                        preserve=["agent_extension","agent_cached_details","disposition","duration","dialog_json","modified_on","dealer_cached_details","dealer_number"],
                         conflict_target=[CallLogs.id],
                     ).execute()
                     logger.info("Call log added successfully")

@@ -9,7 +9,6 @@ from typing import Optional
 import copy
 
 import boto3
-import phonenumbers
 import redis.asyncio as redis
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
 
@@ -17,6 +16,7 @@ import vcon
 from server.lib.vcon_redis import VconRedis
 from lib.sentry import init_sentry
 from lib.logging_utils import init_logger
+from lib.phone_number_utils import get_e164_number
 import sentry_sdk
 
 
@@ -46,12 +46,6 @@ def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S.%fZ")
     duration = end_time - start_time
     return duration.seconds
-
-
-def compute_redis_key(body):
-    dealer_number = get_e164_number(body.get("dialerId"))
-    customer_number = get_e164_number(body.get("customerNumber"))
-    return f"bria:{dealer_number}:{customer_number}"
 
 
 def add_bria_attachment(vCon, body, opts):
@@ -132,28 +126,46 @@ def add_dialog(vcon, body):
 
 async def handle_bria_call_started_event(body, r):
     logger.info("Processing call STARTED event %s", body)
-    key = compute_redis_key(body)
-    if (await r.exists(key)):
-        await r.persist(key)
+    vcon_redis = VconRedis(redis_client=r)
+    vcon_redis.persist_call_leg_detection_key(body)
+
+
+async def dedup(body, vcon_redis) -> Optional[vcon.Vcon]:
+    """Check if this is a duplicate call id 
+       if it's an outbound call and it has a dealer number 
+       we update the vCon with that dealer number
+
+    Args:
+        body (dict): dict recived from sqs
+        vcon_redis (VconRedis): Wrapper class which managed VconRedis interaction
+
+    Returns:
+        Optional[vcon.Vcon]: Return vCon if duplicate is detected
+    """
+    bria_call_id = body["id"]
+    v_con = await vcon_redis.get_vcon_by_bria_id(bria_call_id)
+    if v_con:
+        logger.info("Duplicate bria id found. Probably due to multi browser open at same time.")
+        direction = body.get("direction")
+        dealer_number = body.get("dialerId")
+        extension = body.get("extension")
+        if direction == 'out' and dealer_number:
+            party_index = get_party_index(v_con, extension=extension)
+            logger.info(f"party index : {party_index}, {dealer_number}, {body.get('dealerName')}")
+            v_con.parties[party_index]["tel"] = get_e164_number(dealer_number)
+            v_con.attachments[0]["payload"]["dialerId"] = dealer_number
+            v_con.attachments[0]["payload"]["dealerName"] = body.get('dealerName')
+        return v_con
 
 
 async def handle_bria_call_ended_event(body, opts, r):
     vcon_redis = VconRedis(redis_client=r)
     logger.info("Processing call ENDED event %s", body)
-    # Construct empty vCon, set meta data
-    redis_key = compute_redis_key(body)
-    logger.info("computed_redis_key is %s", redis_key)
-    vcon_id = await r.get(redis_key)
-    vCon = None
-    if not vcon_id:
-        vCon = vcon.Vcon()
-        await r.set(redis_key, vCon.uuid)
-    else:
-        vCon = await vcon_redis.get_vcon(vcon_id)
-    logger.info(f"The vcon id is {vCon.uuid}")
-    await r.expire(redis_key, 60)
-    add_dialog(vCon, body)
-    add_bria_attachment(vCon, body, opts)
+    vCon = await dedup(body, vcon_redis)
+    if not vCon:
+        vCon = await vcon_redis.get_same_leg_or_new_vcon(body)
+        add_dialog(vCon, body)
+        add_bria_attachment(vCon, body, opts)
     await vcon_redis.store_vcon(vCon)
     for egress_topic in opts["egress-topics"]:
         await r.publish(egress_topic, vCon.uuid)
@@ -182,7 +194,7 @@ def create_presigned_url(
             ExpiresIn=expiration,
         )
     except Exception as e:
-        logging.error(e)  # TODO should we rethrow this error???
+        logger.error(e)  # TODO should we rethrow this error???
         return None
 
     # The response contains the presigned URL
@@ -216,15 +228,9 @@ async def handle_bria_s3_recording_event(record, opts, redis_client):
     s3_object_key = record["s3"]["object"]["key"]
     s3_bucket_name = record["s3"]["bucket"]["name"]
     bria_call_id = s3_object_key.replace(".wav", "")
-    # lookup the vCon in redis using this ID
-    # FT.SEARCH idx:adapterIdIndex '@adapter:{bria} @id:{f8be045704cb4ea98d73f60a88590754}'
-    result = await redis_client.ft(index_name="idx:adapterIdsIndex").search(
-        f"@adapter:{{bria}} @id:{{{bria_call_id}}}"
-    )
-    if len(result.docs) <= 0:
+    v_con = await vcon_redis.get_vcon_by_bria_id(bria_call_id)
+    if not v_con:
         return
-    v_con = vcon.Vcon()
-    v_con.loads(result.docs[0].json)
     for index, dialog in enumerate(v_con.dialog):
         if dialog.get("filename") == f"{bria_call_id}.wav":
             # TODO https:// find a way to get https link with permenent access
@@ -304,21 +310,3 @@ async def start(opts=None):
       async_tasks = asyncio.all_tasks()
       logger.debug("{} tasks".format(len(async_tasks)))
 
-
-def get_e164_number(phone_number: Optional[str]) -> str:
-    """Returns the phone number in E164 format
-
-    Args:
-        phone_number (Optional[str]): the phone number to be formated to E164
-
-    Returns:
-        str: phone number formated in E164 format
-    """
-    if not phone_number:
-        return ""
-    if len(phone_number) < 10:
-        return phone_number
-    parsed = phonenumbers.parse(phone_number, "US")
-    the_return = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-    logger.info("The return %s", the_return)
-    return the_return

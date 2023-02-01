@@ -166,7 +166,7 @@ async def start(opts=default_options):
             logger.error("volie adapter error: {}".format(e))
 
     logger.info("Volie Adapter stopped")
-    if(logger.isEnabledFor(logging.DEBUG):
+    if logger.isEnabledFor(logging.DEBUG):
       async_tasks = asyncio.all_tasks()
       logger.debug("{} tasks".format(len(async_tasks)))
 

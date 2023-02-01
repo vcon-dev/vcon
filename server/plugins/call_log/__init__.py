@@ -58,11 +58,13 @@ def get_projection(vCon):
     for party in vCon.parties:
         if party['role'] == 'customer':
             projection['customer_number'] = party['tel']
-        if party['role'] == 'agent':
-            projection['extension'] = party['extension']
-            projection['dealer_number'] = party['tel']
-    
-    
+            break
+
+    main_agent, projection['disposition'] = get_main_agent_and_disposition(vCon)
+    projection['extension'] = main_agent['extension']
+    projection['agent_name'] = main_agent['name']
+    projection['dealer_number'] = main_agent['tel']
+
     projection['direction'] = vCon.attachments[0]["payload"]["direction"].upper()
 
     projection['created_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
@@ -70,8 +72,9 @@ def get_projection(vCon):
     projection['call_started_on'] = vCon.attachments[0]["payload"]["startedAt"]
     projection['id'] = vCon.uuid
     projection['dialog'] = copy.deepcopy(vCon.dialog)
+    projection['dialog'].sort(key=lambda x: x['start'])
     add_agent_extension_to_dialog(vCon, projection['dialog'])
-    projection['disposition'] = get_overall_disposition(vCon.dialog)
+
     projection['duration'] = calculate_duration(vCon.dialog)
     dealer_name = vCon.attachments[0]["payload"].get("dealerName")
     if dealer_name:
@@ -85,12 +88,27 @@ def calculate_duration(dialog):
         duration += dialog_item["duration"]
     return duration
 
-def get_overall_disposition(dialog):
-    for dialog_item in dialog:
-        if dialog_item["disposition"] == 'ANSWERED':
-            return 'ANSWERED'
+def get_agent_from_dialog_item(dialog_item,vCon):
+    for party_idx in dialog_item["parties"]:
+        party = vCon.parties[party_idx]
+        if party["role"]=="agent":
+            return party
+    return None
 
-    return 'MISSED'
+# main agent/extenst is whoever last answered the call or the last agent if no one answered
+def get_main_agent_and_disposition(vCon):
+    main_dialog_item = None
+    dialog_reversed = list(reversed(vCon.dialog))
+    for dialog_item in dialog_reversed:
+        if dialog_item["disposition"] == "ANSWERED":
+            main_dialog_item = dialog_item
+            break
+    if not main_dialog_item:
+        main_dialog_item = dialog_reversed[0]
+
+    agent = get_agent_from_dialog_item(main_dialog_item,vCon)
+    return agent, main_dialog_item["disposition"]
+
 
 def add_agent_extension_to_dialog(vCon, dialog):
     for dialog_item in dialog:

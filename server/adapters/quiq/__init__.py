@@ -22,7 +22,7 @@ default_options = {
 
 async def start(opts=default_options):
     logger.info("Starting the quiq adapter")
-    if(logger.isEnabledFor(logging.DEBUG):
+    if logger.isEnabledFor(logging.DEBUG):
       async_tasks = asyncio.all_tasks()
       logger.debug("{} tasks".format(len(async_tasks)))
 
@@ -91,7 +91,7 @@ async def start(opts=default_options):
             logger.debug("quiq adapter error: {}".format(e))
 
     logger.info("Quiq adapter stopped")
-    if(logger.isEnabledFor(logging.DEBUG):
+    if logger.isEnabledFor(logging.DEBUG):
       async_tasks = asyncio.all_tasks()
       logger.debug("{} tasks".format(len(async_tasks)))
 

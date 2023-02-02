@@ -1,12 +1,27 @@
+# Dev stuff:
 pylint
 mypy
 flake8
 pytest
-sox
-python-jose
+pytest-asyncio
+
+# runtime dependencies:
 cryptography
 hsslms
+python-jose
+python-dateutil
+sox
 uuid6
+
+# whisper dependencies
+ffmpeg-python
+more-itertools
+tqdm
+transformers
 whisper
-stable-ts
+
+# stable-ds dependencies:
+numpy
+torch
+#stable-ts
 

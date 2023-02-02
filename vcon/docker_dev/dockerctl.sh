@@ -7,8 +7,32 @@ CONTAINER_NAME="${IMAGE_NAME}_container"
 CONTAINER_HOSTNAME="${IMAGE_NAME}_${HOSTNAME}"
 
 # Intensionally exclude: root
-SHORT_CUT_NAMES="build resume run shell"
+SHORT_CUT_NAMES="build resume run shell stop remove"
 ALL_COMMANDS="${SHORT_CUT_NAMES} root"
+
+confirm()
+{
+  operation=$1
+  echo "Are you sure that you want to ${operation} (y/N)?" 1>&2
+  read answer
+  answer=`echo -n "${answer}" | awk '{print tolower($0)}'`
+  case ${answer} in
+    y)
+      result="True"
+      ;;
+
+    yes)
+      result="True"
+      ;;
+
+    *)
+      result="False"
+      ;;
+
+  esac
+
+  echo -n "${result}"
+}
 
 check_build()
 {
@@ -118,13 +142,13 @@ do_run()
   case ${CONTAINER_STATUS} in
     running)
       echo "container ${CONTAINER_NAME} already running"
-      echo "shell or kill and run again"
+      echo "shell, stop or kill and run again"
       exit 5
       ;;
 
     exited)
       echo "container ${CONTAINER_NAME} has previously exited"
-      echo "resume or kill and run again"
+      echo "resume or remove and run again"
       exit 5
       ;;
 
@@ -137,6 +161,7 @@ do_run()
         -h ${CONTAINER_HOSTNAME} \
         --name="${CONTAINER_NAME}" \
         --volume="/home/${USER}:/home/${USER}" \
+        --net host \
         ${IMAGE_NAME}
       ;;
 
@@ -146,6 +171,29 @@ do_run()
       ;;
   esac
 
+}
+
+do_stop()
+{
+  CONTAINER_STATUS=`container_status ${CONTAINER_NAME}`
+  if [ "${CONTAINER_STATUS}" != "running" ]
+  then
+    echo "container ${CONTAINER_NAME} is not running."
+    exit 9 
+  fi 
+  docker stop -t 10 ${CONTAINER_NAME}
+}
+
+do_remove()
+{
+  CONTAINER_STATUS=`container_status ${CONTAINER_NAME}`
+  if [ "${CONTAINER_STATUS}" == "running" ]
+  then
+    echo "container ${CONTAINER_NAME} is running."
+    echo "You have to stop or kill the container before removing."
+    exit 8
+  fi 
+  docker container rm ${CONTAINER_NAME}
 }
 
 do_resume()
@@ -239,15 +287,25 @@ case ${COMMAND} in
     do_done_help
     ;;
   stop)
-    do_done_help
+    if [ "True" == `confirm "stop running the container ${CONTAINER_NAME}"` ]
+    then
+      do_stop
+    else
+      do_done_help
+    fi
     ;;
   remove)
-    do_done_help
+    if [ "True" == `confirm "remove the container ${CONTAINER_NAME}"` ]
+    then
+      do_remove
+    else
+      do_done_help
+    fi
     ;;
   delete)
     do_done_help
     ;;
-  done)
+  "done")
     do_done_help
     ;;
   *)

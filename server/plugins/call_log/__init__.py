@@ -99,15 +99,19 @@ def get_main_agent_and_disposition(vCon):
     main_dialog_item = None
     copy_dialog = compute_dialog_projection(vCon.dialog)
     dialog_reversed = list(reversed(copy_dialog))
+    answered_dispositions = ["ANSWERED", "INTERNAL TRANSFER"]
     for dialog_item in dialog_reversed:
-        if dialog_item["disposition"] == "ANSWERED":
+        if dialog_item["disposition"] in answered_dispositions:
             main_dialog_item = dialog_item
             break
     if not main_dialog_item:
         main_dialog_item = dialog_reversed[0]
 
     agent = get_agent_from_dialog_item(main_dialog_item,vCon)
-    return agent, main_dialog_item["disposition"]
+    main_disposition = main_dialog_item["disposition"]
+    if main_disposition in answered_dispositions:
+        main_disposition = "ANSWERED"
+    return agent, main_disposition
 
 
 def add_agent_extension_to_dialog(vCon, dialog):
@@ -119,17 +123,20 @@ def add_agent_extension_to_dialog(vCon, dialog):
 
 def compute_dialog_projection(dialog):
     copied_dialog = copy.deepcopy(dialog)
+    copied_dialog.sort(key=lambda x: x['start'])
     for ind, dialog_item in enumerate(copied_dialog):
+        if dialog_item["disposition"] == "ANSWERED":
+            if ind < len(copied_dialog)-1:
+                dialog_item["disposition"] = "INTERNAL TRANSFER"
         if dialog_item["disposition"] == "MISSED":
             if dialog_item["duration"] < 4:
-                if ind == len(dialog) - 1:
+                if ind == len(copied_dialog) - 1:
                     dialog_item["disposition"] = "HUNG UP"
                 else:
                     dialog_item["disposition"] = "DECLINED"
             elif dialog_item["duration"] < 12:
-                if ind < len(dialog) - 1:
+                if ind < len(copied_dialog) - 1:
                     dialog_item["disposition"] = "DECLINED"
-    copied_dialog.sort(key=lambda x: x['start'])
     return copied_dialog
 
 

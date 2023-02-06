@@ -71,8 +71,7 @@ def get_projection(vCon):
     projection['modified_on']= datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     projection['call_started_on'] = vCon.attachments[0]["payload"]["startedAt"]
     projection['id'] = vCon.uuid
-    projection['dialog'] = copy.deepcopy(vCon.dialog)
-    projection['dialog'].sort(key=lambda x: x['start'])
+    projection['dialog'] = compute_dialog_projection(vCon.dialog)
     add_agent_extension_to_dialog(vCon, projection['dialog'])
 
     projection['duration'] = calculate_duration(vCon.dialog)
@@ -98,7 +97,8 @@ def get_agent_from_dialog_item(dialog_item,vCon):
 # main agent/extenst is whoever last answered the call or the last agent if no one answered
 def get_main_agent_and_disposition(vCon):
     main_dialog_item = None
-    dialog_reversed = list(reversed(vCon.dialog))
+    copy_dialog = compute_dialog_projection(vCon.dialog)
+    dialog_reversed = list(reversed(copy_dialog))
     for dialog_item in dialog_reversed:
         if dialog_item["disposition"] == "ANSWERED":
             main_dialog_item = dialog_item
@@ -116,6 +116,21 @@ def add_agent_extension_to_dialog(vCon, dialog):
         agent_idx = dialog_item["parties"][-1]
         dialog_item["agent_extension"] = vCon.parties[agent_idx]["extension"]
         dialog_item["agent_name"] = vCon.parties[agent_idx]["name"]
+
+def compute_dialog_projection(dialog):
+    copied_dialog = copy.deepcopy(dialog)
+    for ind, dialog_item in enumerate(copied_dialog):
+        if dialog_item["disposition"] == "MISSED":
+            if dialog_item["duration"] < 4:
+                if ind == len(dialog) - 1:
+                    dialog_item["disposition"] = "HUNG UP"
+                else:
+                    dialog_item["disposition"] = "DECLINED"
+            elif dialog_item["duration"] < 12:
+                if ind < len(dialog) - 1:
+                    dialog_item["disposition"] = "DECLINED"
+    copied_dialog.sort(key=lambda x: x['start'])
+    return copied_dialog
 
 
 async def start(opts=default_options):

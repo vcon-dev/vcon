@@ -24,7 +24,6 @@ default_options = {
 }
 model = load_model("base")
 
-options = {}
 
 async def run(vcon_uuid, opts=default_options, ):
     logger.debug("Starting transcribe::run")
@@ -40,6 +39,7 @@ async def run(vcon_uuid, opts=default_options, ):
     vCon.loads(json.dumps(inbound_vcon))
     original_analysis_count = len(vCon.analysis)
 
+    options = opts.get("transcribe_options", {"model_size" : "base", "output_options" : ["vendor"]})
     annotated_vcon = vCon.transcribe(**options)
 
     new_analysis_count = len(annotated_vcon.analysis)

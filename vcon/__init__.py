@@ -298,8 +298,6 @@ class Vcon():
     self._vcon_dict[Vcon.ATTACHMENTS] = []
     self._vcon_dict[Vcon.CREATED_AT] = vcon.utils.cannonize_date(datetime.datetime.utcnow())
     self._vcon_dict[Vcon.REDACTED] = {}
-    self.set_uuid()
-
 
   def _attempting_modify(self) -> None:
     if(self._state != VconStates.UNSIGNED):
@@ -1114,7 +1112,7 @@ class Vcon():
 
     return(plugin.filter(self, **options))
 
-  def set_uuid(self, domain_name: str="vcon.dev", replace: bool= False) -> str:
+  def set_uuid(self, domain_name: str, replace: bool= False) -> str:
     """
     Generate a UUID for this vCon and set the parameter
 

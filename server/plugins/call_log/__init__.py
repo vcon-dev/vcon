@@ -104,16 +104,23 @@ def get_main_agent_and_disposition(vCon):
         if dialog_item["disposition"] in answered_dispositions:
             main_dialog_item = dialog_item
             break
-    if not main_dialog_item:
+    
+    if main_dialog_item:
+        main_disposition = main_dialog_item["disposition"]
+        if main_disposition == "INTERNAL TRANSFER":
+            main_disposition = "LOST INTERNAL TRANSFER"
+    else:
         main_dialog_item = dialog_reversed[0]
+        if main_dialog_item["direction"] == "out":
+            main_disposition = "NO ANSWER"
+        else:
+            if len(copy_dialog) == 1 and main_dialog_item["duration"]<4:
+                main_disposition = "HUNG UP"
+            else:
+                main_disposition = "LOST"
 
     agent = get_agent_from_dialog_item(main_dialog_item,vCon)
-    main_disposition = main_dialog_item["disposition"]
-    if main_disposition == "INTERNAL TRANSFER":
-        main_disposition = "LOST INTERNAL TRANSFER"
 
-    if len(copy_dialog) == 1 and main_dialog_item["duration"] > 4 and main_disposition not in answered_dispositions:
-        main_disposition = "LOST"
     return agent, main_disposition
 
 

@@ -84,9 +84,11 @@ class VconRedis:
         v_con = None
         if vcon_id:
             v_con = await self.get_vcon(vcon_id)
+            logger.info(f"Found the key {redis_key} - Updating the existing vcon")
         else:
             v_con = vcon.Vcon()
             await self._redis_client.set(redis_key, v_con.uuid)
+            logger.info(f"Key NOT found {redis_key}- Created a new vcon")
 
         logger.info(f"The vcon id is {v_con.uuid}")
         await self._redis_client.expire(redis_key, 60)
@@ -101,5 +103,7 @@ class VconRedis:
 
     async def persist_call_leg_detection_key(self, body):
         key = self.call_leg_detection_key(body)
+        logger.info(f"Trying to persist the key - {key}")
         if (await self._redis_client.exists(key)):
             await self._redis_client.persist(key)
+            logger.info(f"Persisted the key - {key}")   

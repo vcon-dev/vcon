@@ -6,7 +6,7 @@ pytest
 pytest-asyncio
 
 # runtime dependencies:
-cryptography
+cryptography >= 37
 hsslms
 python-jose
 python-dateutil

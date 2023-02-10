@@ -126,24 +126,22 @@ def add_dialog(vcon, body):
 
 async def handle_bria_call_started_event(body, r):
     logger.info("Processing call STARTED event %s", body)
-    vcon_redis = VconRedis(redis_client=r)
-    vcon_redis.persist_call_leg_detection_key(body)
+    await persist_call_leg_detection_key(r, body)
 
 
-async def dedup(body, vcon_redis) -> Optional[vcon.Vcon]:
+async def dedup(r, body) -> Optional[vcon.Vcon]:
     """Check if this is a duplicate call id 
        if it's an outbound call and it has a dealer number 
        we update the vCon with that dealer number
 
     Args:
         body (dict): dict recived from sqs
-        vcon_redis (VconRedis): Wrapper class which managed VconRedis interaction
 
     Returns:
         Optional[vcon.Vcon]: Return vCon if duplicate is detected
     """
     bria_call_id = body["id"]
-    v_con = await vcon_redis.get_vcon_by_bria_id(bria_call_id)
+    v_con = await get_vcon_by_bria_id(r, bria_call_id)
     if v_con:
         logger.info("Duplicate bria id found. Probably due to multi browser open at same time.")
         direction = body.get("direction")
@@ -161,9 +159,9 @@ async def dedup(body, vcon_redis) -> Optional[vcon.Vcon]:
 async def handle_bria_call_ended_event(body, opts, r):
     vcon_redis = VconRedis(redis_client=r)
     logger.info("Processing call ENDED event %s", body)
-    vCon = await dedup(body, vcon_redis)
+    vCon = await dedup(r, body)
     if not vCon:
-        vCon = await vcon_redis.get_same_leg_or_new_vcon(body)
+        vCon = await get_same_leg_or_new_vcon(r, body, vcon_redis)
         add_dialog(vCon, body)
         add_bria_attachment(vCon, body, opts)
     await vcon_redis.store_vcon(vCon)
@@ -228,7 +226,7 @@ async def handle_bria_s3_recording_event(record, opts, redis_client):
     s3_object_key = record["s3"]["object"]["key"]
     s3_bucket_name = record["s3"]["bucket"]["name"]
     bria_call_id = s3_object_key.replace(".wav", "")
-    v_con = await vcon_redis.get_vcon_by_bria_id(bria_call_id)
+    v_con = await get_vcon_by_bria_id(redis_client, bria_call_id)
     if not v_con:
         return
     for index, dialog in enumerate(v_con.dialog):
@@ -279,6 +277,66 @@ async def handle_list(list_name, r, opts):
         except Exception as e:
             logger.error(e)
             sentry_sdk.capture_exception(e)
+
+
+async def get_vcon_by_bria_id(r, bria_id: str) -> Optional[vcon.Vcon]:
+    """Retrives the vcon from redis for givin bria_id
+
+    Args:
+        bria_id (str): bria id
+
+    Returns:
+        Optional[vcon.Vcon]: Returns vocon for given bria id
+    """
+    # lookup the vCon in redis using bria ID
+    # FT.SEARCH idx:adapterIdsIndex '@adapter:{bria} @id:{f8be045704cb4ea98d73f60a88590754}'
+    result = await r.ft(index_name="idx:adapterIdsIndex").search(
+        f"@adapter:{{bria}} @id:{{{bria_id}}}"
+    )
+    if len(result.docs) <= 0:
+        return
+    v_con = vcon.Vcon()
+    v_con.loads(result.docs[0].json)
+    return v_con
+
+
+async def get_same_leg_or_new_vcon(r, body, vcon_redis) -> vcon.Vcon:
+    """Try to detect if this is the same call and if so don't create a new vCon but add this
+        as a call stage to the existing vCon
+
+    Returns:
+        vcon.Vcon: New or existing vcon
+    """
+    redis_key = call_leg_detection_key(body)
+    logger.info("computed_redis_key is %s", redis_key)
+    vcon_id = await r.get(redis_key)
+    v_con = None
+    if vcon_id:
+        v_con = await vcon_redis.get_vcon(vcon_id)
+        logger.info(f"Found the key {redis_key} - Updating the existing vcon")
+    else:
+        v_con = vcon.Vcon()
+        v_con.set_uuid('strolid.com')
+        await r.set(redis_key, v_con.uuid)
+        logger.info(f"Key NOT found {redis_key}- Created a new vcon")
+
+    logger.info(f"The vcon id is {v_con.uuid}")
+    await r.expire(redis_key, 60)
+    return v_con
+
+
+def call_leg_detection_key( body):
+    dealer_number = get_e164_number(body.get("dialerId"))
+    customer_number = get_e164_number(body.get("customerNumber"))
+    return f"bria:{dealer_number}:{customer_number}"
+
+
+async def persist_call_leg_detection_key(r, body):
+    key = call_leg_detection_key(body)
+    logger.info(f"Trying to persist the key - {key}")
+    if (await r.exists(key)):
+        await r.persist(key)
+        logger.info(f"Persisted the key - {key}")   
 
 
 async def start(opts=None):

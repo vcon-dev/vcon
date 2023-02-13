@@ -1,23 +1,15 @@
 import redis.asyncio as redis
-import jose
 import vcon
 from redis.commands.json.path import Path
 import asyncio
-import logging
-import aiohttp
-from settings import LOG_LEVEL, SLACK_TOKEN
+from lib.logging_utils import init_logger
+from settings import SLACK_TOKEN
 import simplejson as json
 import copy
-import os
-import slack_sdk
-from slack_sdk.errors import SlackApiError
-from slack_sdk.web.async_client import AsyncWebClient
-from slack_sdk.web.slack_response import SlackResponse
-from slack_sdk.web.async_slack_response import AsyncSlackResponse
 from slack_sdk import WebClient
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 r = redis.Redis(host='localhost', port=6379, db=0)
 
 default_options = {

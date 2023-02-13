@@ -1,18 +1,16 @@
 import asyncio
 import redis.asyncio as redis
-import json
 import asyncio
-import logging
-from settings import LOG_LEVEL, REDIS_URL
-from redis.commands.json.path import Path
+from lib.logging_utils import init_logger
+from settings import REDIS_URL
 import traceback
 from .models import CallLogs
 from server.lib.vcon_redis import VconRedis
 from lib.sentry import init_sentry
 init_sentry()
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "postgres",

@@ -1,8 +1,6 @@
 import asyncio
 import hashlib
 import json
-import logging
-import logging.config
 import traceback
 from datetime import datetime
 from typing import Optional
@@ -10,7 +8,7 @@ import copy
 
 import boto3
 import redis.asyncio as redis
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, LOG_LEVEL, REDIS_URL
+from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, REDIS_URL
 
 import vcon 
 from server.lib.vcon_redis import VconRedis
@@ -364,7 +362,4 @@ async def start(opts=None):
         logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
-    if logger.isEnabledFor(logging.DEBUG):
-      async_tasks = asyncio.all_tasks()
-      logger.debug("{} tasks".format(len(async_tasks)))
 

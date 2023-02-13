@@ -1,12 +1,10 @@
 import asyncio
 import aioredis
-import json
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 
-from settings import LOG_LEVEL
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "redis",

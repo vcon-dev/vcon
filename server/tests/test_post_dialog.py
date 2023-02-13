@@ -1,6 +1,6 @@
 
 import os
-import logging
+from lib.logging_utils import init_logger
 import datetime
 import json
 
@@ -11,8 +11,7 @@ import conserver
 import vcon
 import conserver_test
 
-logging.config.fileConfig('tests/logging.conf')
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 #@pytest.mark.incremental
 @pytest.mark.dependency

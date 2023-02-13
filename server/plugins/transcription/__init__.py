@@ -1,7 +1,7 @@
 import asyncio
 import redis.asyncio as redis
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 import vcon
 from redis.commands.json.path import Path
 import json
@@ -9,14 +9,11 @@ import os
 import simplejson as json
 
 from stable_whisper import load_model
-from stable_whisper import stabilize_timestamps
-
-from settings import LOG_LEVEL
 
 r = redis.Redis(host='localhost', port=6379, db=0)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "transcription",

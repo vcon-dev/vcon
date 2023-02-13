@@ -6,16 +6,16 @@ import async_timeout
 import asyncio
 import humanize
 import json
-import logging
+from lib.logging_utils import init_logger
 import redis.asyncio as redis
 from redis.commands.json.path import Path
 import urllib
 import vcon
-from settings import REDIS_URL, LOG_LEVEL, ENV, HOSTNAME
+from settings import REDIS_URL, ENV, HOSTNAME
 import jose
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 logger.info('RingPlan adapter loading')
 logger.debug("Debuggingly")
 
@@ -130,9 +130,6 @@ async def start(opts=default_options):
 
 
     logger.info("RingPlan adapter stopped")
-    if logger.isEnabledFor(logging.DEBUG):
-      async_tasks = asyncio.all_tasks()
-      logger.debug("{} tasks".format(len(async_tasks)))
 
 
 

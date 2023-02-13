@@ -1,13 +1,10 @@
 import asyncio
 import redis.asyncio as redis
-import json
-import vcon
-import logging
+from lib.logging_utils import init_logger
 import datetime
 import whisper
-from settings import LOG_LEVEL, REDIS_URL
+from settings import REDIS_URL
 import traceback
-from redis.commands.json.path import Path
 from server.lib.vcon_redis import VconRedis
 import copy
 from lib.sentry import init_sentry
@@ -16,8 +13,8 @@ init_sentry()
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 vcon_redis = VconRedis(redis_client=r)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 model = whisper.load_model("base")
 

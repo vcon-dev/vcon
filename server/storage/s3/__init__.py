@@ -1,15 +1,13 @@
 import asyncio
-import async_timeout
 import redis.asyncio as redis
-import json
 import asyncio
 import boto3
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
-import logging
+from lib.logging_utils import init_logger
 
-from settings import LOG_LEVEL
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "s3",

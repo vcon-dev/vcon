@@ -2,14 +2,12 @@ from peewee import *
 from playhouse.reflection import generate_models, print_model, print_table_sql
 
 import asyncio
-import async_timeout
 import redis.asyncio as redis
 import json
-import logging
-from settings import LOG_LEVEL
+from lib.logging_utils import init_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "postgres",

@@ -1,9 +1,6 @@
-import os
 import pytest
-import datetime
 import fastapi.testclient
-import json
-import logging
+from lib.logging_utils import init_logger
 import asyncio
 
 import vcon
@@ -12,8 +9,7 @@ import lifecycle
 import redis_mgr
 import conserver_test
 
-logging.config.fileConfig('tests/logging.conf')
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 def delete_test_vcon():
   #delete_response = get_client().delete("/vcon/{}".format(conserver_test.UUID))

@@ -1,17 +1,15 @@
 import redis.asyncio as redis
-import jose
 import vcon
 from redis.commands.json.path import Path
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 import aiohttp
-from settings import LOG_LEVEL
 import simplejson as json
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 r = redis.Redis(host='localhost', port=6379, db=0)
 
 default_options = {

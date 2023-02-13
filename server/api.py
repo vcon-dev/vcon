@@ -1,8 +1,6 @@
 import sys
-import os
 import asyncio
-import logging
-import logging.config
+from lib.logging_utils import init_logger
 from datetime import datetime
 from fastapi import HTTPException
 from fastapi.applications import FastAPI
@@ -97,7 +95,7 @@ class Vcon(BaseModel):
 # Our local modules``
 sys.path.append("..")
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 logger.info('Conserver starting up')
 
 

@@ -1,17 +1,16 @@
 import asyncio
 import redis.asyncio as redis
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 import vcon
-from dataprofiler import Data, Profiler
+from dataprofiler import Profiler
 from dataprofiler.data_readers.text_data import TextData
 import dataprofiler as dp
 from redis.commands.json.path import Path
 
 
-from settings import LOG_LEVEL
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "redaction",

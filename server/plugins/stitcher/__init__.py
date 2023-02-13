@@ -1,17 +1,16 @@
 import asyncio
 import redis.asyncio as redis
-import json
 import asyncio
-import logging
-from settings import LOG_LEVEL, REDIS_URL
+from lib.logging_utils import init_logger
+from settings import REDIS_URL
 from redis.commands.json.path import Path
 import traceback
 from .models import ShelbyUser, ShelbyLead
 import datetime 
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "postgres",

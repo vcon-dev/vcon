@@ -1,22 +1,16 @@
 import redis.asyncio as redis
 from redis.commands.json.path import Path
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 import vcon
-import jose
-import os
-from pydub import AudioSegment
-from settings import DEEPGRAM_KEY
-from deepgram import Deepgram
-from settings import LOG_LEVEL
 import simplejson as json
 import time
 import os
 import openai
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 r = redis.Redis(host='localhost', port=6379, db=0)
 
 default_options = {

@@ -1,18 +1,14 @@
-import logging
+from lib.logging_utils import init_logger
 import redis.asyncio as redis
 from redis.commands.json.path import Path
 import asyncio
-import vcon
-import simplejson as json
 import asyncio
 import redis.asyncio as redis
-import json
 import pymongo
-from settings import LOG_LEVEL
 from settings import MONGODB_URL
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 r = redis.Redis(host='localhost', port=6379, db=0)
 m = pymongo.MongoClient(MONGODB_URL)
 

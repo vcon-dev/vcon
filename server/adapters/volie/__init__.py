@@ -6,13 +6,12 @@ import json
 import vcon
 import urllib
 import datetime
-import logging 
-import jose
+from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
-from settings import REDIS_URL, LOG_LEVEL, ENV, HOSTNAME
+from settings import REDIS_URL, ENV, HOSTNAME
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 def adapter_meta(body, type):
     meta= {}
@@ -166,7 +165,4 @@ async def start(opts=default_options):
             logger.error("volie adapter error: {}".format(e))
 
     logger.info("Volie Adapter stopped")
-    if logger.isEnabledFor(logging.DEBUG):
-      async_tasks = asyncio.all_tasks()
-      logger.debug("{} tasks".format(len(async_tasks)))
 

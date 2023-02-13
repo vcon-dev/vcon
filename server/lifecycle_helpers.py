@@ -1,8 +1,7 @@
 import asyncio
 import copy
 import importlib
-import logging
-import logging.config
+from lib.logging_utils import init_logger
 import os
 
 import redis_mgr
@@ -10,7 +9,7 @@ import shortuuid
 from lib.process_utils import start_async_process
 from lib.sqs import listen_to_sqs
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 logger.info("Conserver helper up")
 
 

@@ -1,12 +1,11 @@
 import pytest
 import asyncio
-import logging
+from lib.logging_utils import init_logger
 
 import fastapi.testclient
 import conserver
 
-logging.config.fileConfig('tests/logging.conf')
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 def test_get_docs():
   logger.debug("Starting test_get_docs")

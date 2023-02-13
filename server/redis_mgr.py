@@ -8,7 +8,7 @@ redis will be bound to an old loop which will no longer work
 The redis connection pool must be shutdown and restarted when FASTApi does.
 """
 
-import logging
+from lib.logging_utils import init_logger
 import redis.asyncio.connection
 import redis.asyncio.client
 from settings import REDIS_URL
@@ -16,7 +16,7 @@ from settings import REDIS_URL
 import traceback
 import sys
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 REDIS_POOL = None
 REDIS_POOL_INITIALIZATION_COUNT = 0
@@ -25,7 +25,7 @@ def create_pool():
   global REDIS_POOL
   global REDIS_POOL_INITIALIZATION_COUNT
   if(REDIS_POOL is not None):
-    logger.error("Redis pool already created")
+    logger.info("Redis pool already created")
   else:
     REDIS_POOL_INITIALIZATION_COUNT += 1
     REDIS_POOL = redis.asyncio.connection.ConnectionPool.from_url(REDIS_URL)
@@ -46,7 +46,7 @@ async def shutdown_pool():
     await tmp_pool.disconnect(inuse_connections=True)
 
   else:
-    logger.error("Redis pool already disconnected")
+    logger.info("Redis pool already disconnected")
 
 def get_client():
   global REDIS_POOL
@@ -54,7 +54,7 @@ def get_client():
     #traceback.print_exc()
     print("Error: redis pool not initialized", file=sys.stdout)
     traceback.print_stack(file=sys.stdout)
-    logger.error("redis connection pool not initialized")
+    logger.info("redis connection pool not initialized")
     e = Exception("Redis pool not initialized")
     raise e
 

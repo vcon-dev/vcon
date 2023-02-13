@@ -1,6 +1,6 @@
 
 import os
-import logging
+from lib.logging_utils import init_logger
 import json
 import fastapi.testclient
 import pytest
@@ -9,8 +9,7 @@ import conserver
 import vcon
 import conserver_test
 
-logging.config.fileConfig('tests/logging.conf')
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 
 #@pytest.mark.incremental

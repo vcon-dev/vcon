@@ -1,9 +1,8 @@
 import boto3
-import logging
-import logging.config
+from lib.logging_utils import init_logger
 import asyncio
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 from settings import AWS_KEY_ID, AWS_SECRET_KEY
 

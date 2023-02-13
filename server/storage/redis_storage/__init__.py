@@ -9,25 +9,26 @@ logger = init_logger(__name__)
 default_options = {
     "name": "redis",
     "ingress-topics": ["ingress-vcons"],
-    "egress-topics":[],
+    "egress-topics": [],
     "redis-set-name": "call_log",
     "redis-list-name": "call_log_list",
 }
 options = {}
 
+
 async def start(opts=default_options):
     logger.info("Starting the call_log plugin")
 
     try:
-        r = aioredis.Redis(host='localhost', port=6379, db=0)
+        r = aioredis.Redis(host="localhost", port=6379, db=0)
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts['ingress-topics'])
+        await p.subscribe(*opts["ingress-topics"])
 
         while True:
             try:
                 message = await p.get_message()
                 if message:
-                    vConUuid = message['data'].decode('utf-8')
+                    vConUuid = message["data"].decode("utf-8")
                     logger.info("Redis received vCon: {}".format(vConUuid))
                     # Save this vCon into Redis set.
                     await r.sadd(opts["redis-set-name"], vConUuid)
@@ -41,4 +42,4 @@ async def start(opts=default_options):
     except asyncio.CancelledError:
         logger.debug("Redis storage adapter Cancelled")
 
-    logger.info("Redis storage adapter stopped")    
+    logger.info("Redis storage adapter stopped")

@@ -3,7 +3,7 @@ import logging
 from settings import HOSTNAME
 import urllib
 
-logging.config.fileConfig('./logging.conf')
+logging.config.fileConfig("./logging.conf")
 
 if __name__ == "__main__":
     url_parser = urllib.parse.urlparse(HOSTNAME)

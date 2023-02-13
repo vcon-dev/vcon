@@ -1,5 +1,6 @@
 import asyncio
-#import redis.asyncio as redis
+
+# import redis.asyncio as redis
 import asyncio
 from lib.logging_utils import init_logger
 import vcon
@@ -17,45 +18,56 @@ logger = init_logger(__name__)
 default_options = {
     "name": "transcription",
     "ingress-topics": ["ingress-vcons"],
-    "egress-topics":[],
+    "egress-topics": [],
 }
 model = load_model("base")
 
 
-async def run(vcon_uuid, opts=default_options, ):
+async def run(
+    vcon_uuid,
+    opts=default_options,
+):
     logger.debug("Starting transcribe::run")
     r = redis_mgr.get_client()
     try:
-      key = f"vcon:{str(vcon_uuid)}"
-      inbound_vcon = await r.json().get(key, Path.root_path())
+        key = f"vcon:{str(vcon_uuid)}"
+        inbound_vcon = await r.json().get(key, Path.root_path())
     except Exception as e:
-      logger.error("transcribe::run failed to get json vcon: {} error: {}".format(key, e))
-      raise e
+        logger.error(
+            "transcribe::run failed to get json vcon: {} error: {}".format(key, e)
+        )
+        raise e
 
     vCon = vcon.Vcon()
     vCon.loads(json.dumps(inbound_vcon))
     original_analysis_count = len(vCon.analysis)
 
-    options = opts.get("transcribe_options", {"model_size" : "base", "output_options" : ["vendor"]})
+    options = opts.get(
+        "transcribe_options", {"model_size": "base", "output_options": ["vendor"]}
+    )
     annotated_vcon = vCon.transcribe(**options)
 
     new_analysis_count = len(annotated_vcon.analysis)
 
-    logger.info("transcribe plugin: vCon: {} analysis was: {} now: {}".format(
-        vcon_uuid, original_analysis_count, new_analysis_count))
+    logger.info(
+        "transcribe plugin: vCon: {} analysis was: {} now: {}".format(
+            vcon_uuid, original_analysis_count, new_analysis_count
+        )
+    )
 
     # If we added any analysis, save it
-    if(new_analysis_count != original_analysis_count):
+    if new_analysis_count != original_analysis_count:
         vcon_json_string = annotated_vcon.dumps()
         json_vcon_object = json.loads(vcon_json_string)
 
         try:
-          r = redis_mgr.get_client()
-          await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon_object)
+            r = redis_mgr.get_client()
+            await r.json().set(
+                "vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon_object
+            )
         except Exception as e:
-          logger.error("transcription plugin: error: {}".format(e))
-          raise e
-
+            logger.error("transcription plugin: error: {}".format(e))
+            raise e
 
 
 async def start(opts=default_options):
@@ -63,16 +75,16 @@ async def start(opts=default_options):
     try:
         r = redis_mgr.get_client()
         p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts['ingress-topics'])
+        await p.subscribe(*opts["ingress-topics"])
 
         while True:
             try:
                 message = await p.get_message()
                 if message:
-                    vConUuid = message['data'].decode('utf-8')
+                    vConUuid = message["data"].decode("utf-8")
                     logger.info("transcribe plugin: received vCon: {}".format(vConUuid))
                     run(opts, vConUuid)
-                    for topic in opts['egress-topics']:
+                    for topic in opts["egress-topics"]:
                         await r.publish(topic, vConUuid)
                 await asyncio.sleep(0.1)
             except Exception as e:
@@ -81,4 +93,3 @@ async def start(opts=default_options):
         logger.debug("transcribe Cancelled")
 
     logger.info("transcribe stopped")
-

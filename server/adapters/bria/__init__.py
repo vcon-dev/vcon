@@ -10,7 +10,7 @@ import boto3
 import redis.asyncio as redis
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, REDIS_URL
 
-import vcon 
+import vcon
 from server.lib.vcon_redis import VconRedis
 from lib.sentry import init_sentry
 from lib.logging_utils import init_logger
@@ -118,7 +118,7 @@ def add_dialog(vcon, body):
         mime_type="audio/x-wav",
         file_name=f"{body['id']}.wav",
         external_url=None,
-        direction=direction
+        direction=direction,
     )
 
 
@@ -128,8 +128,8 @@ async def handle_bria_call_started_event(body, r):
 
 
 async def dedup(r, body) -> Optional[vcon.Vcon]:
-    """Check if this is a duplicate call id 
-       if it's an outbound call and it has a dealer number 
+    """Check if this is a duplicate call id
+       if it's an outbound call and it has a dealer number
        we update the vCon with that dealer number
 
     Args:
@@ -141,16 +141,20 @@ async def dedup(r, body) -> Optional[vcon.Vcon]:
     bria_call_id = body["id"]
     v_con = await get_vcon_by_bria_id(r, bria_call_id)
     if v_con:
-        logger.info("Duplicate bria id found. Probably due to multi browser open at same time.")
+        logger.info(
+            "Duplicate bria id found. Probably due to multi browser open at same time."
+        )
         direction = body.get("direction")
         dealer_number = body.get("dialerId")
         extension = body.get("extension")
-        if direction == 'out' and dealer_number:
+        if direction == "out" and dealer_number:
             party_index = get_party_index(v_con, extension=extension)
-            logger.info(f"party index : {party_index}, {dealer_number}, {body.get('dealerName')}")
+            logger.info(
+                f"party index : {party_index}, {dealer_number}, {body.get('dealerName')}"
+            )
             v_con.parties[party_index]["tel"] = get_e164_number(dealer_number)
             v_con.attachments[0]["payload"]["dialerId"] = dealer_number
-            v_con.attachments[0]["payload"]["dealerName"] = body.get('dealerName')
+            v_con.attachments[0]["payload"]["dealerName"] = body.get("dealerName")
         return v_con
 
 
@@ -165,7 +169,6 @@ async def handle_bria_call_ended_event(body, opts, r):
     await vcon_redis.store_vcon(vCon)
     for egress_topic in opts["egress-topics"]:
         await r.publish(egress_topic, vCon.uuid)
-
 
 
 def create_presigned_url(
@@ -258,16 +261,12 @@ async def handle_list(list_name, r, opts):
             records = payload.get("Records")
             if records:
                 for record in records:
-                    await handle_bria_s3_recording_event(
-                        record, opts, r
-                    )
+                    await handle_bria_s3_recording_event(record, opts, r)
             else:
                 body = json.loads(payload.get("Message"))
                 event_type = payload["MessageAttributes"]["kind"]["Value"]
                 if event_type == "call_ended":
-                    await handle_bria_call_ended_event(
-                        body, opts, r
-                    )
+                    await handle_bria_call_ended_event(body, opts, r)
                 elif event_type == "call_started":
                     await handle_bria_call_started_event(body, r)
                 else:
@@ -314,7 +313,7 @@ async def get_same_leg_or_new_vcon(r, body, vcon_redis) -> vcon.Vcon:
         logger.info(f"Found the key {redis_key} - Updating the existing vcon")
     else:
         v_con = vcon.Vcon()
-        v_con.set_uuid('strolid.com')
+        v_con.set_uuid("strolid.com")
         await r.set(redis_key, v_con.uuid)
         logger.info(f"Key NOT found {redis_key}- Created a new vcon")
 
@@ -323,7 +322,7 @@ async def get_same_leg_or_new_vcon(r, body, vcon_redis) -> vcon.Vcon:
     return v_con
 
 
-def call_leg_detection_key( body):
+def call_leg_detection_key(body):
     dealer_number = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
     return f"bria:{dealer_number}:{customer_number}"
@@ -332,9 +331,9 @@ def call_leg_detection_key( body):
 async def persist_call_leg_detection_key(r, body):
     key = call_leg_detection_key(body)
     logger.info(f"Trying to persist the key - {key}")
-    if (await r.exists(key)):
+    if await r.exists(key):
         await r.persist(key)
-        logger.info(f"Persisted the key - {key}")   
+        logger.info(f"Persisted the key - {key}")
 
 
 async def start(opts=None):
@@ -362,4 +361,3 @@ async def start(opts=None):
         logger.error("bria adaptor error:\n%s", traceback.format_exc())
 
     logger.info("Bria adapter stopped")
-

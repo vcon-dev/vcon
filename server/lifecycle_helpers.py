@@ -17,13 +17,14 @@ chains = []
 
 
 # optionally allow a different redis queue name for testing purposes
-async def process_queue(sqs_queue_name, r, redis_queue_name=None): 
+async def process_queue(sqs_queue_name, r, redis_queue_name=None):
     if redis_queue_name == None:
         redis_queue_name = sqs_queue_name
     async for message in listen_to_sqs(sqs_queue_name.decode()):
         logger.info(f"Received message from the SQS {sqs_queue_name}")
         await r.rpush(redis_queue_name, message.body)
         message.delete()
+
 
 async def check_sqs():
     logger.info("Starting check_sqs")
@@ -49,7 +50,7 @@ async def check_sqs():
         logger.info("Check SQS Cancelled")
     except Exception as e:
         logger.error("Check SQS Error: %s", e)
-        
+
 
 def load_adaptors():
     logger.info("Starting load_adaptors")
@@ -120,7 +121,6 @@ class TransformerProcess:
         self.process.join()
 
 
-
 class Pipeline:
     def __init__(self, nodes):
         self.pipeline_id = shortuuid.uuid()
@@ -144,7 +144,12 @@ class Pipeline:
             transformer_process.join()
 
     def __str__(self):
-        return " -> ".join([transformer_process.__str__() for transformer_process in self.transformer_processes])
+        return " -> ".join(
+            [
+                transformer_process.__str__()
+                for transformer_process in self.transformer_processes
+            ]
+        )
 
 
 class TaskMonitor:
@@ -201,7 +206,6 @@ class TaskMonitor:
         self._task_dict = new_task_dict
 
     def show_running_tasks(self):
-
         for task_name in self._task_dict.keys():
             task = self._task_dict[task_name]
             logger.info("Task: {} stack: {}".format(task.get_name(), task.get_stack()))

@@ -1,0 +1,9 @@
+[flake8]
+exclude =
+   ./venv/
+   ./vcon/
+
+max-line-length = 120
+
+
+select = F,E

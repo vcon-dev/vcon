@@ -2,6 +2,7 @@ from bson import ObjectId
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 
+
 class PyObjectId(ObjectId):
     @classmethod
     def __get_validators__(cls):
@@ -25,6 +26,6 @@ class VconModel(BaseModel):
     dialog: List[dict] = []
     analysis: List[dict] = []
     attachments: List[dict] = []
-    
+
     class Config:
         json_encoders = {ObjectId: str}

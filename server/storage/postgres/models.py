@@ -9,7 +9,6 @@ from playhouse.db_url import parse
 import os
 
 
-
 db_params = parse(os.environ["MONOREPO_DATABASE_URL"])
 db_name = db_params["database"]
 del db_params["database"]

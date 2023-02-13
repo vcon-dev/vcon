@@ -1,10 +1,4 @@
-from peewee import (
-    Model,
-    DateTimeField,
-    CharField,
-    IntegerField,
-    BooleanField
-)
+from peewee import Model, DateTimeField, CharField, IntegerField, BooleanField
 from playhouse.postgres_ext import PostgresqlDatabase, BinaryJSONField
 from playhouse.db_url import parse
 import os
@@ -35,6 +29,7 @@ class ShelbyUser(BaseModel):
     class Meta:
         table_name = "shelby_user"
 
+
 class ShelbyLead(BaseModel):
     id = CharField(primary_key=True, index=True)
     created_on = DateTimeField(null=True)
@@ -44,5 +39,3 @@ class ShelbyLead(BaseModel):
 
     class Meta:
         table_name = "shelby_lead"
-
-

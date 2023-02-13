@@ -20,8 +20,8 @@ def test_1_post_dialog_vcon():
     logger.debug("Starting test_1_post_dialog_vcon")
     with fastapi.testclient.TestClient(conserver.app) as client:
         vCon = vcon.Vcon()
-        first_party = vCon.set_party_parameter("tel", "1234")
-        second_party = vCon.set_party_parameter("tel", "5678")
+        vCon.set_party_parameter("tel", "1234")
+        vCon.set_party_parameter("tel", "5678")
 
         file_content = b""
         with open(conserver_test.file_path, "rb") as file_handle:
@@ -29,7 +29,7 @@ def test_1_post_dialog_vcon():
             print("body length: {}".format(len(file_content)))
             assert len(file_content) > 10000
 
-        dialog_index = vCon.add_dialog_external_recording(
+        vCon.add_dialog_external_recording(
             file_content,
             datetime.datetime.utcnow(),
             0,  # duration TODO

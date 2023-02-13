@@ -1,18 +1,17 @@
-from datetime import date
-from datetime import datetime
-from urllib.parse import urlparse
-from urllib.parse import urlparse, parse_qs
-import async_timeout
 import asyncio
-import humanize
 import json
-from lib.logging_utils import init_logger
-import redis.asyncio as redis
-from redis.commands.json.path import Path
 import urllib
+from datetime import date, datetime
+from urllib.parse import parse_qs, urlparse
+
+import async_timeout
+import humanize
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
+from settings import ENV, HOSTNAME, REDIS_URL
+
 import vcon
-from settings import REDIS_URL, ENV, HOSTNAME
-import jose
 
 logger = init_logger(__name__)
 
@@ -93,7 +92,7 @@ async def start(opts=default_options):
                                 logger.debug(
                                     "Recording successfully downloaded and attached to vCon"
                                 )
-                            except urllib.error.HTTPError as err:
+                            except urllib.error.HTTPError:
                                 error_msg = (
                                     "Error retrieving recording from " + recording_url
                                 )
@@ -113,7 +112,6 @@ async def start(opts=default_options):
                         if payload.get("cdr").get("direction") == "IN":
                             caller = payload.get("cdr").get("src")
                             called = payload.get("cdr").get("dst")
-                            agent_party = 1
                         else:
                             caller = payload.get("cdr").get("dst")
                             called = payload.get("cdr").get("src")

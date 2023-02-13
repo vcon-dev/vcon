@@ -1,10 +1,10 @@
-import boto3
-from lib.logging_utils import init_logger
 import asyncio
 
-logger = init_logger(__name__)
-
+import boto3
+from lib.logging_utils import init_logger
 from settings import AWS_KEY_ID, AWS_SECRET_KEY
+
+logger = init_logger(__name__)
 
 
 sqs = boto3.resource(

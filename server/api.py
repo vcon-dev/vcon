@@ -259,9 +259,7 @@ async def patch_vcon(vcon_uuid: UUID, plugin: str):
     dict_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
 
     if dict_vcon is None:
-        message = "Error: patch plugin {} results for Vcon {} not found".format(
-            vcon_uuid
-        )
+        message = "Error: patch plugin results for Vcon {} not found".format(vcon_uuid)
         logger.info(message)
         raise HTTPException(
             status_code=500,

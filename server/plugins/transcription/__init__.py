@@ -1,14 +1,13 @@
 import asyncio
-import redis.asyncio as redis
-import asyncio
-from lib.logging_utils import init_logger
-import vcon
-from redis.commands.json.path import Path
 import json
 import os
-import simplejson as json
 
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
 from stable_whisper import load_model
+
+import vcon
 
 r = redis.Redis(host="localhost", port=6379, db=0)
 

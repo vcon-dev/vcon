@@ -1,10 +1,9 @@
-from lib.logging_utils import init_logger
-import redis.asyncio as redis
-from redis.commands.json.path import Path
 import asyncio
-import asyncio
-import redis.asyncio as redis
+
 import pymongo
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
 from settings import MONGODB_URL
 
 logger = init_logger(__name__)

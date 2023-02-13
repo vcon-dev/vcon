@@ -1,10 +1,9 @@
 import asyncio
-import redis.asyncio as redis
-import asyncio
-import boto3
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
-from lib.logging_utils import init_logger
 
+import boto3
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from settings import AWS_BUCKET, AWS_KEY_ID, AWS_SECRET_KEY
 
 logger = init_logger(__name__)
 

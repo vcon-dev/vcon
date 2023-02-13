@@ -1,6 +1,6 @@
 import asyncio
+
 import aioredis
-import asyncio
 from lib.logging_utils import init_logger
 
 logger = init_logger(__name__)

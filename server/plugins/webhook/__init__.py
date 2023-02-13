@@ -1,12 +1,12 @@
-import redis.asyncio as redis
-import vcon
-from redis.commands.json.path import Path
 import asyncio
-from lib.logging_utils import init_logger
-import aiohttp
-import simplejson as json
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+import aiohttp
+import redis.asyncio as redis
+import simplejson as json
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
+
+import vcon
 
 logger = init_logger(__name__)
 

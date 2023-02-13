@@ -1,10 +1,11 @@
-import redis.asyncio as redis
-from redis.commands.json.path import Path
-import vcon
 import json
 from typing import Optional
+
+import redis.asyncio as redis
 from lib.logging_utils import init_logger
-from lib.phone_number_utils import get_e164_number
+from redis.commands.json.path import Path
+
+import vcon
 
 logger = init_logger(__name__)
 

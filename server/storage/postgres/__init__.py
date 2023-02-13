@@ -1,12 +1,14 @@
 import asyncio
-import redis.asyncio as redis
-import asyncio
-from lib.logging_utils import init_logger
-from settings import REDIS_URL
 import traceback
-from .models import CallLogs
-from server.lib.vcon_redis import VconRedis
+
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
 from lib.sentry import init_sentry
+from settings import REDIS_URL
+
+from server.lib.vcon_redis import VconRedis
+
+from .models import CallLogs
 
 init_sentry()
 

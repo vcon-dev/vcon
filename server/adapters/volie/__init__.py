@@ -1,14 +1,15 @@
 import asyncio
-from pydoc import doc
+import datetime
+import json
+import urllib
+
 import async_timeout
 import redis.asyncio as redis
-import json
-import vcon
-import urllib
-import datetime
 from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
-from settings import REDIS_URL, ENV, HOSTNAME
+from settings import ENV, HOSTNAME, REDIS_URL
+
+import vcon
 
 logger = init_logger(__name__)
 
@@ -78,11 +79,6 @@ def create_vcon_from_phone_call(body):
         # Recording
         recording_url = body.get("recording", None)
         if recording_url:
-            # Remove query string
-            host = recording_url.split("?")[0]
-            # The file name is the last part of the URL
-            recording_filename = host.split("/")[-1]
-
             # Download the recording
             try:
                 # Download the recording
@@ -107,7 +103,7 @@ def create_vcon_from_phone_call(body):
                 )
                 logger.debug("Recording successfully downloaded and attached to vCon")
 
-            except urllib.error.HTTPError as err:
+            except urllib.error.HTTPError:
                 error_msg = "Error retrieving recording from " + recording_url
                 error_type = "HTTPError"
                 error_time = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")

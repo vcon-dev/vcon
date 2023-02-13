@@ -18,7 +18,7 @@ chains = []
 
 # optionally allow a different redis queue name for testing purposes
 async def process_queue(sqs_queue_name, r, redis_queue_name=None):
-    if redis_queue_name == None:
+    if redis_queue_name is None:
         redis_queue_name = sqs_queue_name
     async for message in listen_to_sqs(sqs_queue_name.decode()):
         logger.info(f"Received message from the SQS {sqs_queue_name}")

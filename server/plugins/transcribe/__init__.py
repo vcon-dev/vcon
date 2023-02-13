@@ -1,16 +1,13 @@
-import asyncio
-
 # import redis.asyncio as redis
 import asyncio
-from lib.logging_utils import init_logger
-import vcon
-from redis.commands.json.path import Path
 import json
-import simplejson as json
-
-from stable_whisper import load_model
 
 import redis_mgr
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
+from stable_whisper import load_model
+
+import vcon
 
 logger = init_logger(__name__)
 

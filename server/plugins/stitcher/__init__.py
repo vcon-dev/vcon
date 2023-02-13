@@ -1,13 +1,13 @@
 import asyncio
-import redis.asyncio as redis
-import asyncio
-from lib.logging_utils import init_logger
-from settings import REDIS_URL
-from redis.commands.json.path import Path
-import traceback
-from .models import ShelbyUser, ShelbyLead
 import datetime
+import traceback
 
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from redis.commands.json.path import Path
+from settings import REDIS_URL
+
+from .models import ShelbyLead, ShelbyUser
 
 logger = init_logger(__name__)
 
@@ -34,7 +34,7 @@ async def run(vConUuid, opts=default_options):
         inbound_vcon = await r.json().get(f"vcon:{str(vConUuid)}", Path.root_path())
 
         # Fetch the leads from the CXM
-        leads = ShelbyLead.select().where(ShelbyLead.created_on > last_fetch)
+        leads = ShelbyLead.select().where(ShelbyLead.created_on > last_fetch)  # noqa
         tod = datetime.datetime.now()
         d = datetime.timedelta(minutes=2)
         last_fetch = tod - d

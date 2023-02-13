@@ -21,7 +21,7 @@ def test_get_docs():
             )
 
     try:
-        pending = asyncio.all_tasks()
+        asyncio.all_tasks()
         raise Exception("Should not get here as loop should have been closed down")
 
     except RuntimeError as rt_error:

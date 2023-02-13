@@ -215,7 +215,9 @@ TEN_YEARS_SECONDS = 3.156e8
 
 
 async def handle_bria_s3_recording_event(record, opts, redis_client):
-    """Called when new s3 event is received. This function will update dialog object in vcon with correct url for recording and hash checksum
+    """Called when new s3 event is received.
+    This function will update dialog object in vcon with correct url for
+    recording and hash checksum
 
     Args:
         record (s3 event): s3 event object

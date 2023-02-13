@@ -1,13 +1,13 @@
 import asyncio
+
+import dataprofiler as dp
 import redis.asyncio as redis
-import asyncio
-from lib.logging_utils import init_logger
-import vcon
 from dataprofiler import Profiler
 from dataprofiler.data_readers.text_data import TextData
-import dataprofiler as dp
+from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
 
+import vcon
 
 logger = init_logger(__name__)
 
@@ -53,9 +53,8 @@ async def start(opts=default_options):
                         data = TextData(
                             data=text
                         )  # Auto-Detect & Load: CSV, AVRO, Parquet, JSON, Text, URL
-                        profile = Profiler(
-                            data
-                        )  # Calculate Statistics, Entity Recognition, etc
+                        # Calculate Statistics, Entity Recognition, etc
+                        profile = Profiler(data)  # noqa: F841
                         data_labeler = dp.DataLabeler(labeler_type="unstructured")
                         data_labeler.set_params(
                             {

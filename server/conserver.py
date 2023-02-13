@@ -4,5 +4,5 @@ from fastapi.applications import FastAPI
 app = FastAPI()
 FastAPI.conserver_app = app
 
-import api
-import lifecycle
+import api  # noqa
+import lifecycle  # noqa

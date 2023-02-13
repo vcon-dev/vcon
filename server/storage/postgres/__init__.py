@@ -8,6 +8,8 @@ from redis.commands.json.path import Path
 import traceback
 from .models import CallLogs
 from server.lib.vcon_redis import VconRedis
+from lib.sentry import init_sentry
+init_sentry()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)

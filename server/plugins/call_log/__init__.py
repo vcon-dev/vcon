@@ -10,6 +10,8 @@ import traceback
 from redis.commands.json.path import Path
 from server.lib.vcon_redis import VconRedis
 import copy
+from lib.sentry import init_sentry
+init_sentry()
 
 r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 vcon_redis = VconRedis(redis_client=r)

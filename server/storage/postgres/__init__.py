@@ -1,6 +1,7 @@
 import asyncio
 import traceback
 
+import copy
 import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from lib.sentry import init_sentry
@@ -26,7 +27,9 @@ default_options = {
 options = {}
 
 
-async def start(opts=default_options):
+async def start(opts=None):
+    if opts is None:
+        opts = copy.deepcopy(default_options)
     logger.info("Starting the posgres plugin!!!")
     while True:
         try:

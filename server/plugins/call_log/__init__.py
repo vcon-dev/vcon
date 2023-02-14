@@ -155,24 +155,25 @@ def compute_dialog_projection(dialog):
     return copied_dialog
 
 
-async def start(opts=default_options):
+async def start(opts=None):
+    if opts is None:
+        opts = copy.deepcopy(default_options)
     logger.info("Starting the call_log plugin")
-    try:
-        p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts["ingress-topics"])
-        while True:
-            try:
-                message = await p.get_message()
-                if message:
-                    vConUuid = message["data"]
-                    logger.info(f"call_log plugin: received vCon: {vConUuid}")
-                    await run(vConUuid)
-                    for topic in opts["egress-topics"]:
-                        await r.publish(topic, vConUuid)
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                logger.error("call_log plugin: error: {}".format(e))
-    except asyncio.CancelledError:
-        logger.debug("call_log Cancelled")
+    while True:
+        try:
+            p = r.pubsub(ignore_subscribe_messages=True)
+            await p.subscribe(*opts["ingress-topics"])
+            async for message in p.listen():
+                vConUuid = message["data"]
+                logger.info(f"call_log plugin: received vCon: {vConUuid}")
+                await run(vConUuid)
+                for topic in opts["egress-topics"]:
+                    await r.publish(topic, vConUuid)
+        except asyncio.CancelledError:
+            logger.debug("call log plugin Cancelled")
+            break
+        except Exception:
+            logger.error("call log plugin: error: \n%s", traceback.format_exc())
+            logger.error("Shoot!")
 
     logger.info("call_log stopped")

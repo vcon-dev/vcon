@@ -12,11 +12,11 @@ import sys
 try:
   import simplejson as json
   dumps_options = {"ignore_nan" : True}
-  print("using simplejson", file=sys.stderr)
+  print("using simplejson")
 except Exception as import_error:
   import json
   dumps_options = {}
-  print("using json", file=sys.stderr)
+  print("using json")
 
 import enum
 import time

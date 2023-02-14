@@ -52,13 +52,23 @@ async def check_sqs():
         logger.error("Check SQS Error: %s", e)
 
 
-def load_adaptors():
+async def load_adaptors():
     logger.info("Starting load_adaptors")
     print("Load adaptors")
+    if redis_mgr.REDIS_POOL is None:
+        logger.error("redis pool not initialized in load_services")
+        redis_mgr.create_pool()
+    r = redis_mgr.get_client()
     adapter_processes = []
     adapters = os.listdir("adapters")
     logger.info("Iterating adaptors")
+    active_adapters = await r.smembers("active_adapters")
+    active_adapters = {adapter.decode() for adapter in active_adapters}
     for adapter in adapters:
+        if active_adapters:
+            if adapter not in active_adapters:
+                logger.info(f"Skipping adaptor {adapter}")
+                continue
         try:
             new_adapter = importlib.import_module("adapters." + adapter)
             logger.info("Loading adaptors %s", adapter)

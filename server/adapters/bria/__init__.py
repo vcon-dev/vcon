@@ -14,6 +14,7 @@ import vcon
 from server.lib.vcon_redis import VconRedis
 from lib.sentry import init_sentry
 from lib.logging_utils import init_logger
+from lib.listen_list import listen_list
 from lib.phone_number_utils import get_e164_number
 import sentry_sdk
 
@@ -245,14 +246,6 @@ async def handle_bria_s3_recording_event(record, opts, redis_client):
     await vcon_redis.store_vcon(v_con)
     for egress_topic in opts["egress-topics"]:
         await redis_client.publish(egress_topic, v_con.uuid)
-
-
-async def listen_list(r, list_name):
-    while True:
-        values = await r.blpop([list_name])
-        logger.info(f"Got the value {values}")
-        if values:
-            yield values[1]
 
 
 async def handle_list(list_name, r, opts):

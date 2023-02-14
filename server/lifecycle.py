@@ -27,7 +27,7 @@ if hasattr(FastAPI, "conserver_app"):
             global PROCESSES
             process1 = start_async_process(check_sqs)
             PROCESSES.append(process1)
-            PROCESSES += load_adaptors()
+            PROCESSES += await load_adaptors()
             PROCESSES += await load_pipelines()
             await update_available_blocks()
             for process in PROCESSES:

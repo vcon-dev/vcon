@@ -1,30 +1,34 @@
 import asyncio
+import copy
 
 import boto3
 import redis.asyncio as redis
 from lib.logging_utils import init_logger
-from settings import AWS_BUCKET, AWS_KEY_ID, AWS_SECRET_KEY
+from settings import AWS_BUCKET, AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL
+from server.lib.vcon_redis import VconRedis
 
 logger = init_logger(__name__)
 
 
 default_options = {
     "name": "s3",
-    "ingress-topics": ["ingress-vcons"],
+    "ingress-topics": [],
     "egress-topics": [],
     "AWS_KEY_ID": AWS_KEY_ID,
     "AWS_SECRET_KEY": AWS_SECRET_KEY,
     "AWS_BUCKET": AWS_BUCKET,
-    "S3Path": "plugins/call_log/",
+    "S3Path": "",
 }
-options = {}
 
 
-async def start(opts=default_options):
+async def start(opts=None):
     logger.info("Starting the s3 storage plugin")
+    if opts is None:
+        opts = copy.deepcopy(default_options)
 
     try:
-        r = redis.Redis(host="localhost", port=6379, db=0)
+        r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+        vcon_redis = VconRedis(redis_client=r)
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts["ingress-topics"])
 
@@ -32,9 +36,9 @@ async def start(opts=default_options):
             try:
                 message = await p.get_message()
                 if message:
-                    vConUuid = message["data"].decode("utf-8")
-                    logger.info("S3: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon:{}".format(str(vConUuid)))
+                    vConUuid = message["data"]
+                    logger.info(f"S3: received vCon: {vConUuid}")
+                    vCon = await vcon_redis.get_vcon(vConUuid)
 
                     # Save the vCon to S3
                     s3 = boto3.resource(
@@ -45,7 +49,11 @@ async def start(opts=default_options):
                     )
 
                     S3Path = opts["S3Path"] + vConUuid + ".vcon"
-                    s3.Bucket(opts["AWS_BUCKET"]).put_object(Key=S3Path, Body=body)
+                    s3.Bucket(opts["AWS_BUCKET"]).put_object(
+                        Key=S3Path, Body=vCon.dumps()
+                    )
+                    for topic in opts["egress-topics"]:
+                        await r.publish(topic, vConUuid)
                 await asyncio.sleep(0.01)
             except Exception as e:
                 logger.debug("S3 adapter error: {}".format(e))

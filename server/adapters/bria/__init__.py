@@ -1,23 +1,32 @@
 import asyncio
+import copy
 import hashlib
 import json
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
-import copy
 
 import boto3
+import jwt
 import redis.asyncio as redis
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, ENV, REDIS_URL
+import requests
+import sentry_sdk
+from lib.listen_list import listen_list
+from lib.logging_utils import init_logger
+from lib.phone_number_utils import get_e164_number
+from lib.sentry import init_sentry
+from settings import (
+    AWS_KEY_ID,
+    AWS_SECRET_KEY,
+    ENV,
+    GRAPHQL_JWT_SECRET_KEY,
+    GRAPHQL_URL,
+    REDIS_URL,
+)
 
 import vcon
+from server import redis_mgr
 from server.lib.vcon_redis import VconRedis
-from lib.sentry import init_sentry
-from lib.logging_utils import init_logger
-from lib.listen_list import listen_list
-from lib.phone_number_utils import get_e164_number
-import sentry_sdk
-
 
 init_sentry()
 
@@ -29,6 +38,61 @@ default_options = {
     "ingress-list": [f"bria-conserver-feed-{ENV}"],
     "egress-topics": ["ingress-vcons"],
 }
+
+
+def get_graphql_jwt_token():
+    expired_after = datetime.utcnow() + timedelta(days=1)
+    payload = {
+        "sub": "conserver",
+        "name": "conserver",
+        "iss": "Strolid",
+        "iat": datetime.utcnow(),
+        "exp": expired_after,
+    }
+    return jwt.encode(payload, GRAPHQL_JWT_SECRET_KEY, algorithm="HS256")
+
+
+def fetch_dealers_data_from_graphql():
+    # Make sure we have token in the cookies
+    jwt_token = get_graphql_jwt_token()
+
+    query = """{
+    dealers {
+        results {
+        id
+        name
+        outboundPhoneNumber
+        team {
+            id
+            name
+        }
+        }
+    }
+    }"""
+
+    headers = {"Authorization": f"Bearer {jwt_token}"}
+    response = requests.post(GRAPHQL_URL, headers=headers, json={"query": query})
+
+    dealers_data = {
+        str(dealer_data["id"]): dealer_data
+        for dealer_data in response.json()["data"]["dealers"]["results"]
+    }
+
+    return dealers_data
+
+
+async def get_dealer_data(dealer_id: str) -> Optional[dict]:
+    redis_client = redis_mgr.get_client()
+    dealers_data = await redis_client.json().get("dealers-data")
+    if dealers_data is None:
+        dealers_data = fetch_dealers_data_from_graphql()
+        await redis_client.json().set("dealers-data", ".", dealers_data)
+        await redis_client.expire("dealers-data", timedelta(minutes=30))
+        logger.info("Received dealers_data from GraphQL: %s", len(dealers_data))
+    else:
+        logger.info("Found dealers_data in Redis: %s", len(dealers_data))
+
+    return dealers_data.get(dealer_id)
 
 
 def time_diff_in_seconds(start_time: str, end_time: str) -> int:
@@ -47,8 +111,11 @@ def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     return duration.seconds
 
 
-def add_bria_attachment(vCon, body, opts):
+async def add_bria_attachment(vCon, body, opts):
     # Set the adapter meta so we know where the this came from
+
+    cxm_dealer_id = body.get("dealerId")
+    dealer = await get_dealer_data(cxm_dealer_id)
     adapter_meta = {
         "adapter": "bria",
         "adapter_version": "0.1.0",
@@ -56,6 +123,7 @@ def add_bria_attachment(vCon, body, opts):
         "type": "call_completed",
         "received_at": datetime.now().isoformat(),
         "payload": body,
+        "dealer": dealer,
     }
     vCon.attachments.append(adapter_meta)
 
@@ -130,6 +198,7 @@ async def handle_bria_call_started_event(body, r):
 
 async def dedup(r, body) -> Optional[vcon.Vcon]:
     """Check if this is a duplicate call id
+       This can happen if the agent has multiple browser sessions open at the same time
        if it's an outbound call and it has a dealer number
        we update the vCon with that dealer number
 
@@ -166,7 +235,7 @@ async def handle_bria_call_ended_event(body, opts, r):
     if not vCon:
         vCon = await get_same_leg_or_new_vcon(r, body, vcon_redis)
         add_dialog(vCon, body)
-        add_bria_attachment(vCon, body, opts)
+        await add_bria_attachment(vCon, body, opts)
     await vcon_redis.store_vcon(vCon)
     for egress_topic in opts["egress-topics"]:
         await r.publish(egress_topic, vCon.uuid)

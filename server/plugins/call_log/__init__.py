@@ -8,6 +8,7 @@ import traceback
 from server.lib.vcon_redis import VconRedis
 import copy
 from lib.sentry import init_sentry
+from lib.phone_number_utils import get_e164_number
 
 init_sentry()
 
@@ -64,7 +65,6 @@ def get_projection(vCon):
     main_agent, projection["disposition"] = get_main_agent_and_disposition(vCon)
     projection["extension"] = main_agent["extension"]
     projection["agent_name"] = main_agent["name"]
-    projection["dealer_number"] = main_agent["tel"]
 
     projection["direction"] = vCon.attachments[0]["payload"]["direction"].upper()
 
@@ -76,9 +76,16 @@ def get_projection(vCon):
     add_agent_extension_to_dialog(vCon, projection["dialog"])
 
     projection["duration"] = calculate_duration(vCon.dialog)
-    dealer_name = vCon.attachments[0]["payload"].get("dealerName")
-    if dealer_name:
-        projection["dealer_cached_details"] = {"name": dealer_name}
+    dealer = vCon.attachments[0]["dealer"]
+    if dealer:
+        projection["dealer_cached_details"] = dealer
+        projection["dealer_cxm_id"] = dealer["id"]
+        if vCon.attachments[0]["payload"]["direction"].upper() == "OUT":
+            projection["dealer_number"] = get_e164_number(dealer["outboundPhoneNumber"])
+    else:  # this is needed to support the legacy queue name where dealer id is not part of it
+        dealer_name = vCon.attachments[0]["payload"].get("dealerName")
+        if dealer_name:
+            projection["dealer_cached_details"] = {"name": dealer_name}
     # vCon.attachments.append(projection)
     return projection
 

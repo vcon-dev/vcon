@@ -13,8 +13,6 @@ import redis.asyncio.connection
 import redis.asyncio.client
 from settings import REDIS_URL
 
-import traceback
-import sys
 
 logger = init_logger(__name__)
 
@@ -28,10 +26,11 @@ def create_pool():
     if REDIS_POOL is not None:
         logger.info("Redis pool already created")
     else:
+        logger.info("Creating Redis pool...")
         REDIS_POOL_INITIALIZATION_COUNT += 1
         REDIS_POOL = redis.asyncio.connection.ConnectionPool.from_url(REDIS_URL)
         logger.info(
-            "redis connection: host: {} port: {} max connections: {} initialization count: {}".format(
+            "Redis pool created. redis connection: host: {} port: {} max connections: {} initialization count: {}".format(
                 REDIS_POOL.connection_kwargs.get("host", "None"),
                 REDIS_POOL.connection_kwargs.get("port", "None"),
                 REDIS_POOL.max_connections,
@@ -57,15 +56,11 @@ async def shutdown_pool():
 def get_client():
     global REDIS_POOL
     if REDIS_POOL is None:
-        # traceback.print_exc()
-        print("Error: redis pool not initialized", file=sys.stdout)
-        traceback.print_stack(file=sys.stdout)
-        logger.info("redis connection pool not initialized")
-        e = Exception("Redis pool not initialized")
-        raise e
+        logger.info("REDIS_POOL is not initialized")
+        create_pool()
 
-    logger.info("getting redis connection")
+    logger.info("Getting Redis connection...")
     r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
-    # r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    logger.info("Created Redis connection.")
 
     return r

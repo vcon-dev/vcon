@@ -9,8 +9,6 @@ services:
       - "9000:8000"
     depends_on:
       - redis
-    networks:
-      - back-tier
     env_file:
       - .env
 
@@ -20,8 +18,6 @@ services:
       - "8001:8001"
     environment:
       REDIS_ARGS: --save 20 1
-    networks:
-      - back-tier
     mem_limit: 1gb
     volumes:
        - ./.data:/data
@@ -30,6 +26,27 @@ services:
       interval: 1s
       timeout: 3s
       retries: 5
+
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    profiles:
+      - dev
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+    profiles:
+      - dev
 
   jupyter:
     build: .
@@ -40,10 +57,7 @@ services:
       - "9999:9999"
     depends_on:
       - redis
-    networks:
-      - back-tier
     env_file:
       - .env
-
-networks:
-  back-tier:
+    profiles:
+      - dev

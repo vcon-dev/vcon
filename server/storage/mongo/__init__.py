@@ -41,7 +41,7 @@ async def start(opts=default_options):
                     inbound_vcon = await r.json().get(
                         f"vcon:{str(vcon_uuid)}", Path.root_path()
                     )
-                    results = m.conserver.vcon.insert_one(
+                    results = m.conserver.vcons.insert_one(
                         prepare_vcon_for_mongo(inbound_vcon)
                     )
 

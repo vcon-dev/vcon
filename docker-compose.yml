@@ -6,7 +6,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "9000:8000"
+      - "8000:8000"
     depends_on:
       - redis
     env_file:
@@ -23,8 +23,8 @@ services:
        - ./.data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
-      interval: 1s
-      timeout: 3s
+      interval: 30s
+      timeout: 10s
       retries: 5
 
   mongo:

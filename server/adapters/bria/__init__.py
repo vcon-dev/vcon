@@ -375,7 +375,9 @@ async def get_same_leg_or_new_vcon(r, body, vcon_redis) -> vcon.Vcon:
     if vcon_id:
         v_con = await vcon_redis.get_vcon(vcon_id)
         logger.info(f"Found the key {redis_key} - Updating the existing vcon")
-    else:
+
+    # https://strolid-inc.sentry.io/issues/3938726105/
+    if not v_con:
         v_con = vcon.Vcon()
         v_con.set_uuid("strolid.com")
         await r.set(redis_key, v_con.uuid)
@@ -386,10 +388,11 @@ async def get_same_leg_or_new_vcon(r, body, vcon_redis) -> vcon.Vcon:
     return v_con
 
 
-def call_leg_detection_key(body):
+def call_leg_detection_key(body: dict) -> str:
     dealer_number = get_e164_number(body.get("dialerId"))
     customer_number = get_e164_number(body.get("customerNumber"))
-    return f"bria:{dealer_number}:{customer_number}"
+    direction = body.get("direction")
+    return f"bria:{dealer_number}:{customer_number}:{direction}"
 
 
 async def persist_call_leg_detection_key(r, body):

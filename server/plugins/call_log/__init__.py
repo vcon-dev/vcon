@@ -143,22 +143,27 @@ def add_agent_extension_to_dialog(vCon, dialog):
         dialog_item["agent_name"] = vCon.parties[agent_idx]["name"]
 
 
+def dialog_disposition(dialog_item, is_last_dialog=True):
+    disp = dialog_item["disposition"]
+    if disp == "ANSWERED" and not is_last_dialog:
+        return "INTERNAL TRANSFER"
+    if disp != "MISSED":
+        return disp
+    if dialog_item["direction"].upper() == "OUT":
+        return "NO ANSWER"
+    if dialog_item["duration"] < 4 and is_last_dialog:
+        return "HUNG UP"
+    if dialog_item["duration"] < 12 and not is_last_dialog:
+        return "DECLINED"
+    return disp
+
+
 def compute_dialog_projection(dialog):
     copied_dialog = copy.deepcopy(dialog)
     copied_dialog.sort(key=lambda x: x["start"])
     for ind, dialog_item in enumerate(copied_dialog):
-        if dialog_item["disposition"] == "ANSWERED":
-            if ind < len(copied_dialog) - 1:
-                dialog_item["disposition"] = "INTERNAL TRANSFER"
-        if dialog_item["disposition"] == "MISSED":
-            if dialog_item["duration"] < 4:
-                if ind == len(copied_dialog) - 1:
-                    dialog_item["disposition"] = "HUNG UP"
-                else:
-                    dialog_item["disposition"] = "DECLINED"
-            elif dialog_item["duration"] < 12:
-                if ind < len(copied_dialog) - 1:
-                    dialog_item["disposition"] = "DECLINED"
+        is_last_dialog = ind == (len(copied_dialog) - 1)
+        dialog_item["disposition"] = dialog_disposition(dialog_item, is_last_dialog)
     return copied_dialog
 
 

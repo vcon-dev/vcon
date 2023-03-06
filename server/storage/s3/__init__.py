@@ -1,58 +1,58 @@
 import asyncio
-import async_timeout
-import redis.asyncio as redis
-import json
-import asyncio
+import copy
+import traceback
 import boto3
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
-import logging
+import redis.asyncio as redis
+from lib.logging_utils import init_logger
+from settings import AWS_BUCKET, AWS_KEY_ID, AWS_SECRET_KEY, REDIS_URL
+from server.lib.vcon_redis import VconRedis
 
-from settings import LOG_LEVEL
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 
 default_options = {
     "name": "s3",
-    "ingress-topics": ["ingress-vcons"],
-    "egress-topics":[],
+    "ingress-topics": [],
+    "egress-topics": [],
     "AWS_KEY_ID": AWS_KEY_ID,
     "AWS_SECRET_KEY": AWS_SECRET_KEY,
     "AWS_BUCKET": AWS_BUCKET,
-    "S3Path": "plugins/call_log/"
+    "S3Path": "",
 }
-options = {}
 
-async def start(opts=default_options):
+
+async def start(opts=None):
+    if opts is None:
+        opts = copy.deepcopy(default_options)
     logger.info("Starting the s3 storage plugin")
+    while True:
+        try:
+            r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+            vcon_redis = VconRedis(redis_client=r)
+            p = r.pubsub(ignore_subscribe_messages=True)
+            await p.subscribe(*opts["ingress-topics"])
+            async for message in p.listen():
+                vConUuid = message["data"]
+                logger.info(f"S3: received vCon: {vConUuid}")
+                vCon = await vcon_redis.get_vcon(vConUuid)
 
-    try:
-        r = redis.Redis(host='localhost', port=6379, db=0)
-        p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts['ingress-topics'])
+                # Save the vCon to S3
+                s3 = boto3.resource(
+                    "s3",
+                    region_name="us-east-1",
+                    aws_access_key_id=opts["AWS_KEY_ID"],
+                    aws_secret_access_key=opts["AWS_SECRET_KEY"],
+                )
 
-        while True:
-            try:
-                message = await p.get_message()
-                if message:
-                    vConUuid = message['data'].decode('utf-8')
-                    logger.info("S3: received vCon: {}".format(vConUuid))
-                    body = await r.get("vcon:{}".format(str(vConUuid)))
+                S3Path = opts["S3Path"] + vConUuid + ".vcon"
+                s3.Bucket(opts["AWS_BUCKET"]).put_object(Key=S3Path, Body=vCon.dumps())
+                for topic in opts["egress-topics"]:
+                    await r.publish(topic, vConUuid)
+        except asyncio.CancelledError:
+            logger.debug("s3 storage plugin Cancelled")
+            break
+        except Exception:
+            logger.error("s3 storage plugin: error: \n%s", traceback.format_exc())
+            logger.error("Shoot!")
 
-                    # Save the vCon to S3
-                    s3 = boto3.resource(
-                        's3',
-                        region_name='us-east-1',
-                        aws_access_key_id=opts["AWS_KEY_ID"],
-                        aws_secret_access_key=opts["AWS_SECRET_KEY"]
-                        )
-                    
-                    S3Path = opts['S3Path'] + vConUuid + ".vcon"
-                    s3.Bucket(opts["AWS_BUCKET"]).put_object(Key=S3Path, Body=body)
-                await asyncio.sleep(0.01)
-            except Exception as e:
-                logger.debug("S3 adapter error: {}".format(e))
-
-    except asyncio.CancelledError:
-        logger.debug("s3 storage plugin Cancelled")
-
-    logger.info("s3 storage plugin stopped")    
+    logger.info("s3 storage plugin stopped")

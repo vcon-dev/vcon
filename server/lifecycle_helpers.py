@@ -1,8 +1,7 @@
 import asyncio
 import copy
 import importlib
-import logging
-import logging.config
+from lib.logging_utils import init_logger
 import os
 
 import redis_mgr
@@ -10,7 +9,7 @@ import shortuuid
 from lib.process_utils import start_async_process
 from lib.sqs import listen_to_sqs
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 logger.info("Conserver helper up")
 
 
@@ -18,13 +17,14 @@ chains = []
 
 
 # optionally allow a different redis queue name for testing purposes
-async def process_queue(sqs_queue_name, r, redis_queue_name=None): 
-    if redis_queue_name == None:
+async def process_queue(sqs_queue_name, r, redis_queue_name=None):
+    if redis_queue_name is None:
         redis_queue_name = sqs_queue_name
     async for message in listen_to_sqs(sqs_queue_name.decode()):
         logger.info(f"Received message from the SQS {sqs_queue_name}")
         await r.rpush(redis_queue_name, message.body)
         message.delete()
+
 
 async def check_sqs():
     logger.info("Starting check_sqs")
@@ -50,15 +50,25 @@ async def check_sqs():
         logger.info("Check SQS Cancelled")
     except Exception as e:
         logger.error("Check SQS Error: %s", e)
-        
 
-def load_adaptors():
+
+async def load_adaptors():
     logger.info("Starting load_adaptors")
     print("Load adaptors")
+    if redis_mgr.REDIS_POOL is None:
+        logger.error("redis pool not initialized in load_services")
+        redis_mgr.create_pool()
+    r = redis_mgr.get_client()
     adapter_processes = []
     adapters = os.listdir("adapters")
     logger.info("Iterating adaptors")
+    active_adapters = await r.smembers("active_adapters")
+    active_adapters = {adapter.decode() for adapter in active_adapters}
     for adapter in adapters:
+        if active_adapters:
+            if adapter not in active_adapters:
+                logger.info(f"Skipping adaptor {adapter}")
+                continue
         try:
             new_adapter = importlib.import_module("adapters." + adapter)
             logger.info("Loading adaptors %s", adapter)
@@ -121,7 +131,6 @@ class TransformerProcess:
         self.process.join()
 
 
-
 class Pipeline:
     def __init__(self, nodes):
         self.pipeline_id = shortuuid.uuid()
@@ -145,7 +154,12 @@ class Pipeline:
             transformer_process.join()
 
     def __str__(self):
-        return " -> ".join([transformer_process.__str__() for transformer_process in self.transformer_processes])
+        return " -> ".join(
+            [
+                transformer_process.__str__()
+                for transformer_process in self.transformer_processes
+            ]
+        )
 
 
 class TaskMonitor:
@@ -202,7 +216,6 @@ class TaskMonitor:
         self._task_dict = new_task_dict
 
     def show_running_tasks(self):
-
         for task_name in self._task_dict.keys():
             task = self._task_dict[task_name]
             logger.info("Task: {} stack: {}".format(task.get_name(), task.get_stack()))

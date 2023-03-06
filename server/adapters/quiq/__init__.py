@@ -2,29 +2,26 @@ import asyncio
 import async_timeout
 import redis.asyncio as redis
 import json
-import logging
-import logging.config
+from lib.logging_utils import init_logger
 import vcon
 import datetime
-from settings import REDIS_URL, LOG_LEVEL, ENV
+from settings import REDIS_URL
 from redis.commands.json.path import Path
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger = init_logger(__name__)
+
 logger.info("Starting the quiq adapter")
 
 default_options = {
     "name": "quiq",
     "ingress-list": ["quiq-conserver-feed"],
-    "egress-topics":["ingress-vcons"],
+    "egress-topics": ["ingress-vcons"],
 }
+
 
 async def start(opts=default_options):
     logger.info("Starting the quiq adapter")
-    if logger.isEnabledFor(logging.DEBUG):
-      async_tasks = asyncio.all_tasks()
-      logger.debug("{} tasks".format(len(async_tasks)))
 
     # Setup redis
     r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
@@ -38,36 +35,38 @@ async def start(opts=default_options):
                     try:
                         payload = json.loads(data)
                         body = payload.get("default")
-                                        
+
                         # Construct empty vCon, set meta data
                         vCon = vcon.Vcon()
                         vCon.set_party_parameter("tel", body["src"], -1)
                         vCon.set_party_parameter("tel", body["dst"], -1)
 
                         # Copy over the transcript from the message
-                        messages = body['event_payload']['messages']
+                        messages = body["event_payload"]["messages"]
                         transcript = ""
                         start_time = None
                         for message in messages:
                             if start_time is None:
-                                timestamp = int(message['timestamp'])
-                                start_time = timestamp/1000  
-                                
-                            line = "{}: {}\n".format(message['author'], message['text'])
+                                timestamp = int(message["timestamp"])
+                                start_time = timestamp / 1000
+
+                            line = "{}: {}\n".format(message["author"], message["text"])
                             transcript += line
 
-                        vCon.add_dialog_inline_text(transcript, start_time, 0, 10000, "MIMETYPE_TEXT_PLAIN")
+                        vCon.add_dialog_inline_text(
+                            transcript, start_time, 0, 10000, "MIMETYPE_TEXT_PLAIN"
+                        )
                         # Set the adapter meta so we know where this thing came from
-                        adapter_meta= {
+                        adapter_meta = {
                             "adapter": "quiq",
                             "adapter_version": "0.1.0",
                             "src": ingress_list,
-                            "type": 'chat_completed',
+                            "type": "chat_completed",
                             "received_at": datetime.datetime.now().isoformat(),
-                            "payload": body
+                            "payload": body,
                         }
                         vCon.attachments.append(adapter_meta)
-                        
+
                         # Publish the vCon
                         logger.debug("New vCon created: {}".format(vCon.uuid))
                         key = "vcon:{}".format(vCon.uuid)
@@ -77,7 +76,6 @@ async def start(opts=default_options):
                             await r.publish(egress_topic, vCon.uuid)
                     except Exception as e:
                         logger.error("Quiq adapter error: {}".format(e))
-
 
         except asyncio.TimeoutError:
             logger.info("quiq async timeout")
@@ -91,9 +89,3 @@ async def start(opts=default_options):
             logger.debug("quiq adapter error: {}".format(e))
 
     logger.info("Quiq adapter stopped")
-    if logger.isEnabledFor(logging.DEBUG):
-      async_tasks = asyncio.all_tasks()
-      logger.debug("{} tasks".format(len(async_tasks)))
-
-
-

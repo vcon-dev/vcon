@@ -1,6 +1,8 @@
+from typing import List
+
 from bson import ObjectId
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from pydantic import BaseModel, Field
+
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -25,6 +27,6 @@ class VconModel(BaseModel):
     dialog: List[dict] = []
     analysis: List[dict] = []
     attachments: List[dict] = []
-    
+
     class Config:
         json_encoders = {ObjectId: str}

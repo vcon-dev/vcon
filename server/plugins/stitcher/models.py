@@ -1,15 +1,8 @@
-from peewee import (
-    Model,
-    DateTimeField,
-    CharField,
-    IntegerField,
-    BooleanField
-)
-from playhouse.postgres_ext import PostgresqlDatabase, BinaryJSONField
-from playhouse.db_url import parse
 import os
-from settings import STITCHER_DATABASE_URL
 
+from peewee import BooleanField, CharField, DateTimeField, Model
+from playhouse.db_url import parse
+from playhouse.postgres_ext import BinaryJSONField, PostgresqlDatabase
 
 db_params = parse(os.environ["STITCHER_DATABASE_URL"])
 db_name = db_params["database"]
@@ -35,6 +28,7 @@ class ShelbyUser(BaseModel):
     class Meta:
         table_name = "shelby_user"
 
+
 class ShelbyLead(BaseModel):
     id = CharField(primary_key=True, index=True)
     created_on = DateTimeField(null=True)
@@ -44,5 +38,3 @@ class ShelbyLead(BaseModel):
 
     class Meta:
         table_name = "shelby_lead"
-
-

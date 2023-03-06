@@ -1,18 +1,18 @@
 import logging
 import logging.config
+from pythonjsonlogger import jsonlogger
 from settings import LOG_LEVEL
+import sys
+
 
 def init_logger(name):
-    # create a formatter
-    formatter = logging.Formatter('\033[31m%(levelname)s\033[0m: %(message)s')
-    # create a handler for the error messages
-    error_handler = logging.StreamHandler()
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger().addHandler(error_handler)
-
     logger = logging.getLogger(name)
+    formatter = jsonlogger.JsonFormatter(
+        "%(timestamp)s %(levelname)s %(message)s ", timestamp=True
+    )
+    logHandler = logging.StreamHandler(sys.stdout)
+    logHandler.setFormatter(formatter)
+    logger.addHandler(logHandler)
     logger.setLevel(LOG_LEVEL)
+    logger.propagate = False
     return logger
-

@@ -170,7 +170,7 @@ class FilterPluginRegistry:
       replace (bool) - if True replace the already registered plugin of the same name
                        if False throw an exception if a plugin of the same name is already register
     """
-    print("Registering FilterPlugin: {}".format(locals()))
+    print("Registering FilterPlugin: {}".format(locals()), file=sys.stderr)
     entry = FilterPluginRegistration(name, module_name, class_name, description)
     FilterPluginRegistry.__add_plugin(entry, replace)
 

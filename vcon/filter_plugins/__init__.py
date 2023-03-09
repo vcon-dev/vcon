@@ -3,13 +3,40 @@ from __future__ import annotations
 import importlib
 import typing
 import sys
+import os
 import traceback
+import logging
+import pythonjsonlogger.jsonlogger
+
 
 # This package is dependent upon the vcon package only for typing purposes.
 # This creates a circular dependency which we avoid by importing annotations
 # above and importing vcon only if typing.TYPE_CHECKING
 if typing.TYPE_CHECKING:
   from vcon import Vcon
+
+# This is cloned from vcon package as we cannot import vcon here due to
+# cyclical import.
+def build_logger(name : str) -> logging.Logger:
+  logger = logging.getLogger(name)
+
+  log_config_filename = "./logging.conf"
+  if(os.path.isfile(log_config_filename)):
+    logging.config.fileConfig(log_config_filename)
+    #print("got logging config", file=sys.stderr)
+  else:
+    logger.setLevel(logging.DEBUG)
+
+    # Output to stdout WILL BREAK the Vcon CLI.
+    # MUST use stderr.
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    formatter = pythonjsonlogger.jsonlogger.JsonFormatter( "%(timestamp)s %(levelname)s %(message)s ", timestamp=True)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+  return(logger)
+logger = build_logger(__name__)
 
 class PluginModuleNotFound(Exception):
   """ Thrown when plugin modeule fails to load """
@@ -80,7 +107,7 @@ class FilterPluginRegistration:
     succeed = False
     if(not self._module_load_attempted):
       try:
-        print("importing: {} for registered filter plugin: {}".format(self._module_name, self.name), file=sys.stderr)
+        logger.info("importing: {} for registered filter plugin: {}".format(self._module_name, self.name))
         module = importlib.import_module(self._module_name)
         self._module_load_attempted = True
         self._module_not_found = False
@@ -92,12 +119,12 @@ class FilterPluginRegistration:
           succeed = True
 
         except AttributeError as ae:
-          print(ae, file=sys.stderr)
+          logger.warning(ae)
           self._class_not_found = True
 
       except ModuleNotFoundError as mod_error:
-        print(mod_error, file=sys.stderr)
-        print(traceback.format_exc(limit=-1), file=sys.stderr)
+        logger.warning(mod_error)
+        logger.warning(traceback.format_exc(limit=-1))
         self._module_not_found = True
 
     elif(self._plugin is not None):
@@ -170,7 +197,7 @@ class FilterPluginRegistry:
       replace (bool) - if True replace the already registered plugin of the same name
                        if False throw an exception if a plugin of the same name is already register
     """
-    print("Registering FilterPlugin: {}".format(locals()), file=sys.stderr)
+    logger.info("Registering FilterPlugin: {}".format(locals()))
     entry = FilterPluginRegistration(name, module_name, class_name, description)
     FilterPluginRegistry.__add_plugin(entry, replace)
 

@@ -8,15 +8,42 @@ import importlib
 import pkgutil
 import typing
 import sys
+import os
+import logging
+import logging.config
+import pythonjsonlogger.jsonlogger
+
+
+def build_logger(name : str) -> logging.Logger:
+  logger = logging.getLogger(name)
+
+  log_config_filename = "./logging.conf"
+  if(os.path.isfile(log_config_filename)):
+    logging.config.fileConfig(log_config_filename)
+    #print("got logging config", file=sys.stderr)
+  else:
+    logger.setLevel(logging.DEBUG)
+
+    # Output to stdout WILL BREAK the Vcon CLI.
+    # MUST use stderr.
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    formatter = pythonjsonlogger.jsonlogger.JsonFormatter( "%(timestamp)s %(levelname)s %(message)s ", timestamp=True)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+  return(logger)
+
+logger = build_logger(__name__)
 
 try:
   import simplejson as json
   dumps_options = {"ignore_nan" : True}
-  print("using simplejson", file=sys.stderr)
+  logger.info("using simplejson")
 except Exception as import_error:
   import json
   dumps_options = {}
-  print("using json", file=sys.stderr)
+  logger.info("using json")
 
 import enum
 import time
@@ -37,7 +64,7 @@ import jose.jwe
 _LAST_V8_TIMESTAMP = None
 
 for finder, module_name, is_package in pkgutil.iter_modules(vcon.filter_plugins.__path__, vcon.filter_plugins.__name__ + "."):
-  print("plugin registration: {}".format(module_name), file=sys.stderr)
+  logger.info("plugin registration: {}".format(module_name))
   importlib.import_module(module_name)
 
 def deprecated(reason : str):
@@ -256,34 +283,32 @@ class Vcon():
     for plugin_name in vcon.filter_plugins.FilterPluginRegistry.get_names():
       if(Vcon.attribute_exists(plugin_name) is not True):
         setattr(vcon.Vcon, plugin_name, VconPluginMethodProperty(plugin_name))
-        print("added Vcon.{}".format(plugin_name), file=sys.stderr)
+        logger.info("added Vcon.{}".format(plugin_name))
       else:
         existing_attr = getattr(vcon.Vcon, plugin_name)
         if(issubclass(type(existing_attr), vcon.VconPluginMethodProperty)):
           #print("Warning: Filter Plugin name: {} previsously added.".format(plugin_name))
           pass
         else:
-          print("Warning: Filter Plugin name: {} conflicts".format(plugin_name) +
+          logger.warning("Warning: Filter Plugin name: {} conflicts".format(plugin_name) +
             " with existing instance or class attributes and is not directly callable." +
             "  Use Vcon.filter method to invoke it." +
-            "  Better yet, change the name so that it does not conflict",
-            sys.stderr)
+            "  Better yet, change the name so that it does not conflict")
 
     for plugin_type_name in vcon.filter_plugins.FilterPluginRegistry.get_types():
       if(Vcon.attribute_exists(plugin_type_name) is not True):
         setattr(vcon.Vcon, plugin_type_name, VconPluginMethodProperty(plugin_type_name))
-        print("added Vcon.{}".format(plugin_type_name), file=sys.stderr)
+        logger.info("added Vcon.{}".format(plugin_type_name))
       else:
         existing_attr = getattr(vcon.Vcon, plugin_type_name)
         if(issubclass(type(existing_attr), vcon.VconPluginMethodProperty)):
           #print("Warning: Filter Plugin name: {} previsously added.".format(plugin_type_name))
           pass
         else:
-           print("Warning: Filter Plugin Type name: {} conflicts with existing".format(plugin_type_name) +
+           logger.warning("Warning: Filter Plugin Type name: {} conflicts with existing".format(plugin_type_name) +
            "instance or class attributes and is not directly callable." +
            "  Use Vcon.filter method to invoke it." +
-           "  Better yet, change the name so that it does not conflict",
-           sys.stderr)
+           "  Better yet, change the name so that it does not conflict")
 
     self._state = VconStates.UNSIGNED
     self._jws_dict = None
@@ -640,7 +665,7 @@ class Vcon():
 
     if (body):
       if(sign_type == "LM-OTS"):
-        print("Warning: \"LM-OTS\" may be depricated", file=sys.stderr)
+        logger.warning("Warning: \"LM-OTS\" may be depricated")
         key, signature = vcon.security.lm_one_time_signature(body)
         new_dialog['key'] = key
         new_dialog['signature'] = signature
@@ -1164,7 +1189,7 @@ class Vcon():
     """
     try:
        existing_attr = getattr(vcon.Vcon, name)
-       #print("found Vcon attribute: {} {}".format(name, existing_attr), file=sys.stderr)
+       #logger.warning("found Vcon attribute: {} {}".format(name, existing_attr))
        exists = True
 
     except AttributeError as ex_err:
@@ -1173,7 +1198,7 @@ class Vcon():
       else:
         # These are descriptors, which for some reason cannot
         # be got by getattr.
-        print(ex_err, file=sys.stderr)
+        logger.error(ex_err)
         exists = True
 
     if(not exists):

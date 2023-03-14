@@ -23,7 +23,7 @@ See the [presentation at IETF](https://youtu.be/dJsPzZITr_g?t=243)
 
 See the [presentation at IIT](https://youtu.be/s-pjgpBOQqc)
 
-Read the [IETF draft proposal](https://datatracker.ietf.org/doc/html/draft-petrie-vcon-00)
+Read the [IETF draft proposal](https://datatracker.ietf.org/doc/html/draft-petrie-vcon-01)
 
 Read the [white paper](https://docs.google.com/document/d/1TV8j29knVoOJcZvMHVFDaan0OVfraH_-nrS5gW4-DEA/edit?usp=sharing)
 

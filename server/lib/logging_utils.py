@@ -8,7 +8,7 @@ import sys
 def init_logger(name):
     logger = logging.getLogger(name)
     formatter = jsonlogger.JsonFormatter(
-        "%(timestamp)s %(levelname)s %(message)s ", timestamp=True
+        "%(timestamp)s %(levelname)s %(name)s %(message)s ", timestamp=True
     )
     logHandler = logging.StreamHandler(sys.stdout)
     logHandler.setFormatter(formatter)

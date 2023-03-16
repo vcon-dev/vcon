@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import boto3
-import jwt
 import redis.asyncio as redis
 import requests
 import sentry_sdk
@@ -19,8 +18,6 @@ from settings import (
     AWS_KEY_ID,
     AWS_SECRET_KEY,
     ENV,
-    GRAPHQL_JWT_SECRET_KEY,
-    GRAPHQL_URL,
     REDIS_URL,
 )
 
@@ -39,62 +36,6 @@ default_options = {
     "egress-topics": ["ingress-vcons"],
 }
 
-
-def get_graphql_jwt_token():
-    expired_after = datetime.utcnow() + timedelta(days=1)
-    payload = {
-        "sub": "conserver",
-        "name": "conserver",
-        "iss": "Strolid",
-        "iat": datetime.utcnow(),
-        "exp": expired_after,
-    }
-    return jwt.encode(payload, GRAPHQL_JWT_SECRET_KEY, algorithm="HS256")
-
-
-def fetch_dealers_data_from_graphql():
-    # Make sure we have token in the cookies
-    jwt_token = get_graphql_jwt_token()
-
-    query = """{
-    dealers {
-        results {
-        id
-        name
-        outboundPhoneNumber
-        team {
-            id
-            name
-        }
-        }
-    }
-    }"""
-
-    headers = {"Authorization": f"Bearer {jwt_token}"}
-    response = requests.post(GRAPHQL_URL, headers=headers, json={"query": query})
-
-    dealers_data = {
-        str(dealer_data["id"]): dealer_data
-        for dealer_data in response.json()["data"]["dealers"]["results"]
-    }
-
-    return dealers_data
-
-
-async def get_dealer_data(dealer_id: str) -> Optional[dict]:
-    redis_client = redis_mgr.get_client()
-    dealers_data = await redis_client.json().get("dealers-data")
-    if dealers_data is None:
-        dealers_data = fetch_dealers_data_from_graphql()
-        await redis_client.json().set("dealers-data", ".", dealers_data)
-        await redis_client.expire("dealers-data", timedelta(minutes=30))
-        logger.info("Received dealers_data from GraphQL: %s", len(dealers_data))
-    else:
-        logger.info("Found dealers_data in Redis: %s", len(dealers_data))
-
-    return dealers_data.get(dealer_id)
-
-
 def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     """Returns time difference in seconds for given start and end time
 
@@ -109,24 +50,6 @@ def time_diff_in_seconds(start_time: str, end_time: str) -> int:
     end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S.%fZ")
     duration = end_time - start_time
     return duration.seconds
-
-
-async def add_bria_attachment(vCon, body, opts):
-    # Set the adapter meta so we know where the this came from
-
-    cxm_dealer_id = body.get("dealerId")
-    dealer = await get_dealer_data(cxm_dealer_id)
-    adapter_meta = {
-        "adapter": "bria",
-        "adapter_version": "0.1.0",
-        "src": opts["ingress-list"],
-        "type": "call_completed",
-        "received_at": datetime.now().isoformat(),
-        "payload": body,
-        "dealer": dealer,
-    }
-    vCon.attachments.append(adapter_meta)
-
 
 def get_party_index(vcon, tel=None, extension=None):
     if tel:
@@ -178,16 +101,23 @@ def add_dialog(vcon, body):
             }
         )
     start_time = start_time.replace("Z", "+00:00")
+    if direction == "out":
+        originator = agent_index
+    else:
+        # TODO fix for multi party call
+        originator = (agent_index + 1) % 2
+
     vcon.add_dialog_external_recording(
         body=None,
         start_time=start_time,
-        disposition=state,
         duration=duration,
         parties=[customer_index, agent_index],
         mime_type="audio/x-wav",
         file_name=f"{body['id']}.wav",
         external_url=None,
-        direction=direction,
+        originator=originator
+        # TODO add support for disposition
+        #disposition=state,
     )
 
 
@@ -418,10 +348,14 @@ async def start(opts=None):
     try:
         logger.info("Bria started")
         tasks = []
+        logger.info("bria ingress list count: {}".format(len(opts["ingress-list"])))
         for ingress_list in opts["ingress-list"]:
+            logger.info("bria monitoring ingress queue: {}".format(ingress_list))
             task = asyncio.create_task(handle_list(ingress_list, r, opts))
             tasks.append(task)
+        logger.debug("bria done adding ingress queues")
         await asyncio.gather(*tasks)
+        logger.info("bria ingress tasks exited")
     except asyncio.CancelledError:
         logger.info("Bria Cancelled")
     except Exception:

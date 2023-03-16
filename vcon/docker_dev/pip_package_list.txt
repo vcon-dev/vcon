@@ -12,6 +12,7 @@ python-jose
 python-dateutil
 sox
 uuid6
+sentry-sdk
 
 # whisper dependencies
 ffmpeg-python

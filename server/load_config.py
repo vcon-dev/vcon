@@ -39,9 +39,13 @@ async def load_config():
 
     # Set the chains
     logger.debug("Configuring the chains")
+    chain_names = []
     for chain_name in config['chains']:
         chain = config['chains'][chain_name]
         await r.json().set(f"chain:{chain_name}", "$", chain)
         logger.debug(f"Added chain {chain_name}")
+        chain_names.append(chain_name)
     
     logger.debug("Configuration loaded")
+    return chain_names
+

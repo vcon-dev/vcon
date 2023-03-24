@@ -748,6 +748,40 @@ class Vcon():
 
     self._vcon_dict[Vcon.ANALYSIS].append(analysis_element)
 
+  def add_analysis(self,
+    dialog_index : int,
+    analysis_type: str,
+    body : str = None,
+    vendor : str = "conserver",
+    vendor_schema : str = None,
+    encoding : str= "json"
+    ) -> None:
+    """
+    Add a generic analysis for the indicated dialog.
+
+    Parameters:
+    dialog_index (str): index to the dialog in the vCon dialog list that this trascript corresponds to.
+    vendor (str): string token for the vendor of the audio to text transcription service
+    vendor_schema (str): schema label for the transcription data.  Used to identify data format of the transcription
+                  for vendors that have more than one format or version.
+    """
+
+    self._attempting_modify()
+
+    analysis_element = {}
+    analysis_element["type"] = analysis_type
+    analysis_element["dialog"] = dialog_index
+    analysis_element["body"] = body
+    analysis_element["encoding"] = encoding
+    analysis_element["vendor"] = vendor
+    if(vendor_schema is not None):
+      analysis_element["vendor_schema"] = vendor_schema
+
+    if(self.analysis is None):
+      self._vcon_dict[Vcon.ANALYSIS] = []
+
+    self._vcon_dict[Vcon.ANALYSIS].append(analysis_element)
+
   def dumps(self, signed = True) -> str:
     """
     Dump the vCon as a JSON string.

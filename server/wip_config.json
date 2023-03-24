@@ -6,25 +6,18 @@
         "OPENAI_API_KEY":""
     },
     "links": {
-        "stitcher": {
-            "module": "plugins.stitcher",
+        "tag": {
+            "module": "plugins.tag",
+            "ingress-lists": [],
+            "egress-lists": [],        
             "options": {
+                "tags":["Geddy", "Alex", "The Professor"]
             }
         },
-        "call_log": {
-            "module": "plugins.call_log",
+        "webhook": {
+            "module": "plugins.webhook",
             "options": {
-                "transcribe": true,
-                "min_transcription_length": 10,
-                "deepgram": false
-            }
-        },
-        "deepgram": {
-            "module": "plugins.deepgram",
-            "options": {
-                "transcribe": true,
-                "min_transcription_length": 10,
-                "deepgram": false
+                "webhook-urls": ["https://68e2478521eb.ngrok.app"]
             }
         }
     },
@@ -47,8 +40,8 @@
     },
     "chains": {
         "strolid_ops": {
-            "links": ["stitcher", "call_log"],
-            "ingress": ["bria"],
+            "links": ["tag", "webhook"],
+            "ingress_lists": ["test_list"],
             "storage": ["s3_vcons", "mongo"],
             "outbound_lists": "strolid_ops:complete",
             "enabled": 1

@@ -1,29 +1,27 @@
 import redis.asyncio as redis
-from redis.commands.json.path import Path
 import asyncio
 from lib.logging_utils import init_logger
-import vcon
 from settings import DEEPGRAM_KEY
 from deepgram import Deepgram
-import simplejson as json
 import time
 
+
+from server.lib.vcon_redis import VconRedis
+from lib.logging_utils import init_logger
+vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
-r = redis.Redis(host="localhost", port=6379, db=0)
-
-default_options = {"name": "deepgram", "ingress-topics": [], "egress-topics": []}
-options = {}
-
+default_options = {
+    "minimum_duration": 60,
+}
 
 async def run(
     vcon_uuid,
     opts=default_options,
 ):
-    logger.info("deepgram plugin: processing vCon: {}".format(vcon_uuid))
-    inbound_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
-    vCon = vcon.Vcon()
-    vCon.loads(json.dumps(inbound_vcon))
+    logger.debug("Starting deepgram plugin")
+    vCon = await vcon_redis.get_vcon(vcon_uuid)
+
     for index, dialog in enumerate(vCon.dialog):
         if dialog["type"] != "recording":
             logger.debug(
@@ -31,7 +29,7 @@ async def run(
             )
             continue
 
-        if dialog["duration"] < 60:
+        if dialog["duration"] < opts["minimum_duration"]:
             logger.debug(
                 f"deepgram plugin: skipping short recording dialog {index} in vCon: {vcon_uuid}"
             )
@@ -55,12 +53,16 @@ async def run(
                     "diarize": True,
                 },
             )
+
+            # Now that the transcription is complete, we can get the result
             result = transcription["results"]["channels"][0]["alternatives"][0]
             transcript = result["transcript"]
             words = result["words"]
             topics = []
             for topic in result["topics"]:
                 topics += topic["topics"]
+
+
             vCon.add_analysis_transcript(
                 index, transcript, "deepgram", analysis_type="transcript"
             )
@@ -73,19 +75,55 @@ async def run(
         except Exception as e:
             logger.error("transcription plugin: error: {}".format(e))
 
-    # Remove the NAN
-    try:
-        str_vcon = vCon.dumps()
-        json_vcon = json.loads(str_vcon)
-        str_vcon = json.dumps(json_vcon, ignore_nan=True)
-        json_vcon = json.loads(str_vcon)
-        await r.json().set("vcon:{}".format(vCon.uuid), Path.root_path(), json_vcon)
-        logger.info("deepgram plugin: processed vCon: {}".format(vcon_uuid))
-        return vcon_uuid
-    except Exception as e:
-        logger.error("deepgram plugin: error: {}".format(e))
-        return None
+    await vcon_redis.store_vcon(vCon)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    vCon.add_analysis(0, 'tags', opts['tags'])
+    await vcon_redis.store_vcon(vCon)
+
+    # Return the vcon_uuid down the chain.
+    # If you want the vCon processing to stop (if you are filtering them, for instance)
+    # send None
+    return vcon_uuid
+
+
+
+
+
+
+logger = init_logger(__name__)
+
+r = redis.Redis(host="localhost", port=6379, db=0)
+
+default_options = {"name": "deepgram", "ingress-topics": [], "egress-topics": []}
+options = {}
+
+
+async def run(
+    vcon_uuid,
+    opts=default_options,
+):
+    
 
 async def start(opts=default_options):
     logger.info("Starting the deepgram plugin")

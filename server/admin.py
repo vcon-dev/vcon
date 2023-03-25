@@ -57,7 +57,7 @@ async def create_vcon(name1: str = Form(),
     # If supplied, push the vCon onto the ingress list
     if ingress_list: 
         r = await redis_mgr.get_client()
-        await r.lpush("ingress_list", v.uuid)
+        await r.lpush(ingress_list, v.uuid)
 
     return f"vCon {v.uuid} created"
 

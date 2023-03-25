@@ -15,6 +15,5 @@ server/.DS_Store
 .vscode
 server/.vscode
 dump.rdb
-server/static
 .data
 tmp

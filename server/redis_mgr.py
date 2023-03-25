@@ -58,9 +58,5 @@ def get_client():
     if REDIS_POOL is None:
         logger.info("REDIS_POOL is not initialized")
         create_pool()
-
-    logger.info("Getting Redis connection...")
     r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
-    logger.info("Created Redis connection.")
-
     return r

@@ -6,6 +6,17 @@
         "OPENAI_API_KEY":""
     },
     "links": {
+        "transcribe": {
+            "module":"plugins.transcribe",
+            "ingress-lists": [],
+            "egress-lists": [],  
+            "options": {
+                "transcribe_options": {
+                    "model_size": "base", 
+                    "output_options": ["vendor"]
+                }
+            }
+        },
         "tag": {
             "module": "plugins.tag",
             "ingress-lists": [],
@@ -39,11 +50,11 @@
         }
     },
     "chains": {
-        "strolid_ops": {
-            "links": ["tag", "webhook"],
+        "sample_chain": {
+            "links": ["transcribe", "tag", "webhook"],
             "ingress_lists": ["test_list"],
             "storage": ["s3_vcons", "mongo"],
-            "outbound_lists": "strolid_ops:complete",
+            "egress_lists": ["test_output"],
             "enabled": 1
         }
     }

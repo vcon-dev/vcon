@@ -803,17 +803,17 @@ class Vcon():
       if(self.uuid is None or len(self.uuid) < 1):
         raise InvalidVconState("vCon has no UUID set.  Use set_uuid method.")
 
-      return(json.dumps(self._vcon_dict, **dumps_options))
+      return(json.dumps(self._vcon_dict, default=lambda o: o.__dict__, **dumps_options))
 
     if(self._state in [VconStates.SIGNED, VconStates.UNVERIFIED, VconStates.VERIFIED]):
       if(signed is False and self._state != VconStates.UNVERIFIED):
-        return(json.dumps(self._vcon_dict, **dumps_options))
-      return(json.dumps(self._jws_dict, **dumps_options))
+        return(json.dumps(self._vcon_dict, default=lambda o: o.__dict__, **dumps_options))
+      return(json.dumps(self._jws_dict, default=lambda o: o.__dict__, **dumps_options))
 
     if(self._state in [VconStates.ENCRYPTED, VconStates.DECRYPTED]):
       if(signed is False):
         raise AttributeError("not supported: unsigned JSON output for encrypted vCon")
-      return(json.dumps(self._jwe_dict, **dumps_options))
+      return(json.dumps(self._jwe_dict, default=lambda o: o.__dict__, **dumps_options))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
 

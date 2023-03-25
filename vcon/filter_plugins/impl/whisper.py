@@ -110,8 +110,8 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
               # aggressive allows more variation
               #stabilized_segments = stable_whisper.stabilize_timestamps(transcript["segments"], aggressive=True)
               #transcript["segments"] = stabilized_segments
-              stable_segments = stable_whisper.stabilize_timestamps(transcript, top_focus=True)
-              transcript["stable_segments"] = stable_segments
+              # stable_segments = stable_whisper.stabilize_timestamps(transcript, top_focus=True)
+              # transcript["stable_segments"] = stable_segments
 
               # need to add transcription to dialog.analysis
               if("vendor" in output_types):

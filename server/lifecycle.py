@@ -1,10 +1,12 @@
 import importlib
+import asyncio
 from lib.logging_utils import init_logger
 from fastapi.applications import FastAPI
 from load_config import (
     load_config,
 )
 import redis_mgr
+from settings import TICK_INTERVAL
 
 logger = init_logger(__name__)
 logger.info("Conserver starting up")
@@ -18,10 +20,16 @@ async def startup():
     app.state.chain_names = chain_names
     # We should call "start on the modudles here"
 
-
+    try:
+        while True:
+            await tick()
+            await asyncio.sleep(TICK_INTERVAL)
+    except KeyboardInterrupt:
+        logger.info("Exiting")
 
 @app.get("/tick")
 async def tick():
+    logger.debug("Starting tick")
     r = await redis_mgr.get_client()
     # We should make this more dynamic
 

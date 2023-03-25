@@ -17,6 +17,16 @@
                 }
             }
         },
+        "script": {
+            "module":"plugins.script",
+            "ingress-lists": [],
+            "egress-lists": []
+        },
+        "summary": {
+            "module":"plugins.summary",
+            "ingress-lists": [],
+            "egress-lists": []
+            },
         "tag": {
             "module": "plugins.tag",
             "ingress-lists": [],
@@ -51,7 +61,7 @@
     },
     "chains": {
         "sample_chain": {
-            "links": ["transcribe", "tag", "webhook"],
+            "links": ["transcribe", "script", "summary", "tag", "webhook"],
             "ingress_lists": ["test_list"],
             "storage": ["s3_vcons", "mongo"],
             "egress_lists": ["test_output"],

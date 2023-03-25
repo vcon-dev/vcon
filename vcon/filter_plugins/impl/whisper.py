@@ -72,6 +72,7 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
     #out_vcon = copy.deepcopy(in_vcon)
     out_vcon = in_vcon
     output_types = options.get("output_options", ["vendor", "word_srt", "word_ass"])
+    logger.info("whisper output_types: {}".format(output_types))
 
     for dialog_index, dialog in enumerate(in_vcon.dialog):
       # TODO assuming none of the dialogs have been transcribed

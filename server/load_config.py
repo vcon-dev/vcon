@@ -38,6 +38,11 @@ async def load_config():
         logger.debug(f"Added storage {storage_name}")
 
     # Set the chains
+    logger.debug("Deleting old chains")
+    chain_names = await r.keys("chain*")
+    for chain_name in chain_names:
+        await r.delete(chain_name)
+        
     logger.debug("Configuring the chains")
     chain_names = []
     for chain_name in config['chains']:

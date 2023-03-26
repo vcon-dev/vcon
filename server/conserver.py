@@ -1,10 +1,11 @@
 from fastapi.applications import FastAPI
-import uvicorn
 
 # Load FastAPI app
-app = FastAPI()
-FastAPI.conserver_app = app
+conserver_app = FastAPI()
+FastAPI.conserver_app = conserver_app
 
+# Now load all the modules
 import api  # noqa
 import lifecycle  # noqa
 import admin  # noqa
+import scheduler  # noqa

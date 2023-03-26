@@ -25,3 +25,5 @@ numpy
 torch
 #stable-ts
 
+# Conserver
+rocketry

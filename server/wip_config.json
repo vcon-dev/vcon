@@ -44,18 +44,19 @@
     },
     "storages": {
          "mongo": {
-            "module": "storage:mongo",
+            "module": "storage.mongo",
             "options": {
                 "MONGO_URL": "mongodb://localhost:27017/",
-                "COLLECTION": "vcons"
+                "database": "conserver",
+                "collection": "vcons"
             }
         }
     },
     "chains": {
         "sample_chain": {
-            "links": ["transcribe", "script", "summary", "tag", "webhook"],
+            "links": ["tag"],
             "ingress_lists": ["test_list"],
-            "storage": ["s3_vcons", "mongo"],
+            "storages": ["mongo"],
             "egress_lists": ["test_output"],
             "enabled": 1
         }

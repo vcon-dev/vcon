@@ -1,5 +1,6 @@
 import pymongo
 import redis.asyncio as redis
+import json
 from lib.logging_utils import init_logger
 from settings import MONGODB_URL
 from datetime import datetime
@@ -12,11 +13,12 @@ logger = init_logger(__name__)
 default_options = {"name": "mongo", "database":"conserver", "collection_name":"vcons"}
 
 def prepare_vcon_for_mongo(vcon: dict) -> dict:
-    vcon["_id"] = vcon["uuid"]
-    vcon["created_at"] = datetime.fromisoformat(vcon["created_at"])
-    for dialog in vcon["dialog"]:
-        dialog["start"] = datetime.fromisoformat(dialog["start"])
-    return vcon
+    clean_vcon = json.loads(vcon.dumps())
+    clean_vcon['_id'] = vcon.uuid
+    clean_vcon['created_at'] = datetime.fromisoformat(clean_vcon['created_at'])
+    for dialog in clean_vcon['dialog']:
+        dialog['start'] = datetime.fromisoformat(dialog['start'])
+    return clean_vcon
 
 
 async def save(
@@ -28,7 +30,7 @@ async def save(
     try:
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         db = client[opts['database']]
-        collection = db[opts['collection_name']]
+        collection = db[opts['collection']]
         results = collection.insert_one(
             prepare_vcon_for_mongo(vcon)
         )

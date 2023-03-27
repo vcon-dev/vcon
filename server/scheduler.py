@@ -60,6 +60,16 @@ async def tick():
                     # If it is, then we need to put it in the outbound queue
                     for egress_list in chain_details['egress_lists']:
                         await r.lpush(egress_list, inbound_vcon)
+
+                    for storage_name in chain_details.get("storages", []):
+                        try:
+                            storage = await r.json().get(f"storage:{storage_name}")
+                            module_name = storage['module']
+                            module = importlib.import_module(module_name)
+                            options = storage.get('options', module.default_options)
+                            result = await module.save(inbound_vcon, options)
+                        except Exception as e:
+                            logger.error("Error saving vCon %s to storage %s: %s", inbound_vcon, storage, e)
     
     logger.debug("Finished processing chain %s", chain_name)
 

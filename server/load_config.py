@@ -25,15 +25,15 @@ async def load_config():
 
     # Set the links
     logger.debug("Configuring the links")
-    for link_name in config['links']:
+    for link_name in config.get("links",[]):
         link = config['links'][link_name]
         await r.json().set(f"link:{link_name}", "$", link)
         logger.debug(f"Added link {link_name}")
 
     # Set the storage destinations
     logger.debug("Configuring the storage destinations")
-    for storage_name in config['storage']:
-        storage = config['storage'][storage_name]
+    for storage_name in config.get("storages", []):
+        storage = config['storages'][storage_name]
         await r.json().set(f"storage:{storage_name}", "$", storage)
         logger.debug(f"Added storage {storage_name}")
 
@@ -45,7 +45,7 @@ async def load_config():
         
     logger.debug("Configuring the chains")
     chain_names = []
-    for chain_name in config['chains']:
+    for chain_name in config.get('chains', []):
         chain = config['chains'][chain_name]
         await r.json().set(f"chain:{chain_name}", "$", chain)
         logger.debug(f"Added chain {chain_name}")

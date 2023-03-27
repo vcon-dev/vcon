@@ -7,7 +7,7 @@
     },
     "links": {
         "transcribe": {
-            "module":"plugins.transcribe",
+            "module":"links.transcribe",
             "ingress-lists": [],
             "egress-lists": [],  
             "options": {
@@ -18,17 +18,17 @@
             }
         },
         "script": {
-            "module":"plugins.script",
+            "module":"links.script",
             "ingress-lists": [],
             "egress-lists": []
         },
         "summary": {
-            "module":"plugins.summary",
+            "module":"links.summary",
             "ingress-lists": [],
             "egress-lists": []
             },
         "tag": {
-            "module": "plugins.tag",
+            "module": "links.tag",
             "ingress-lists": [],
             "egress-lists": [],        
             "options": {
@@ -36,26 +36,18 @@
             }
         },
         "webhook": {
-            "module": "plugins.webhook",
+            "module": "links.webhook",
             "options": {
-                "webhook-urls": ["https://68e2478521eb.ngrok.app"]
+                "webhook-urls": ["notreal.com"]
             }
         }
     },
-    "storage": {
-        "s3_vcons": {
-            "module": "storage:s3",
-            "options": {
-                "bucket_name": "vons",
-                "AWS_KEY": "AWS_KEY"
-            }
-        },
-        "mongo": {
+    "storages": {
+         "mongo": {
             "module": "storage:mongo",
             "options": {
-                "MONGO_URL": "xxxxxxxxxxxxx",
-                "DB_NAME": "yyyyyyyyy",
-                "COLLECTION": "zzzzzzzzzz"
+                "MONGO_URL": "mongodb://localhost:27017/",
+                "COLLECTION": "vcons"
             }
         }
     },

@@ -24,7 +24,8 @@ async def main():
     logger.info("Conserver binding to host: {} port: {}".format(host_ip, port_num))
 
     server = Server(config=uvicorn.Config(
-        conserver_app, 
+        app=conserver_app, 
+        log_level="trace",
         workers=1, 
         loop="asyncio",
         host=host_ip, 

@@ -19,6 +19,7 @@ more-itertools
 tqdm
 transformers
 whisper
+python-multipart
 
 # stable-ds dependencies:
 numpy
@@ -27,3 +28,10 @@ torch
 
 # Conserver
 rocketry
+uvicorn
+python-jsonl-logger
+fastapi
+fastapi_pagenation
+redis
+pyjq
+

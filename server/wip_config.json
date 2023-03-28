@@ -50,13 +50,23 @@
                 "database": "conserver",
                 "collection": "vcons"
             }
+        },
+        "postgres": {
+            "module": "storage.postgres",
+            "options": {
+                "user": "thomashowe",
+                "password": "postgres",
+                "host": "localhost",
+                "port": "5432",
+                "database": "postgres"
+            }
         }
     },
     "chains": {
         "sample_chain": {
-            "links": ["tag"],
+            "links": ["transcribe", "script", "summary", "tag"],
             "ingress_lists": ["test_list"],
-            "storages": ["mongo"],
+            "storages": ["mongo", "postgres"],
             "egress_lists": ["test_output"],
             "enabled": 1
         }

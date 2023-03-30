@@ -1,12 +1,9 @@
-import pymongo
 import redis.asyncio as redis
-import json
 import os
 import paramiko
 
 
 from lib.logging_utils import init_logger
-from settings import MONGODB_URL
 from datetime import datetime
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
@@ -54,4 +51,3 @@ async def save(
     finally:
         sftp.close()
         transport.close()
-        

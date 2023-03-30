@@ -15,6 +15,7 @@ from redis.commands.json.path import Path
 import typing
 import enum
 import pyjq
+from typing import List
 
 import redis_mgr
 
@@ -465,6 +466,48 @@ async def delete_storage(storage_name: str, status_code=204):
     try:
         r = redis_mgr.get_client()
         await r.delete(f"storage:{str(storage_name)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to push vcon IDs to one or more redis lists
+@app.post("/vcon/ingress")
+async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        for vcon_uuid in vcon_uuids:
+            await r.lpush(ingress_list, vcon_uuid)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to pop vcon IDs from one or more redis lists
+@app.get("/vcon/egress")
+async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
+    try:
+        r = redis_mgr.get_client()
+        vcon_uuids = []
+        for i in range(limit):
+            vcon_uuid = await r.rpop(egress_list)
+            if vcon_uuid:
+                vcon_uuids.append(vcon_uuid)
+        return JSONResponse(content=vcon_uuids)
+
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to count the number of vCon UUIds in a redis list
+@app.get("/vcon/count")
+async def get_vcon_count(egress_list: str, status_code=200):
+    try:
+        r = redis_mgr.get_client()
+        count = await r.llen(egress_list)
+        return JSONResponse(content=count)
+
     except Exception as e:
         logger.info("Error: {}".format(e))
         status_code = 500

@@ -31,8 +31,11 @@ async def save(
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         db = client[opts['database']]
         collection = db[opts['collection']]
-        results = collection.insert_one(
-            prepare_vcon_for_mongo(vcon)
+        # upsert this vCon
+        results = collection.update_one(
+            {"_id": vcon_uuid},
+            {"$set": prepare_vcon_for_mongo(vcon)},
+            upsert=True
         )
         logger.info(f"mongo storage plugin: inserted vCon: {vcon_uuid}, results: {results} ")
     except Exception as e:

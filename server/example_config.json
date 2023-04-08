@@ -70,5 +70,10 @@
             "egress_lists": ["test_output"],
             "enabled": 1
         }
+    },
+    "adapters": {
+        "example": {
+            "module": "adapters.example"
+        }
     }
 }

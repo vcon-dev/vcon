@@ -17,6 +17,8 @@ The Vcon library consists of two primary components:
 
 ## Presentations, Whitepapers and Tutorials
 
+See the [Birds of a Feather session at IETF 116, Yokohama](https://youtu.be/EF2OMbo6Qj4)
+
 See the [presentation at TADSummit](https://youtu.be/ZBRJ6FcVblc)
 
 See the [presentation at IETF](https://youtu.be/dJsPzZITr_g?t=243)

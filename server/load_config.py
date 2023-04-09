@@ -41,7 +41,7 @@ async def load_config():
     logger.debug("Configuring the storage destinations")
     for storage_name in config.get("storages", []):
         storage = config['storages'][storage_name]
-        await set_key(f"storage:{storage_name}", "$", storage)
+        await set_key(f"storage:{storage_name}", storage)
         logger.debug(f"Added storage {storage_name}")
 
     # Set the chains

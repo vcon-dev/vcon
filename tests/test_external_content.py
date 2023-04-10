@@ -87,6 +87,11 @@ def test_get_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
 
   assert(dialog_index == 0)
 
+  dialog_object = two_party_tel_vcon.dialog[0]
+  assert(dialog_object.get("originator", None) is None)
+  assert(dialog_object.get("duration", None) == 0)
+  assert(dialog_object.get("url", None) == url)
+
   body_bytes = two_party_tel_vcon.get_dialog_external_recording(dialog_index)
   assert(len(file_content) == len(body_bytes))
   assert(file_content == body_bytes)

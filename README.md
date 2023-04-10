@@ -38,6 +38,13 @@ These can be run using the following command in the current directory:
     pytest -v -rP tests
 
 
+Please also run separately the following unit test as it will check for spurious stdout from the Vcon package that will likely cause the CLI to break:
+
+    pytest -v -rP tests/test_vcon_cli.py
+
+Note: These errors may not show up when you run test_vcon_cli.py with the rest of the unit tests as some stdout may only occur when the Vcon package is first imported and may not get trapped/detected by other unit tests.
+
+
 ## Testing the conserver
 A suite of pytest unit tests exist for the conserver in: [server/tests](server/tests)
 

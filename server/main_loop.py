@@ -1,13 +1,10 @@
 import importlib
-import asyncio
 from lib.logging_utils import init_logger
 from fastapi.applications import FastAPI
 import redis_mgr
+from redis_mgr import set_key, get_key
 from settings import TICK_INTERVAL
 from rocketry import Rocketry
-from rocketry.args import TerminationFlag
-from rocketry.exc import TaskTerminationException
-import time
 
 logger = init_logger(__name__)
 
@@ -19,15 +16,20 @@ if TICK_INTERVAL > 0:
         await tick()        
 
 app = FastAPI.conserver_app
+app.scheduler = scheduler_app
+
 # We decorate this with the TICK path so that we can use external tools to trigger the tick
 @app.get("/tick")
 async def tick():
     logger.debug("Starting tick")
     r = await redis_mgr.get_client()
-    # We should make this more dynamic
 
     # Get list of chains from redis
-    chain_names = await r.keys("chain*")
+    # These chains are setup as redis keys in the load_config module.
+    # One downside here is that although the operation of the conserver
+    # is dynamic (they are read every time through the loop) the
+    # loop itself is more fragile than it needs to be.
+    chain_names = await r.keys("chain:*")
     for chain_name in chain_names:
         chain_name = chain_name.decode('utf-8')
 
@@ -43,7 +45,7 @@ async def tick():
             # If there is a vCon to process, process it
             for link_name in chain_details['links']:
                 logger.debug("Processing link %s", link_name)
-                link = await r.json().get(f"link:{link_name}")
+                link = await get_key(f"link:{link_name}")
                 module_name = link['module']
 
                 module = importlib.import_module(module_name)
@@ -52,7 +54,7 @@ async def tick():
                 result = await module.run(inbound_vcon, options)
                 if not result:
                     # This means that the module does not want to forward the vCon
-                    logger.debug("Module %s did not want to forward the vCon", module_name)
+                    logger.debug("Module %s did not want to forward the vCon, no result returned. Ending chain", module_name)
                     continue
                 
                 # If the module wants to forward the vCon, check if it is the last link in the chain
@@ -60,6 +62,16 @@ async def tick():
                     # If it is, then we need to put it in the outbound queue
                     for egress_list in chain_details['egress_lists']:
                         await r.lpush(egress_list, inbound_vcon)
+
+                    for storage_name in chain_details.get("storages", []):
+                        try:
+                            storage = await get_key(f"storage:{storage_name}")
+                            module_name = storage['module']
+                            module = importlib.import_module(module_name)
+                            options = storage.get('options', module.default_options)
+                            result = await module.save(inbound_vcon, options)
+                        except Exception as e:
+                            logger.error("Error saving vCon %s to storage %s: %s", inbound_vcon, storage, e)
     
     logger.debug("Finished processing chain %s", chain_name)
 

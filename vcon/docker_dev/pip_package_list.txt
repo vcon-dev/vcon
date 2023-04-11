@@ -6,12 +6,13 @@ pytest
 pytest-asyncio
 
 # runtime dependencies:
-cryptography
+cryptography >= 37
 hsslms
 python-jose
 python-dateutil
 sox
 uuid6
+sentry-sdk
 
 # whisper dependencies
 ffmpeg-python

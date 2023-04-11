@@ -7,7 +7,7 @@
     },
     "links": {
         "transcribe": {
-            "module":"plugins.transcribe",
+            "module":"links.transcribe",
             "ingress-lists": [],
             "egress-lists": [],  
             "options": {
@@ -18,17 +18,17 @@
             }
         },
         "script": {
-            "module":"plugins.script",
+            "module":"links.script",
             "ingress-lists": [],
             "egress-lists": []
         },
         "summary": {
-            "module":"plugins.summary",
+            "module":"links.summary",
             "ingress-lists": [],
             "egress-lists": []
             },
         "tag": {
-            "module": "plugins.tag",
+            "module": "links.tag",
             "ingress-lists": [],
             "egress-lists": [],        
             "options": {
@@ -36,36 +36,44 @@
             }
         },
         "webhook": {
-            "module": "plugins.webhook",
+            "module": "links.webhook",
             "options": {
-                "webhook-urls": ["https://68e2478521eb.ngrok.app"]
+                "webhook-urls": ["notreal.com"]
             }
         }
     },
-    "storage": {
-        "s3_vcons": {
-            "module": "storage:s3",
+    "storages": {
+         "mongo": {
+            "module": "storage.mongo",
             "options": {
-                "bucket_name": "vons",
-                "AWS_KEY": "AWS_KEY"
+                "MONGO_URL": "mongodb://localhost:27017/",
+                "database": "conserver",
+                "collection": "vcons"
             }
         },
-        "mongo": {
-            "module": "storage:mongo",
+        "postgres": {
+            "module": "storage.postgres",
             "options": {
-                "MONGO_URL": "xxxxxxxxxxxxx",
-                "DB_NAME": "yyyyyyyyy",
-                "COLLECTION": "zzzzzzzzzz"
+                "user": "thomashowe",
+                "password": "postgres",
+                "host": "localhost",
+                "port": "5432",
+                "database": "postgres"
             }
         }
     },
     "chains": {
         "sample_chain": {
-            "links": ["transcribe", "script", "summary", "tag", "webhook"],
+            "links": ["transcribe", "script", "summary", "tag"],
             "ingress_lists": ["test_list"],
-            "storage": ["s3_vcons", "mongo"],
+            "storages": ["mongo", "postgres"],
             "egress_lists": ["test_output"],
             "enabled": 1
+        }
+    },
+    "adapters": {
+        "example": {
+            "module": "adapters.example"
         }
     }
 }

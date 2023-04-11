@@ -12,6 +12,10 @@ from lib.logging_utils import init_logger
 import redis.asyncio.connection
 import redis.asyncio.client
 from settings import REDIS_URL
+import pytest_asyncio
+import pytest
+import uuid
+
 
 
 logger = init_logger(__name__)
@@ -60,3 +64,18 @@ def get_client():
         create_pool()
     r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
     return r
+
+async def set_key(key, value):
+    r = get_client()
+    result = await r.json().set(key, "$", value)
+    return result
+
+async def get_key(key):
+    r = get_client()
+    result = await r.json().get(key)
+    return result
+
+async def delete_key(key):
+    r = get_client()
+    result = await r.delete(key)
+    return result

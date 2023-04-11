@@ -1,59 +1,44 @@
-import asyncio
-
 import pymongo
 import redis.asyncio as redis
+import json
 from lib.logging_utils import init_logger
-from redis.commands.json.path import Path
-from settings import MONGODB_URL, REDIS_URL
+from settings import MONGODB_URL
 from datetime import datetime
-
+from server.lib.vcon_redis import VconRedis
+from lib.logging_utils import init_logger
+vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
-m = pymongo.MongoClient(MONGODB_URL)
 
-default_options = {"name": "mongo", "ingress-topics": [], "egress-topics": []}
-options = {}
-
+default_options = {"name": "mongo", "database":"conserver", "collection_name":"vcons"}
 
 def prepare_vcon_for_mongo(vcon: dict) -> dict:
-    vcon["_id"] = vcon["uuid"]
-    vcon["created_at"] = datetime.fromisoformat(vcon["created_at"])
-    for dialog in vcon["dialog"]:
-        dialog["start"] = datetime.fromisoformat(dialog["start"])
-    return vcon
+    clean_vcon = json.loads(vcon.dumps())
+    clean_vcon['_id'] = vcon.uuid
+    clean_vcon['created_at'] = datetime.fromisoformat(clean_vcon['created_at'])
+    for dialog in clean_vcon['dialog']:
+        dialog['start'] = datetime.fromisoformat(dialog['start'])
+    return clean_vcon
 
 
-async def start(opts=default_options):
-    logger.info("Starting the mongo plugin")
+async def save(
+    vcon_uuid,
+    opts=default_options,
+):
+    logger.info("Starting the mongo storage")
+    client = pymongo.MongoClient(MONGODB_URL)
     try:
-        r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-        p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts["ingress-topics"])
-
-        while True:
-            try:
-                message = await p.get_message()
-                if message:
-                    vcon_uuid = message["data"]
-                    logger.info(
-                        "mongo storage plugin: received vCon: {}".format(vcon_uuid)
-                    )
-                    inbound_vcon = await r.json().get(
-                        f"vcon:{str(vcon_uuid)}", Path.root_path()
-                    )
-                    results = m.conserver.vcons.insert_one(
-                        prepare_vcon_for_mongo(inbound_vcon)
-                    )
-
-                    logger.info(
-                        f"mongo storage plugin: inserted vCon: {vcon_uuid}, results: {results} "
-                    )
-                    for topic in opts["egress-topics"]:
-                        await r.publish(topic, vcon_uuid)
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                logger.error("mongo storage: error: {}".format(e))
-    except asyncio.CancelledError:
-        logger.debug("mongo storage Cancelled")
-
-    logger.info("mongo storage stopped")
+        vcon = await vcon_redis.get_vcon(vcon_uuid)
+        db = client[opts['database']]
+        collection = db[opts['collection']]
+        # upsert this vCon
+        results = collection.update_one(
+            {"_id": vcon_uuid},
+            {"$set": prepare_vcon_for_mongo(vcon)},
+            upsert=True
+        )
+        logger.info(f"mongo storage plugin: inserted vCon: {vcon_uuid}, results: {results} ")
+    except Exception as e:
+        logger.error(f"mongo storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")
+        raise e
+    

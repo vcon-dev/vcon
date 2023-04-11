@@ -8,4 +8,4 @@ FastAPI.conserver_app = conserver_app
 import api  # noqa
 import lifecycle  # noqa
 import admin  # noqa
-import scheduler  # noqa
+import main_loop  # noqa

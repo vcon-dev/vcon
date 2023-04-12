@@ -1,12 +1,12 @@
 import asyncio
 import async_timeout
-import redis.asyncio as redis
 import json
 from lib.logging_utils import init_logger
 import vcon
 import datetime
 from settings import REDIS_URL
 from redis.commands.json.path import Path
+import server.redis_mgr
 
 
 logger = init_logger(__name__)
@@ -24,7 +24,7 @@ async def start(opts=default_options):
     logger.info("Starting the quiq adapter")
 
     # Setup redis
-    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    r = server.redis_mgr.get_client()
     while True:
         try:
             async with async_timeout.timeout(10):
@@ -89,3 +89,4 @@ async def start(opts=default_options):
             logger.debug("quiq adapter error: {}".format(e))
 
     logger.info("Quiq adapter stopped")
+

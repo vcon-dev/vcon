@@ -4,10 +4,10 @@ import json
 import urllib
 
 import async_timeout
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
-from settings import ENV, HOSTNAME, REDIS_URL
+import server.redis_mgr
+from settings import ENV, HOSTNAME
 
 import vcon
 
@@ -131,7 +131,7 @@ default_options = {
 async def start(opts=default_options):
     logger.info("Starting the volie adapter")
     # Setup redis
-    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    r = server.redis_mgr.get_client()
     while True:
         try:
             async with async_timeout.timeout(10):

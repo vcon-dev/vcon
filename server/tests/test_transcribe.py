@@ -5,7 +5,6 @@ import asyncio
 
 import vcon
 import conserver
-import lifecycle_helpers
 import redis_mgr
 import conserver_test
 
@@ -23,8 +22,6 @@ def delete_test_vcon():
 def setup_teardown():
     # Before test
     redis_mgr.create_pool()
-    lifecycle_helpers.task_monitor.show_running_tasks()
-    lifecycle_helpers.task_monitor.schedule()
 
     dialog_count = 0
     # get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
@@ -64,8 +61,6 @@ def setup_teardown():
     # else:
     #  dialog_count = 0
     redis_mgr.shutdown_pool()
-    lifecycle_helpers.task_monitor.stop()
-    lifecycle_helpers.task_monitor.show_running_tasks()
     print("done dialogs: {} (should be 0)".format(dialog_count))
     # delete_test_vcon()
 
@@ -83,7 +78,7 @@ class TestTranscribe:
         loop.set_debug(True)
         # assert(loop.is_running())
         assert not loop.is_closed()
-        with fastapi.testclient.TestClient(conserver.app) as client:
+        with fastapi.testclient.TestClient(conserver.conserver_app) as client:
             print("{} client type: {}".format(__name__, type(client)))
             get_response = client.get(
                 "/vcon/{}".format(conserver_test.UUID),
@@ -124,7 +119,7 @@ class TestTranscribe:
             loop.set_debug(True)
             assert not loop.is_running()
             # assert(loop.is_closed())
-            with fastapi.testclient.TestClient(conserver.app) as client:
+            with fastapi.testclient.TestClient(conserver.conserver_app) as client:
                 assert not loop.is_closed()
                 logger.info("starting test_21_get_dialog_vcon")
                 get_response = client.get(
@@ -164,7 +159,7 @@ class TestTranscribe:
     def test_3_transcribe_whisper(self):
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
-        with fastapi.testclient.TestClient(conserver.app) as client:
+        with fastapi.testclient.TestClient(conserver.conserver_app) as client:
             query_parameters = {"plugin": "plugins.transcribe"}
             transcribe_response = client.patch(
                 "/vcon/{}".format(conserver_test.UUID), params=query_parameters
@@ -184,7 +179,7 @@ class TestTranscribe:
     def test_4_transcribe_whisper(self):
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
-        with fastapi.testclient.TestClient(conserver.app) as client:
+        with fastapi.testclient.TestClient(conserver.conserver_app) as client:
             query_parameters = {"plugin": "plugins.transcribe"}
             transcribe_response = client.patch(
                 "/vcon/{}".format(conserver_test.UUID), params=query_parameters

@@ -1,4 +1,3 @@
-import redis.asyncio as redis
 import vcon
 from redis.commands.json.path import Path
 import asyncio
@@ -7,10 +6,9 @@ from settings import SLACK_TOKEN
 import simplejson as json
 import copy
 from slack_sdk import WebClient
+import server.redis_mgr
 
 logger = init_logger(__name__)
-
-r = redis.Redis(host="localhost", port=6379, db=0)
 
 default_options = {
     "name": "slack",
@@ -73,6 +71,7 @@ async def run(
 ):
     global header_block, divider_block, context_block, keywords_block, summary_block, actions_block, action_element
 
+    r = server.redis_mgr.get_client()
     inbound_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
     vCon = vcon.Vcon()
     vCon.loads(json.dumps(inbound_vcon))
@@ -162,6 +161,9 @@ async def run(
 async def start(opts=default_options):
     logger.info("Starting the slack plugin")
     try:
+        # Don't create redis clients in global context as they get started on async
+        # event loop which may go away.
+        r = server.redis_mgr.get_client()
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts["ingress-topics"])
 
@@ -181,3 +183,4 @@ async def start(opts=default_options):
         logger.debug("slack Cancelled")
 
     logger.info("slack stopped")
+

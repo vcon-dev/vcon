@@ -1,10 +1,8 @@
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from server.lib.vcon_redis import VconRedis
 from playhouse.postgres_ext import PostgresqlExtDatabase
 from playhouse.postgres_ext import *
 
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 default_options = {"name": "postgres"}
 
@@ -14,6 +12,9 @@ async def save(
 ):
     logger.info("Starting the postgres storage")
     try:
+        # cannot have redis clients in the global context as they get
+        # created on an async event loop which may go away.
+        vcon_redis = VconRedis()
         vcon = await vcon_redis.get_vcon(vcon_uuid)
 
         # Connect to Postgres

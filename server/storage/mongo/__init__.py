@@ -1,12 +1,10 @@
 import pymongo
-import redis.asyncio as redis
 import json
 from lib.logging_utils import init_logger
 from settings import MONGODB_URL
 from datetime import datetime
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 
@@ -28,6 +26,9 @@ async def save(
     logger.info("Starting the mongo storage")
     client = pymongo.MongoClient(MONGODB_URL)
     try:
+        # Cannot create redis client in global context as it may get wait on async 
+        # event loop which may go away.
+        vcon_redis = VconRedis()
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         db = client[opts['database']]
         collection = db[opts['collection']]
@@ -41,4 +42,4 @@ async def save(
     except Exception as e:
         logger.error(f"mongo storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")
         raise e
-    
+

@@ -1,11 +1,8 @@
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
 import boto3
 from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
-vcon_redis = VconRedis()
-logger = init_logger(__name__)
 
 logger = init_logger(__name__)
 
@@ -25,6 +22,9 @@ async def save(
 ):
     logger.info("Starting the S3 storage")
     try:
+        # Cannot create redis client in global context as it can get blocked on async
+        # event loop which may go away.
+        vcon_redis = VconRedis()
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         s3 = boto3.client(
             "s3",
@@ -40,4 +40,4 @@ async def save(
     except Exception as e:
         logger.error(f"s3 storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")
         raise e
-    
+

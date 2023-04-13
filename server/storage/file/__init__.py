@@ -1,9 +1,7 @@
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
 import datetime
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 default_options = {
@@ -19,6 +17,9 @@ async def save(
 ):
     logger.info("Saving vCon to file storage")
     try:
+        # Cannot have redis clients in the global context as they do not get shutdown
+        # correctly.  They get created on an async event loop that may go away.
+        vcon_redis = VconRedis()
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         if opts['add_timestamp_to_filename']:
             filename = f"{opts['filename']}-{datetime.now().isoformat()}.{opts['extension']}"

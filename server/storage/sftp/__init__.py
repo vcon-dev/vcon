@@ -1,4 +1,3 @@
-import redis.asyncio as redis
 import os
 import paramiko
 
@@ -7,7 +6,6 @@ from lib.logging_utils import init_logger
 from datetime import datetime
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 
@@ -38,6 +36,9 @@ async def save(
     sftp = SFTPClient.from_transport(transport)
     # Upload the vCon to the SFTP site
     try:
+        # Cannot create redis clients in global context as they get started on an
+        # async event loop which may go away.
+        vcon_redis = VconRedis()
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         filename = opts['filename']
         if opts['add_timestamp_to_filename']:
@@ -51,3 +52,4 @@ async def save(
     finally:
         sftp.close()
         transport.close()
+

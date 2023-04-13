@@ -10,7 +10,6 @@ import vcon
 import json
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
-vcon_redis = VconRedis()
 
 logger = init_logger(__name__)
 logger.info("admin portal")
@@ -51,7 +50,9 @@ async def create_vcon(name1: str = Form(),
                                   mime_type=vcon.Vcon.MIMETYPE_AUDIO_WAV, 
                                   file_name=filename.filename)
 
-
+    # Cannot have redis clients in the global context as we get problems with redis
+    # clients waiting in async loops that have gone away after a shutdown or reset.
+    vcon_redis = VconRedis()
     await vcon_redis.store_vcon(v)
 
     # If supplied, push the vCon onto the ingress list

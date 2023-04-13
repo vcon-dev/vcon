@@ -1,11 +1,10 @@
 import asyncio
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
-from settings import REDIS_URL
 import copy
 import traceback
 from lib.sentry import init_sentry
 from datetime import timedelta
+import server.redis_mgr
 
 init_sentry()
 
@@ -25,7 +24,7 @@ async def start(opts=None):
     logger.info("Starting the expire_vcon plugin")
     while True:
         try:
-            r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+            r = server.redis_mgr.get_client()
             p = r.pubsub(ignore_subscribe_messages=True)
             await p.subscribe(*opts["ingress-topics"])
             async for message in p.listen():
@@ -42,3 +41,4 @@ async def start(opts=None):
             logger.error("expire_vcon plugin: error: \n%s", traceback.format_exc())
             logger.error("Shoot!")
     logger.info("expire_vcon stopped")
+

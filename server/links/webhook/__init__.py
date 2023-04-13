@@ -1,6 +1,5 @@
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 import aiohttp
 
@@ -13,6 +12,9 @@ async def run(
     opts=default_options,
 ):
     logger.debug("Starting transcribe::run")
+    # Cannot create redis client in global context as it will get created on async
+    # event loop which may go away.
+    vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
 
     # The webhook needs a stringified JSON version. 

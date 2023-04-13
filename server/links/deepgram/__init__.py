@@ -1,4 +1,3 @@
-import redis.asyncio as redis
 import asyncio
 from lib.logging_utils import init_logger
 from settings import DEEPGRAM_KEY
@@ -7,8 +6,8 @@ import time
 
 
 from server.lib.vcon_redis import VconRedis
+import server.redis_mgr
 from lib.logging_utils import init_logger
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 default_options = {
@@ -20,6 +19,9 @@ async def run(
     opts=default_options,
 ):
     logger.debug("Starting deepgram plugin")
+    # Cannot create reids client in global context as redis clients get started on async
+    # event loop which may go away.
+    vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
 
     for index, dialog in enumerate(vCon.dialog):
@@ -77,27 +79,6 @@ async def run(
 
     await vcon_redis.store_vcon(vCon)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     vCon.add_analysis(0, 'tags', opts['tags'])
     await vcon_redis.store_vcon(vCon)
 
@@ -106,28 +87,14 @@ async def run(
     # send None
     return vcon_uuid
 
-
-
-
-
-
-logger = init_logger(__name__)
-
-r = redis.Redis(host="localhost", port=6379, db=0)
-
+#TODO FIX THIS: Second definition of default_options.
 default_options = {"name": "deepgram", "ingress-topics": [], "egress-topics": []}
 options = {}
-
-
-async def run(
-    vcon_uuid,
-    opts=default_options,
-):
-    
 
 async def start(opts=default_options):
     logger.info("Starting the deepgram plugin")
     try:
+        r = server.redis_mgr.get_client()
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts["ingress-topics"])
 
@@ -164,3 +131,4 @@ async def start(opts=default_options):
         logger.debug("deepgram Cancelled")
 
     logger.info("deepgram stopped")
+

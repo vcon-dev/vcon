@@ -3,7 +3,6 @@ from lib.logging_utils import init_logger
 import os
 import openai
 
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 default_options = {
@@ -15,6 +14,9 @@ async def run(
     opts=default_options,
 ):
     logger.debug("Starting anonymous")
+    # Cannot create redis client in global context as it will wait on async
+    # event loop which may go away.
+    vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
 
     # Find the transcript, if it exists.

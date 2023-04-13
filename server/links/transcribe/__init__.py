@@ -4,7 +4,6 @@ from server.lib.vcon_redis import VconRedis
 from stable_whisper import load_model
 
 
-vcon_redis = VconRedis()
 logger = init_logger(__name__)
 
 default_options = {
@@ -20,6 +19,9 @@ async def run(
     opts=default_options,
 ):
     logger.debug("Starting transcribe::run")
+    # Cannot create the redis client in the global context as it will wait on async
+    # event loop which may go away.
+    vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
     original_analysis_count = len(vCon.analysis)
     annotated_vcon = vCon.transcribe(**opts["transcribe_options"])

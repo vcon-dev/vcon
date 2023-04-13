@@ -1,11 +1,11 @@
 import asyncio
 
 import dataprofiler as dp
-import redis.asyncio as redis
 from dataprofiler import Profiler
 from dataprofiler.data_readers.text_data import TextData
 from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
+import server.redis_mgr
 
 import vcon
 
@@ -33,7 +33,7 @@ async def start(opts=default_options):
     logger.info("Starting the redaction plugin")
 
     try:
-        r = redis.Redis(host="localhost", port=6379, db=0)
+        r = server.redis_mgr.get_client()
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts["ingress-topics"])
 
@@ -95,3 +95,4 @@ async def start(opts=default_options):
         logger.debug("transcription Cancelled")
 
     logger.info("transcription stopped")
+

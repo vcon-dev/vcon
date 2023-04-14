@@ -20,8 +20,6 @@ class VconRedis:
             self._redis_client = redis_client
         else:
             # Use the redis manager?
-            if redis_mgr.REDIS_POOL is None:
-                redis_mgr.create_pool()
             self._redis_client = redis_mgr.get_client()
 
     

@@ -42,27 +42,38 @@ def create_pool():
             )
         )
 
-    logger.debug(dir(REDIS_POOL))
+    #logger.debug(dir(REDIS_POOL))
 
 
 async def shutdown_pool():
     global REDIS_POOL
     if REDIS_POOL is not None:
         logger.info("disconnecting Redis pool")
+        log_pool_stats()
         tmp_pool = REDIS_POOL
         REDIS_POOL = None
         await tmp_pool.disconnect(inuse_connections=True)
+        logger.info("Redis pool shutdown")
 
     else:
         logger.info("Redis pool already disconnected")
 
 
+def log_pool_stats():
+  if(REDIS_POOL):
+    logger.info("redis pool max: {} in use: {}  available: {}".format(REDIS_POOL.max_connections, len(REDIS_POOL._in_use_connections), len(REDIS_POOL._available_connections)))
+  else:
+    logger.info("no active redis pool")
+
 def get_client():
+    logger.debug("entering get_client")
     global REDIS_POOL
     if REDIS_POOL is None:
         logger.info("REDIS_POOL is not initialized")
-        create_pool()
+        raise Exception("redis pool not initialize")
+        #create_pool()
     r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
+    logger.debug("client type: {}".format(type(r)))
     return r
 
 async def set_key(key, value):
@@ -79,3 +90,4 @@ async def delete_key(key):
     r = get_client()
     result = await r.delete(key)
     return result
+

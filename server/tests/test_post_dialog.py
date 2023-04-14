@@ -14,7 +14,7 @@ logger = init_logger(__name__)
 
 
 # @pytest.mark.incremental
-@pytest.mark.dependency
+@pytest.mark.dependency(scope="session")
 # @pytest.mark.dependency(depends=["TestTranscribe::test_2_get_dialog_vcon"])
 def test_1_post_dialog_vcon():
     logger.debug("Starting test_1_post_dialog_vcon")

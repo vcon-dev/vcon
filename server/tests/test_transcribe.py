@@ -16,12 +16,10 @@ def delete_test_vcon():
     # print("delete response: {}".format(delete_response.status_code))
     pass
 
-
 # Run before each test function
 @pytest.fixture(autouse=True)
 def setup_teardown():
     # Before test
-    redis_mgr.create_pool()
 
     dialog_count = 0
     # get_response = client.get("/vcon/{}".format(conserver_test.UUID), headers={ "accept" : "application/json"})
@@ -60,7 +58,6 @@ def setup_teardown():
     #  assert(get_json_object["dialog"][0]["url"] == TestTranscribe.url)
     # else:
     #  dialog_count = 0
-    redis_mgr.shutdown_pool()
     print("done dialogs: {} (should be 0)".format(dialog_count))
     # delete_test_vcon()
 
@@ -110,8 +107,7 @@ class TestTranscribe:
             # assert(not loop.is_closed())
 
     # @pytest.mark.incremental
-    @pytest.mark.dependency
-    # @pytest.mark.dependency(depends=["tests/test_post_dialog.py::test_1_post_dialog_vcon"])
+    @pytest.mark.dependency(depends=["tests/test_post_dialog.py::test_1_post_dialog_vcon"], scope="session")
     def test_21_get_dialog_vcon(self):
         try:
             get_response = None
@@ -149,6 +145,7 @@ class TestTranscribe:
         print("response content length: {}".format(len(get_response.content)))
         assert get_response.status_code == 200
         assert len(get_json_object["dialog"]) == 1
+        assert len(get_json_object["analysis"]) == 0
         assert get_json_object["dialog"][0]["url"] == TestTranscribe.url
         # assert(get_json_object == TestTranscribe.vcon_json_object)
         logger.info("exiting test_21_get_dialog_vcon")
@@ -160,7 +157,7 @@ class TestTranscribe:
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
         with fastapi.testclient.TestClient(conserver.conserver_app) as client:
-            query_parameters = {"plugin": "plugins.transcribe"}
+            query_parameters = {"plugin": "links.transcribe"}
             transcribe_response = client.patch(
                 "/vcon/{}".format(conserver_test.UUID), params=query_parameters
             )
@@ -180,7 +177,7 @@ class TestTranscribe:
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
         with fastapi.testclient.TestClient(conserver.conserver_app) as client:
-            query_parameters = {"plugin": "plugins.transcribe"}
+            query_parameters = {"plugin": "links.transcribe"}
             transcribe_response = client.patch(
                 "/vcon/{}".format(conserver_test.UUID), params=query_parameters
             )

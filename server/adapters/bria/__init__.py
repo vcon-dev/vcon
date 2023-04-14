@@ -8,7 +8,6 @@ from typing import Optional
 
 import boto3
 import jwt
-import redis.asyncio as redis
 import requests
 import sentry_sdk
 from lib.listen_list import listen_list
@@ -413,7 +412,7 @@ async def start(opts=None):
         opts = copy.deepcopy(default_options)
     logger.info("Starting the bria adapter")
     # Setup redis
-    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    r = redis_mgr.get_client()
 
     try:
         logger.info("Bria started")

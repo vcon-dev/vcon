@@ -1,98 +1,142 @@
-import asyncio
-import traceback
-
-import copy
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
-from lib.sentry import init_sentry
-from settings import REDIS_URL
-
 from server.lib.vcon_redis import VconRedis
-
-from .models import CallLogs
-
-init_sentry()
+from playhouse.postgres_ext import PostgresqlExtDatabase
+from playhouse.postgres_ext import *
 
 logger = init_logger(__name__)
+default_options = {"name": "postgres"}
 
+async def save(
+    vcon_uuid,
+    opts=default_options,
+):
+    logger.info("Starting the postgres storage")
+    try:
+        # cannot have redis clients in the global context as they get
+        # created on an async event loop which may go away.
+        vcon_redis = VconRedis()
+        vcon = await vcon_redis.get_vcon(vcon_uuid)
 
-default_options = {
-    "name": "postgres",
-    "ingress-topics": [],
-    "egress-topics": [],
-    "transcribe": True,
-    "min_transcription_length": 10,
-    "deepgram": False,
-}
-options = {}
+        # Connect to Postgres
+        db = PostgresqlExtDatabase(
+            opts['database'], 
+            user=opts['user'], 
+            password=opts['password'], 
+            host=opts['host'], 
+            port=opts['port'])
+        
+        class BaseModel(Model):
+            class Meta:
+                database = db
 
+        class Party(BaseModel):
+            tel = TextField(null = True)
+            stir = TextField(null = True)
+            mailto = TextField(null = True)
+            name = TextField(null = True)
+            validation = TextField(null = True)
+            jcard = JSONField(null = True)
+            gmlpos = TextField(null = True)
+            civicaddress = TextField(null = True)
+            timezone = TextField(null = True)
+            vcon_uuid = UUIDField()
 
-async def start(opts=None):
-    if opts is None:
-        opts = copy.deepcopy(default_options)
-    logger.info("Starting the posgres plugin!!!")
-    while True:
-        try:
-            r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-            vcon_redis = VconRedis(redis_client=r)
-            p = r.pubsub(ignore_subscribe_messages=True)
-            await p.subscribe(*opts["ingress-topics"])
-            async for message in p.listen():
-                vConUuid = message["data"]
-                logger.info("postgres plugin: received vCon: %s", vConUuid)
-                vCon = await vcon_redis.get_vcon(vConUuid)
-                projection = None
-                for attachment in vCon.attachments:
-                    if attachment.get("projection") == "call_log":
-                        projection = attachment
-                        break
-                if projection:
-                    CallLogs.insert(
-                        id=projection.get("id"),
-                        agent_extension=projection.get("extension"),
-                        # agent_cxm_id = CharField(null=True),
-                        agent_cached_details={"name": projection.get("agent_name")},
-                        dealer_number=projection.get("dealer_number"),
-                        dealer_cxm_id=projection.get("dealer_cxm_id"),
-                        dealer_cached_details=projection.get("dealer_cached_details"),
-                        customer_number=projection.get("customer_number"),
-                        direction=projection.get("direction"),
-                        disposition=projection.get("disposition"),
-                        # s3_key = projection.get("s3_key"),
-                        call_started_on=projection.get("call_started_on"),
-                        duration=projection.get("duration"),
-                        dialog_json=projection.get("dialog"),
-                        # transcript = CharField(null=True),
-                        created_on=projection["created_on"],
-                        modified_on=projection["modified_on"],
-                        # json_version = CharField(null=True),
-                        # cdr_json = BinaryJSONField(null=True),
-                        source="bria",
-                    ).on_conflict(
-                        action="update",
-                        preserve=[
-                            "agent_extension",
-                            "agent_cached_details",
-                            "disposition",
-                            "duration",
-                            "dialog_json",
-                            "modified_on",
-                            "dealer_cxm_id",
-                            "dealer_cached_details",
-                            "dealer_number",
-                        ],
-                        conflict_target=[CallLogs.id],
-                    ).execute()
-                    logger.info("Call log added successfully")
-                    # TODO get projection from attachment and save it to Postgres.
+        class Dialog(BaseModel):
+            type = TextField()
+            start = DateTimeField(null = True)
+            duration = DecimalField(null = True)
+            parties = ArrayField(IntegerField)
+            mimetype = TextField(null = True)
+            filename = TextField(null = True)
+            body = TextField(null = True)
+            url = TextField(null = True)
+            encoding = TextField(null = True)
+            alg = TextField(null = True)
+            signature = TextField(null = True)
+            vcon_uuid = UUIDField()
 
-                    for topic in opts["egress-topics"]:
-                        await r.publish(topic, vConUuid)
+        class Analysis(BaseModel):
+            type = TextField()
+            dialog = IntegerField()
+            mimetype = TextField(null = True)
+            filename = TextField(null = True)
+            vendor = TextField()
+            schema = TextField(null = True)
+            body = TextField(null = True)
+            encoding = TextField(null = True)
+            url = TextField(null = True)
+            alg = TextField(null = True)
+            signature = TextField(null = True)
+            vcon_uuid = UUIDField()
 
-        except asyncio.CancelledError:
-            logger.debug("posgres plugin Cancelled")
-            break
-        except Exception:
-            logger.error("posgres plugin: error: \n%s", traceback.format_exc())
-            logger.error("Shoot!")
-    logger.info("posgres plugin stopped")
+        class Attachment(BaseModel):
+            type = TextField()
+            party = IntegerField(null = True)
+            mimetype = TextField(null = True)
+            filename = TextField(null = True)
+            body = TextField(null = True)
+            encoding = TextField(null = True)
+            url = TextField(null = True)
+            alg = TextField(null = True)
+            signature = TextField(null = True)
+            vcon_uuid = UUIDField()
+
+        class Group(BaseModel):
+            uuid = UUIDField()
+            body = JSONField(null = True)
+            encoding = TextField(null = True)
+            url = TextField(null = True)
+            alg = TextField(null = True)
+            signature = TextField(null = True)
+            vcon_uuid = UUIDField()
+
+        class Redacted(BaseModel):
+            body = JSONField(null = True)
+            encoding = TextField(null = True)
+            url = TextField(null = True)
+            alg = TextField(null = True)
+            signature = TextField(null = True)
+            vcon_uuid = UUIDField()
+
+        class Vcons(BaseModel):
+            id = UUIDField(primary_key=True)
+            vcon = TextField()
+            uuid = UUIDField()
+            created_at = DateTimeField()
+            updated_at = DateTimeField(null = True)
+            subject = TextField(null = True)
+
+        db.create_tables([Vcons, Dialog, Analysis, Attachment, Party, Group], safe=True)
+ 
+        Vcons.create(
+            id=vcon.uuid,
+            uuid=vcon.uuid,
+            vcon=vcon.vcon,
+            created_at=vcon.created_at,
+            updated_at=vcon.created_at,
+            subject=vcon.subject,
+            redacted=vcon.redacted,
+            appended=vcon.appended,
+        )
+        for dialog in vcon.dialog:
+            Dialog.create(vcon_uuid=vcon.uuid, **dialog)
+
+        for analysis in vcon.analysis:
+            Analysis.create(vcon_uuid=vcon.uuid, **analysis)
+            
+        for attachment in vcon.attachments:
+            Attachment.create(vcon_uuid=vcon.uuid, **attachment)
+
+        for party in vcon.parties:
+            Party.create(vcon_uuid=vcon.uuid, **party)
+            
+        for group in vcon.group:
+            Group.create(vcon_uuid=vcon.uuid, **group)
+        
+        db.close() # close connection to database
+        logger.info(f"postgres storage plugin: inserted vCon: {vcon_uuid}, results: {vcon} ")
+
+    except Exception as e:
+        logger.error(f"postgres storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")
+    finally:
+        db.close() # close connection to database

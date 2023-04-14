@@ -47,6 +47,10 @@ Read in a vcon from a file named **a.vcon** and add an inline dialog for the rec
 
     vcon -i a.vcon add in-recording recording.wav 2022-06-21T13:53:26-04:00 "[0,1]"
 
+Read in a vcon from a file named **b.vcon** and add an externally referenced dialog for the recording file: ** agent_simple.wav** with the recording start time, single channel recording for parties 0 and 1:
+
+    vcon -i b.vcon add ex-recording ../../examples/agent_sample.wav "2023-03-06T20:07:43+00:00" "[0,1]"  https://github.com/vcon-dev/vcon/blob/main/examples/agent_sample.wav?raw=true
+
 Read in a vcon from a file named **a.vcon** and sign it with the private key in the file **my.key** which is in the key chain contained in the files **c.crt**, **b.crt** and **a.crt**:
 
     vcon -i a.vcon sign my.key c.crt b.crt a.crt

@@ -6,9 +6,9 @@ from urllib.parse import parse_qs, urlparse
 
 import async_timeout
 import humanize
-import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
+import server.redis_mgr
 from settings import ENV, HOSTNAME, REDIS_URL
 
 import vcon
@@ -28,7 +28,7 @@ default_options = {
 async def start(opts=default_options):
     logger.info("Starting the ringplan adapter")
     # Setup redis
-    r = redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    r = server.redis_mgr.get_client()
     while True:
         try:
             async with async_timeout.timeout(10):

@@ -14,11 +14,11 @@ logger = init_logger(__name__)
 
 
 # @pytest.mark.incremental
-@pytest.mark.dependency
+@pytest.mark.dependency(scope="session")
 # @pytest.mark.dependency(depends=["TestTranscribe::test_2_get_dialog_vcon"])
 def test_1_post_dialog_vcon():
     logger.debug("Starting test_1_post_dialog_vcon")
-    with fastapi.testclient.TestClient(conserver.app) as client:
+    with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         vCon = vcon.Vcon()
         vCon.set_party_parameter("tel", "1234")
         vCon.set_party_parameter("tel", "5678")

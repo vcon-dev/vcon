@@ -85,6 +85,11 @@ def test_get_external_recording(two_party_tel_vcon : vcon.Vcon) -> None:
 
   assert(dialog_index == 0)
 
+  dialog_object = two_party_tel_vcon.dialog[0]
+  assert(dialog_object.get("originator", None) is None)
+  assert(dialog_object.get("duration", None) == 0)
+  assert(dialog_object.get("url", None) == url)
+
   body_bytes = two_party_tel_vcon.get_dialog_external_recording(dialog_index)
   assert(len(file_content) == len(body_bytes))
   assert(file_content == body_bytes)
@@ -191,7 +196,8 @@ def test_external_recording_sha_512(two_party_tel_vcon : vcon.Vcon) -> None:
     0,
     url,
     vcon.Vcon.MIMETYPE_AUDIO_WAV,
-    file_name)
+    file_name,
+    originator=1)
 
   vcon_json = two_party_tel_vcon.dumps()
 
@@ -209,6 +215,7 @@ def test_external_recording_sha_512(two_party_tel_vcon : vcon.Vcon) -> None:
   assert(new_vcon.dialog[0]['mimetype'] == "audio/x-wav")
   assert(new_vcon.dialog[0]['filename'] == file_name)
   assert(new_vcon.dialog[0]['alg'] == 'SHA-512')
+  assert(new_vcon.dialog[0]['originator'] == 1)
   assert("body" not in new_vcon.dialog[0])
   assert("key" not in new_vcon.dialog[0])
 

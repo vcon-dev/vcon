@@ -10,7 +10,7 @@ logger = init_logger(__name__)
 
 def test_get_docs():
     logger.debug("Starting test_get_docs")
-    with fastapi.testclient.TestClient(conserver.app) as client:
+    with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         print("{} client type: {}".format(__name__, type(client)))
         response = client.get("/docs")
         assert response.status_code == 200

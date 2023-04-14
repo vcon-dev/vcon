@@ -7,7 +7,6 @@ import io
 import os.path
 #import json
 import pytest
-import vcon.cli
 
 IN_VCON_JSON = '{"uuid": "0183878b-dacf-8e27-973a-91e26eb8001b", "vcon": "0.0.1", "attachments": [], "parties": [{"name": "Alice", "tel": "+12345678901"}, {"name": "Bob", "tel": "+19876543210"}]}'
 WAVE_FILE_NAME = "examples/agent_sample.wav"
@@ -17,6 +16,8 @@ VCON_WITH_DIALOG_FILE_NAME = "examples/test.vcon"
 
 def test_vcon_new(capsys):
   """test vcon -n"""
+  # Importing vcon here so that we catch any junk stdout which will break ths CLI
+  import vcon.cli
   # Note: can provide stdin using:
   # sys.stdin = io.StringIO('{"vcon": "0.0.1", "parties": [], "dialog": [], "analysis": [], "attachments": [], "uuid": "0183866c-df92-89ab-973a-91e26eb8001b"}')
   vcon.cli.main(["-n"])
@@ -26,12 +27,20 @@ def test_vcon_new(capsys):
   print("stderr: {}".format(error), file=sys.stderr)
 
   new_vcon = vcon.Vcon()
-  new_vcon.loads(new_vcon_json)
+  try:
+    new_vcon.loads(new_vcon_json)
+  except Exception as e:
+    print("Most likely an error has occurred as something has written to stdout, causing junk to be include in the JSON also on stdout")
+    print("*****\n{}\n*****".format(new_vcon_json))
+    raise e
+
   assert(len(new_vcon.uuid) == 36)
   assert(new_vcon.vcon == "0.0.1")
 
 def test_filter_plugin_register(capsys):
   """ Test cases for the register filter plugin CLI option -r """
+  # Importing vcon here so that we catch any junk stdout which will break ths CLI
+  import vcon.cli
   command_args = "-n -r foo2 doesnotexist.foo Foo filter foo2".format(VCON_WITH_DIALOG_FILE_NAME).split()
   # Filter registered, but module not found
   # expect vcon.filter_plugins.PluginModuleNotFound
@@ -58,6 +67,8 @@ def test_filter_plugin_register(capsys):
 
 def test_filter(capsys):
   """ Test cases for the filter command to run filer plugins """
+  # Importing vcon here so that we catch any junk stdout which will break ths CLI
+  import vcon.cli
   command_args = "-i {} filter transcribe -fo '{{\"model_size\":\"base\"}}'".format(VCON_WITH_DIALOG_FILE_NAME).split()
   assert(len(command_args) == 6)
 
@@ -83,6 +94,8 @@ def test_filter(capsys):
 
 def test_ext_recording(capsys):
   """test vcon add ex-recording"""
+  # Importing vcon here so that we catch any junk stdout which will break ths CLI
+  import vcon.cli
   date = "2022-06-21T17:53:26.000+00:00"
   parties = "[0,1]"
 
@@ -120,6 +133,8 @@ def test_ext_recording(capsys):
 
 def test_int_recording(capsys):
   """test vcon add in-recording"""
+  # Importing vcon here so that we catch any junk stdout which will break ths CLI
+  import vcon.cli
   date = "2022-06-21T17:53:26.000+00:00"
   parties = "[0,1]"
 

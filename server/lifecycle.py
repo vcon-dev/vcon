@@ -1,36 +1,26 @@
 from lib.logging_utils import init_logger
-
 from fastapi.applications import FastAPI
-from lifecycle_helpers import (
-    check_sqs,
-    load_adaptors,
-    load_pipelines,
-    update_available_blocks,
+from load_config import (
+    load_config,
 )
-from lib.process_utils import start_async_process
+import redis_mgr
 
 logger = init_logger(__name__)
 logger.info("Conserver starting up")
+app = FastAPI.conserver_app
 
-# Load FastAPI app
+@app.on_event("startup")
+async def startup():
+    logger.info("event startup")
+    redis_mgr.create_pool()
+    logger.debug("Loading configuration")
+    chain_names = await load_config()
+    logger.info("Loaded chains %s", chain_names)
+    app.state.chain_names = chain_names
 
-PROCESSES = []
 
+@app.on_event("shutdown")
+async def shutdown():
+    logger.info("event shutdown")
+    await redis_mgr.shutdown_pool()
 
-app = None
-if hasattr(FastAPI, "conserver_app"):
-    app = FastAPI.conserver_app
-
-    @app.on_event("startup")
-    async def startup():
-        try:
-            global PROCESSES
-            process1 = start_async_process(check_sqs)
-            PROCESSES.append(process1)
-            PROCESSES += await load_adaptors()
-            PROCESSES += await load_pipelines()
-            await update_available_blocks()
-            for process in PROCESSES:
-                process.join()
-        except Exception as e:
-            logger.error("An error %s", e)

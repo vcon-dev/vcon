@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.explorerKind": "integrated",
+		"terminal.integrated.allowWorkspaceConfiguration": true
+	}
+}

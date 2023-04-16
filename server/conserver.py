@@ -9,3 +9,5 @@ import api  # noqa
 import lifecycle  # noqa
 import admin  # noqa
 import main_loop  # noqa
+import openapi_plugin
+

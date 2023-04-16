@@ -1,0 +1,18 @@
+{
+    "schema_version": "v1",
+    "name_for_human": "Conserver Plugin",
+    "name_for_model": "conserver",
+    "description_for_human": "Plugin for reading transcripts, summaries, topics, sentiments and promises made between agents and car buyers.",
+    "description_for_model": "Plugin for reading transcripts, summaries, topics, sentiments and promises made between agents and car buyers.",
+    "auth": {
+      "type": "none"
+    },
+    "api": {
+      "type": "openapi",
+      "url": "http://localhost:8000/chatgpt/openapi.json",
+      "is_user_authenticated": false
+    },
+    "logo_url": "http://localhost:8000/logo.png",
+    "contact_email": "ghostofbasho@gmail.com",
+    "legal_info_url": "http://github.com/vcon-dev/vcon"
+  }

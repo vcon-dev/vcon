@@ -1,128 +1,24 @@
 import sys
 import asyncio
 from lib.logging_utils import init_logger
-from datetime import datetime
 from fastapi import HTTPException
 from fastapi.applications import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from uuid import UUID
-from pydantic import BaseModel, Json
 from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.responses import JSONResponse
 import importlib
 from redis.commands.json.path import Path
-import typing
-import enum
 import pyjq
 from typing import List
-
+from api_models import Chain, Link, Storage, Party, Dialog, Analysis, Attachment, Group, Vcon
 import redis_mgr
-
-class Chain(BaseModel):
-    links: typing.List[str] = []
-    ingress_lists: typing.List[str] = []
-    storage: typing.List[str] = []
-    egress_lists: typing.List[str] = []
-    enabled: int = 1
-
-class Link(BaseModel):
-    module: str
-    options: typing.Dict[str, typing.Any] = {}
-    ingress_lists: typing.List[str] = []
-    egress_lists: typing.List[str] = []
-
-class Storage(BaseModel):
-    module: str
-    options: typing.Dict[str, typing.Any] = {}
-
-
-class Party(BaseModel):
-    tel: str = None
-    stir: str = None
-    mailto: str = None
-    name: str = None
-    validation: str = None
-    jcard: Json = None
-    gmlpos: str = None
-    civicaddress: str = None
-    timezone: str = None
-
-
-class DialogType(str, enum.Enum):
-    recording = "recording"
-    text = "text"
-
-
-class Dialog(BaseModel):
-    type: DialogType
-    start: typing.Union[int, str, datetime]
-    duration: float = None
-    parties: typing.Union[int, typing.List[typing.Union[int, typing.List[int]]]]
-    mimetype: str = None
-    filename: str = None
-    body: str = None
-    url: str = None
-    encoding: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Analysis(BaseModel):
-    type: str
-    dialog: int
-    mimetype: str = None
-    filename: str = None
-    vendor: str = None
-    _schema: str = None
-    body: str = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Attachment(BaseModel):
-    type: str
-    party: int = None
-    mimetype: str = None
-    filename: str = None
-    body: str = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Group(BaseModel):
-    uuid: UUID
-    body: Json = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Vcon(BaseModel):
-    vcon: str
-    uuid: UUID
-    created_at: typing.Union[int, str, datetime] = datetime.now().timestamp()
-    subject: str = None
-    redacted: dict = None
-    appended: dict = None
-    group: typing.List[Group] = []
-    parties: typing.List[Party] = []
-    dialog: typing.List[Dialog] = []
-    analysis: typing.List[Analysis] = []
-    attachments: typing.List[Attachment] = []
-
 
 # Our local modules``
 sys.path.append("..")
-
 logger = init_logger(__name__)
 logger.info("Conserver starting up")
-
 
 # Load FastAPI app
 app = FastAPI.conserver_app
@@ -136,14 +32,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/vcon", response_model=Page[str])
 async def get_vcons():
     r = redis_mgr.get_client()
     keys = await r.keys("vcon:*")
     uuids = [key.replace("vcon:", "") for key in keys]
     return paginate(uuids)
-
 
 @app.get("/vcon/{vcon_uuid}")
 async def get_vcon(vcon_uuid: UUID):

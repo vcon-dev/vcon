@@ -1,13 +1,12 @@
 import importlib
-from lib.logging_utils import init_logger
 from fastapi.applications import FastAPI
 import redis_mgr
 from redis_mgr import set_key, get_key
 from settings import TICK_INTERVAL
 from rocketry import Rocketry
-
-logger = init_logger(__name__)
-
+import logging
+logger = logging.getLogger("rocketry.scheduler")
+logger.setLevel(logging.INFO)
 scheduler_app = Rocketry(execution="async")
 
 if TICK_INTERVAL > 0:

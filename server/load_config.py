@@ -3,6 +3,7 @@ import json
 import redis_mgr
 from redis_mgr import get_key, set_key
 import importlib
+import yaml
 from lib.logging_utils import init_logger
 
 logger = init_logger(__name__)
@@ -14,19 +15,12 @@ update_config_file = os.getenv("UPDATE_CONFIG_FILE")
 
 async def load_config():
     try:
-        with open(config_file, 'rb') as file_handle:
-            config_file_bytes = file_handle.read()
+        with open('config.yml', 'r') as file:
+            config = yaml.safe_load(file)
     except OSError as e:
         logger.error(f"Cannot find config file {config_file}")
         return 
     
-    try:
-        config = json.loads(config_file_bytes)
-    except json.JSONDecodeError as e:
-        logger.error("Invalid config file: not in json format, JSONDecodeError")
-        raise json.JSONDecodeError
-
-
     # Get the redis client
     r = await redis_mgr.get_client()
 

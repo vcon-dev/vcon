@@ -5,15 +5,29 @@ from settings import HOSTNAME
 import urllib
 import asyncio
 import uvicorn
-from conserver import conserver_app
-from main_loop import scheduler_app
+from rocketry import Rocketry
+from fastapi.applications import FastAPI
+
 logging.config.fileConfig("./logging.conf")
 
+
+# Load FastAPI app
+conserver_app = FastAPI()
+FastAPI.conserver_app = conserver_app
+scheduler = Rocketry(execution="async")
+FastAPI.scheduler = scheduler
 logger = init_logger(__name__)
+
+# Now load all the modules
+import api  # noqa
+import admin  # noqa
+import lifecycle  # noqa
+
+
 
 class Server(uvicorn.Server):
     def handle_exit(self, sig: int, frame) -> None:
-        scheduler_app.session.shut_down()
+        scheduler.session.shut_down()
         return super().handle_exit(sig, frame)
 
 async def main():
@@ -33,7 +47,7 @@ async def main():
         reload=True))
 
     api = asyncio.create_task(server.serve())
-    sched = asyncio.create_task(scheduler_app.serve())
+    sched = asyncio.create_task(scheduler.serve())
 
     await asyncio.wait([sched, api])
 

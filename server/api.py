@@ -269,6 +269,7 @@ async def patch_vcon(vcon_uuid: UUID, plugin: str):
         await asyncio.create_task(plugin_module.run(vcon_uuid))
     except Exception as e:
         message = "Error in plugin: {} {}".format(plugin, e)
+        print(message)
         logger.info(message)
         raise HTTPException(
             status_code=500, detail="server error in plugin: {}".format(plugin)

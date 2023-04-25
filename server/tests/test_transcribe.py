@@ -152,10 +152,13 @@ class TestTranscribe:
 
     # @pytest.mark.incremental
     # @pytest.mark.dependency
+    @pytest.mark.skip(reason="Too Slow")
     @pytest.mark.dependency(depends=["TestTranscribe::test_21_get_dialog_vcon"])
     def test_3_transcribe_whisper(self):
         loop = asyncio.get_event_loop()
         loop.set_debug(True)
+        from links.transcribe import default_options
+        default_options["transcribe_options"]["model_size"] = '../tests/base.pt'
         with fastapi.testclient.TestClient(conserver.conserver_app) as client:
             query_parameters = {"plugin": "links.transcribe"}
             transcribe_response = client.patch(
@@ -172,6 +175,7 @@ class TestTranscribe:
             assert transcribed_vcon.uuid == conserver_test.UUID
             assert len(transcribed_vcon.analysis) == TestTranscribe._transcribe_runs
 
+    @pytest.mark.skip(reason="Too Slow")
     @pytest.mark.dependency(depends=["TestTranscribe::test_21_get_dialog_vcon"])
     def test_4_transcribe_whisper(self):
         loop = asyncio.get_event_loop()

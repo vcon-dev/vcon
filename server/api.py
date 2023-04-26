@@ -1,3 +1,4 @@
+import logging
 import sys
 import asyncio
 from lib.logging_utils import init_logger
@@ -15,9 +16,11 @@ from redis.commands.json.path import Path
 import typing
 import enum
 import pyjq
-from typing import List
+from typing import List, Optional
 
+from settings import CONSERVER_API_TOKEN
 import redis_mgr
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 class Chain(BaseModel):
     links: typing.List[str] = []
@@ -120,14 +123,12 @@ class Vcon(BaseModel):
 # Our local modules``
 sys.path.append("..")
 
+logging.config.fileConfig("./logging.conf")
 logger = init_logger(__name__)
 logger.info("Conserver starting up")
 
-
 # Load FastAPI app
 app = FastAPI.conserver_app
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -135,6 +136,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]
+)
+@app.middleware("http")
+async def auth_middleware(request, call_next):
+    logger.info("request: {}".format(request.__dict__))
+    authorization_header = request.headers.get("Authorization")
+    if not authorization_header:
+        return JSONResponse(status_code=401, content={"message": "Authorization token is missing"})
+
+    token_parts = authorization_header.split("Bearer ")
+    if len(token_parts) != 2 or token_parts[1] != CONSERVER_API_TOKEN:
+        return JSONResponse(status_code=403, content={"message": "Invalid token"})
+
+    response = await call_next(request)
+    return response
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/vcon", response_model=Page[str])
@@ -235,16 +255,18 @@ add_pagination(app)
 
 
 @app.post("/vcon")
-async def post_vcon(inbound_vcon: Vcon):
+async def post_vcon(vcon: Vcon, ingress_list: Optional[List[str]] = None):
     try:
+        logger.warning("Creating vcon and adding it to %s", ingress_list)
         r = redis_mgr.get_client()
-        dict_vcon = inbound_vcon.dict()
-        dict_vcon["uuid"] = str(inbound_vcon.uuid)
+        dict_vcon = vcon.dict()
+        dict_vcon["uuid"] = str(vcon.uuid)
         await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
+        for list_name in ingress_list or []:
+            await r.lpush(list_name, str(vcon.uuid))
     except Exception as e:
         logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+        return JSONResponse(content={"error": str(e)}, status_code=500)
     return JSONResponse(content=dict_vcon)
 
 

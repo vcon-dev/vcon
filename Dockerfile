@@ -5,7 +5,7 @@ RUN apt-get update && \
 
 # Install SoX dependency
 # https://pysox.readthedocs.io/en/latest/#installation
-RUN apt-get install libsox-fmt-all sox
+RUN apt-get install -y libsox-fmt-all sox
 
 ADD  . /app
 WORKDIR /app/server
@@ -14,6 +14,5 @@ WORKDIR /app/server
 
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt --no-cache-dir
-RUN pip install stable-ts
 
 CMD [ "python", "./conserver.py" ]

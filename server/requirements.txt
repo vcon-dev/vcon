@@ -128,7 +128,7 @@ pyzmq==24.0.0
 qtconsole==5.4.0
 QtPy==2.3.0
 redis==4.3.4
-regex==2020.11.13
+regex==2022.1.18
 requests==2.28.1
 rocketry==2.5.1
 rsa==4.9
@@ -140,8 +140,9 @@ six==1.16.0
 sniffio==1.2.0
 soundfile==0.11.0
 soupsieve==2.3.2.post1
-sox==1.23.3
+sox==1.4.1
 SQLAlchemy==1.4.41
+stable-ts==2.5.0
 stack-data==0.3.0
 sentry-sdk==1.14.0
 terminado==0.17.1
@@ -158,13 +159,12 @@ typed-ast==1.5.4
 typing-extensions==4.4.0
 urllib3==1.26.11
 uuid6==2022.10.25
-uvicorn==0.12.3
+uvicorn[standard]==0.12.3
 wcwidth==0.2.5
 webencodings==0.5.1
 webhook-debugger==0.0.3
 websocket-client==1.4.2
 websockets==8.1
-git+https://github.com/openai/whisper.git@d18e9ea5dd2ca57c697e8e55f9e654f06ede25d0
 widgetsnbextension==4.0.4
 wrapt==1.14.1
 yarl==1.8.1

@@ -7,7 +7,7 @@ AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 AWS_BUCKET = os.getenv("AWS_BUCKET")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost")
 LOG_LIMIT = os.getenv("LOG_LIMIT", 100)
-TICK_INTERVAL = os.getenv("TICK_INTERVAL", 5)
+TICK_INTERVAL = os.getenv("TICK_INTERVAL", 0)
 HOSTNAME = os.getenv("HOSTNAME", "http://0.0.0.0:8002")
 ENV = os.getenv("ENV", "dev")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")
@@ -21,3 +21,4 @@ SLACK_TOKEN = os.getenv(
 OPENAI_API_KEY = os.getenv(
     "OPENAI_API_KEY", "sk-1234567890-1234567890-1234567890-1234567890"
 )
+CONSERVER_API_TOKEN = os.getenv("CONSERVER_API_TOKEN")

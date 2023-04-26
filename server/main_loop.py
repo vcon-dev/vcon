@@ -13,16 +13,18 @@ scheduler_app = Rocketry(execution="async")
 if TICK_INTERVAL > 0:
     @scheduler_app.task(f"every {TICK_INTERVAL} seconds")  
     async def run_tick():
-        await tick()        
+        await tick()
 
 app = FastAPI.conserver_app
 app.scheduler = scheduler_app
+
+redis_mgr.create_pool()
 
 # We decorate this with the TICK path so that we can use external tools to trigger the tick
 @app.get("/tick")
 async def tick():
     logger.debug("Starting tick")
-    r = await redis_mgr.get_client()
+    r = redis_mgr.get_client()
 
     # Get list of chains from redis
     # These chains are setup as redis keys in the load_config module.

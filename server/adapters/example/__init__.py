@@ -14,7 +14,7 @@ def __init__(config):
     logger.info(f"Starting adapater with {config}")
 
 
-TICK_INTERVAL = 1
+TICK_INTERVAL = 0
 if TICK_INTERVAL > 0:
     @scheduler.task(f"every {TICK_INTERVAL} seconds")  
     async def check_for_new_events():

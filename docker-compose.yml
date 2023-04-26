@@ -1,12 +1,22 @@
 version: "3.3"
 services:
+  api:
+    build: .
+    command: bash -c "uvicorn conserver:conserver_app --host 0.0.0.0 --port 8002 --reload"
+    volumes:
+      - .:/app
+    ports:
+      - "9000:8002"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+
   conserver:
     build: .
     command: bash -c "python ./init.py"
     volumes:
       - .:/app
-    ports:
-      - "9000:8002"
     depends_on:
       - redis
     env_file:

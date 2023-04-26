@@ -145,10 +145,12 @@ async def auth_middleware(request, call_next):
     logger.info("request: {}".format(request.__dict__))
     authorization_header = request.headers.get("Authorization")
     if not authorization_header:
+        logger.warning("Authorization token is missing")
         return JSONResponse(status_code=401, content={"message": "Authorization token is missing"})
 
     token_parts = authorization_header.split("Bearer ")
     if len(token_parts) != 2 or token_parts[1] != CONSERVER_API_TOKEN:
+        logger.error("Invalid token")
         return JSONResponse(status_code=403, content={"message": "Invalid token"})
 
     response = await call_next(request)

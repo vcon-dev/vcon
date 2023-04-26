@@ -10,6 +10,8 @@ import conserver
 import vcon
 import conserver_test
 
+from settings import CONSERVER_API_TOKEN
+
 logger = init_logger(__name__)
 
 
@@ -46,7 +48,8 @@ def test_1_post_dialog_vcon():
         vcon_json_object = json.loads(vcon_json_string)
         print("created vcon: {}".format(vcon_json_object))
 
-        response = client.post("/vcon", json=vcon_json_object)
+        headers = {"Authorization": f"Bearer {CONSERVER_API_TOKEN}"}
+        response = client.post("/vcon", json={"vcon": vcon_json_object}, headers=headers)
         assert response.status_code == 200
         print("text: " + response.text)
         print("response dir: {}".format(dir(response)))

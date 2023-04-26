@@ -8,6 +8,9 @@ import conserver
 import redis_mgr
 import conserver_test
 
+from settings import CONSERVER_API_TOKEN
+headers = {"accept": "application/json", "Authorization": f"Bearer {CONSERVER_API_TOKEN}"}
+
 logger = init_logger(__name__)
 
 
@@ -77,9 +80,10 @@ class TestTranscribe:
         assert not loop.is_closed()
         with fastapi.testclient.TestClient(conserver.conserver_app) as client:
             print("{} client type: {}".format(__name__, type(client)))
+
             get_response = client.get(
                 "/vcon/{}".format(conserver_test.UUID),
-                headers={"accept": "application/json"},
+                headers=headers,
             )
             print("get response: {}".format(get_response))
             print(
@@ -94,7 +98,7 @@ class TestTranscribe:
                 print("WARNING: re-getting /vcon/{}".format(conserver_test.UUID))
                 get_response = client.get(
                     "/vcon/{}".format(conserver_test.UUID),
-                    headers={"accept": "application/json"},
+                    headers=headers,
                 )
                 assert get_response.status_code == 200
                 get_json_object = get_response.json()
@@ -120,7 +124,7 @@ class TestTranscribe:
                 logger.info("starting test_21_get_dialog_vcon")
                 get_response = client.get(
                     "/vcon/{}".format(conserver_test.UUID),
-                    headers={"accept": "application/json"},
+                    headers=headers,
                 )
                 get_json_object = get_response.json()
                 if get_json_object is None:
@@ -128,7 +132,7 @@ class TestTranscribe:
                     print("WARNING: re-getting /vcon/{}".format(conserver_test.UUID))
                     get_response = client.get(
                         "/vcon/{}".format(conserver_test.UUID),
-                        headers={"accept": "application/json"},
+                        headers=headers,
                     )
                     assert get_response.status_code == 200
                     get_json_object = get_response.json()

@@ -5,6 +5,8 @@ from lib.logging_utils import init_logger
 import fastapi.testclient
 import conserver
 
+from settings import CONSERVER_API_TOKEN
+
 logger = init_logger(__name__)
 
 
@@ -12,7 +14,9 @@ def test_get_docs():
     logger.debug("Starting test_get_docs")
     with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         print("{} client type: {}".format(__name__, type(client)))
-        response = client.get("/docs")
+
+        headers = {"Authorization": f"Bearer {CONSERVER_API_TOKEN}"}
+        response = client.get("/docs", headers=headers)
         assert response.status_code == 200
 
         if response.status_code != 200:

@@ -8,6 +8,8 @@ import conserver
 import vcon
 import conserver_test
 
+from settings import CONSERVER_API_TOKEN
+
 logger = init_logger(__name__)
 
 
@@ -19,8 +21,9 @@ def test_2_json_path():
     with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         query = {}
         query["path_string"] = "$.dialog[0]"
+        headers = {"Authorization": f"Bearer {CONSERVER_API_TOKEN}"}
         response = client.get(
-            "/vcon/{}/JSONPath".format(conserver_test.UUID), params=query
+            "/vcon/{}/JSONPath".format(conserver_test.UUID), params=query, headers=headers
         )
         assert response.status_code == 200
         print("text: " + response.text)

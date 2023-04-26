@@ -8,6 +8,8 @@ import conserver
 import vcon
 import conserver_test
 
+from settings import CONSERVER_API_TOKEN
+
 logger = init_logger(__name__)
 
 
@@ -21,7 +23,8 @@ def test_2_jq():
         # query["jq_transform"] = "[inputs | select(.dialog) | url, filename, mimetype]"
         query["jq_transform"] = ".dialog[].url, .dialog[].mimetype, .dialog[].filename"
         # query["jq_transform"] = ".dialog"
-        response = client.get("/vcon/{}/jq".format(conserver_test.UUID), params=query)
+        headers = {"Authorization": f"Bearer {CONSERVER_API_TOKEN}"}
+        response = client.get("/vcon/{}/jq".format(conserver_test.UUID), params=query, headers=headers)
         assert response.status_code == 200
         print("text: " + response.text)
         print("response dir: {}".format(dir(response)))

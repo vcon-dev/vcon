@@ -1,0 +1,37 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vcon"
+version = "0.1"
+description = "vCons are PDFs for human conversations, defining them so they can be shared, analyzed and secured."
+readme = "README.md"
+authors = [{ name = "Daniel Petrie", email = "dan.ietf@sipez.com" }, { name = "Thomas McCarthy-Howe", email = "thomas.howe@strolid.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["vcon", "conversational ai", "conversation"]
+dependencies = [
+    "cryptography >= 37",
+    "hsslms >= 0.1.2",
+    "python-jose[cryptography] >= 3.3.0",
+    "python-dateutil >= 2.8.2",
+    "uuid6 >= 2023.4.25",
+    "python-json-logger >= 2.0.7",
+    "sox >= 1.4.1",
+]
+requires-python = ">=3.8"
+
+    [project.optional-dependencies]
+    dev = ["pytest"]
+
+    [project.urls]
+    repository = "https://github.com/vcon-dev/vcon"
+    documentation = "https://www.vcon.dev/"
+
+[tool.setuptools]
+packages = ["vcon", "vcon.filter_plugins","vcon.filter_plugins.impl"]

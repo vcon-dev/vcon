@@ -15,7 +15,7 @@ try:
 except Exception as e:
   #patch_url = "https://raw.githubusercontent.com/jianfch/stable-ts/main/stable_whisper.py"
   #print("Please download and install stable_whipser from: {}".format(patch_url))
-  cwlogger.info("please install stable_whisper:  \"pip3 install stble-ts\"")
+  logger.info("please install stable_whisper:  \"pip3 install stable-ts\"")
   raise e
 
 class Whisper(vcon.filter_plugins.FilterPlugin):

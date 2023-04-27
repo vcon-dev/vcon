@@ -164,6 +164,7 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   assert(vCon._vcon_dict[VCON_DIALOG][0]["duration"] == duration)
   assert(vCon._vcon_dict[VCON_DIALOG][0]["mimetype"] == mime_type)
   assert(vCon._vcon_dict[VCON_DIALOG][0]["filename"] == file_name)
+  assert(vCon._vcon_dict[VCON_DIALOG][0].get("originator", None) == None)
   assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][0] == 0)
   assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][1] == 1)
   assert(len(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES]) == 2)
@@ -194,6 +195,34 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
   assert(decoded_file == fake_recording_file)
 
   # TODO check other recording fields
+
+def test_add_inline_recording_w_originator(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.Vcon) -> None:
+  """ Test add of a recording file inline to ensure base64 encode and decode are properly done. """
+  vCon = two_party_tel_vcon
+  vCon.set_uuid("vcon.dev")
+  deserialized_vcon = empty_vcon
+  random_size = 4096
+  fake_recording_file = os.urandom(random_size)
+  assert(len(fake_recording_file) == random_size)
+  assert_vcon_array_size(vCon, VCON_DIALOG, 0)
+  # TODO: create some common mime type constants for convenience
+  mime_type = "audio/x-wav"
+  file_name = "fake.wav"
+  duration = 77.4
+  file_length = vCon.add_dialog_inline_recording(fake_recording_file, call_data['rfc2822'],
+    duration, [0, 1], mime_type, file_name, originator=1)
+
+  assert(file_length == len(fake_recording_file))
+  assert_vcon_array_size(vCon, VCON_DIALOG, 1)
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["type"] == "recording")
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["start"] == call_data['rfc3339'])
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["duration"] == duration)
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["mimetype"] == mime_type)
+  assert(vCon._vcon_dict[VCON_DIALOG][0]["filename"] == file_name)
+  assert(vCon._vcon_dict[VCON_DIALOG][0].get("originator", None) == 1)
+  assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][0] == 0)
+  assert(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES][1] == 1)
+  assert(len(vCon._vcon_dict[VCON_DIALOG][0][VCON_PARTIES]) == 2)
 
 def test_parties_descriptor(two_party_tel_vcon : vcon.Vcon):
   """ Test that the VconDictList descriptor works for the parties attr """

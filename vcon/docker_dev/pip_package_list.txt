@@ -12,6 +12,7 @@ python-jose
 python-dateutil
 sox
 uuid6
+sentry-sdk
 
 # whisper dependencies
 ffmpeg-python
@@ -19,9 +20,19 @@ more-itertools
 tqdm
 transformers
 whisper
+python-multipart
 
 # stable-ds dependencies:
 numpy
 torch
 #stable-ts
+
+# Conserver
+rocketry
+uvicorn
+python-jsonl-logger
+fastapi
+fastapi_pagenation
+redis
+pyjq
 

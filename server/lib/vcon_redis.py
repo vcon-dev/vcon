@@ -1,14 +1,12 @@
 import json
 from typing import Optional
-
 import redis.asyncio as redis
 from lib.logging_utils import init_logger
 from redis.commands.json.path import Path
-
+import redis_mgr
 import vcon
 
 logger = init_logger(__name__)
-
 
 class VconRedis:
     """Encapsulate vcon redis operation"""
@@ -21,10 +19,10 @@ class VconRedis:
         elif redis_client:
             self._redis_client = redis_client
         else:
-            raise Exception(
-                "Aurguments for VconRedis missing. redis_url or redis_client is required."
-            )
+            # Use the redis manager?
+            self._redis_client = redis_mgr.get_client()
 
+    
     async def store_vcon(self, vCon: vcon.Vcon):
         """Stores the vcon into redis
 

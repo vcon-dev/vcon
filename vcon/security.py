@@ -104,7 +104,7 @@ def load_pem_key(key_file_name : str) -> cryptography.hazmat.primitives.asymmetr
   pem_key_string = load_string_from_file(key_file_name)
 
   # cryptography.x509.load_pem_x509_private_key does not exist.  So we much wade through hazmat
-  private_key_object = cryptography.hazmat.primitives.serialization.load_pem_private_key(bytes(pem_key_string, 'utf-8'), None)
+  private_key_object = cryptography.hazmat.primitives.serialization.load_pem_private_key(bytes(pem_key_string, 'utf-8'), None, backend=None)
   #print("private_key type: {}".format(type(private_key_object)))
   #print("private dir {}".format(dir(private_key_object.private_numbers())))
 

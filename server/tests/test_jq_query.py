@@ -16,7 +16,7 @@ logger = init_logger(__name__)
 # @pytest.mark.dependency(depends=["test_1_post_dialog_vcon"])
 def test_2_jq():
     logger.debug("Starting test_2_jq")
-    with fastapi.testclient.TestClient(conserver.app) as client:
+    with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         query = {}
         # query["jq_transform"] = "[inputs | select(.dialog) | url, filename, mimetype]"
         query["jq_transform"] = ".dialog[].url, .dialog[].mimetype, .dialog[].filename"

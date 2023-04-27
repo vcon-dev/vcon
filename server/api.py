@@ -15,8 +15,26 @@ from redis.commands.json.path import Path
 import typing
 import enum
 import pyjq
+from typing import List
 
 import redis_mgr
+
+class Chain(BaseModel):
+    links: typing.List[str] = []
+    ingress_lists: typing.List[str] = []
+    storage: typing.List[str] = []
+    egress_lists: typing.List[str] = []
+    enabled: int = 1
+
+class Link(BaseModel):
+    module: str
+    options: typing.Dict[str, typing.Any] = {}
+    ingress_lists: typing.List[str] = []
+    egress_lists: typing.List[str] = []
+
+class Storage(BaseModel):
+    module: str
+    options: typing.Dict[str, typing.Any] = {}
 
 
 class Party(BaseModel):
@@ -274,6 +292,222 @@ async def delete_vcon(vcon_uuid: UUID, status_code=204):
     try:
         r = redis_mgr.get_client()
         await r.delete(f"vcon:{str(vcon_uuid)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+@app.get("/chain")
+async def get_chains():
+    try:
+        r = redis_mgr.get_client()
+        keys = await r.keys("chain:*")
+        chains = {}
+        for key in keys:
+            chain = await r.json().get(key, "$")
+            key_name = key.decode().split(":")[1]
+            chains[key_name] = chain
+        return JSONResponse(content=chains)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+
+@app.get("/chain/{chain_name}")
+async def get_chain(chain_name: str):
+    try:
+        r = redis_mgr.get_client()
+        chain = await r.json().get(f"chain:{chain_name}", "$")
+        return JSONResponse(content=chain)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    
+@app.post("/chain")
+async def post_chain(inbound_chain: Chain):
+    try:
+        r = redis_mgr.get_client()
+        dict_chain = inbound_chain.dict()
+        await r.json().set(f"chain:{str(dict_chain['name'])}", "$", dict_chain)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    logger.debug("Posted chain  {} len {}".format(inbound_chain.name, len(dict_chain)))
+    return JSONResponse(content=dict_chain)
+
+@app.put("/chain/{chain_name}")
+async def put_chain(chain_name: str, inbound_chain: Chain):
+    try:
+        r = redis_mgr.get_client()
+        dict_chain = inbound_chain.dict()
+        await r.json().set(f"chain:{str(dict_chain['name'])}", "$", dict_chain)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=dict_chain)
+
+@app.delete("/chain/{chain_name}")
+async def delete_chain(chain_name: str, status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        await r.delete(f"chain:{str(chain_name)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+@app.get("/link")
+async def get_links():
+    try:
+        r = redis_mgr.get_client()
+        keys = await r.keys("link:*")
+        links = {}
+        for key in keys:
+            link = await r.json().get(key, "$")
+            key_name = key.decode().split(":")[1]
+            links[key_name] = link
+        return JSONResponse(content=links)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    
+@app.get("/link/{link_name}")
+async def get_link(link_name: str):
+    try:
+        r = redis_mgr.get_client()
+        link = await r.json().get(f"link:{link_name}", "$")
+        return JSONResponse(content=link)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    
+@app.post("/link")
+async def post_link(inbound_link: Link):
+    try:
+        r = redis_mgr.get_client()
+        dict_link = inbound_link.dict()
+        await r.json().set(f"link:{str(dict_link['name'])}", "$", dict_link)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    logger.debug("Posted link  {} len {}".format(inbound_link.name, len(dict_link)))
+    return JSONResponse(content=dict_link)
+
+@app.put("/link/{link_name}")
+async def put_link(link_name: str, inbound_link: Link):
+    try:
+        r = redis_mgr.get_client()
+        dict_link = inbound_link.dict()
+        await r.json().set(f"link:{str(dict_link['name'])}", "$", dict_link)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=dict_link)
+
+@app.delete("/link/{link_name}")
+async def delete_link(link_name: str, status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        await r.delete(f"link:{str(link_name)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+@app.get("/storage")
+async def get_storages():
+    try:
+        r = redis_mgr.get_client()
+        keys = await r.keys("storage:*")
+        storages = {}
+        for key in keys:
+            storage = await r.json().get(key, "$")
+            key_name = key.decode().split(":")[1]
+            storages[key_name] = storage
+        return JSONResponse(content=storages)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    
+@app.get("/storage/{storage_name}")
+async def get_storage(storage_name: str):
+    try:
+        r = redis_mgr.get_client()
+        storage = await r.json().get(f"storage:{storage_name}", "$")
+        return JSONResponse(content=storage)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    
+@app.post("/storage")
+async def post_storage(inbound_storage: Storage):
+    try:
+        r = redis_mgr.get_client()
+        dict_storage = inbound_storage.dict()
+        await r.json().set(f"storage:{str(dict_storage['name'])}", "$", dict_storage)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    logger.debug("Posted storage  {} len {}".format(inbound_storage.name, len(dict_storage)))
+    return JSONResponse(content=dict_storage)
+
+@app.put("/storage/{storage_name}")
+async def put_storage(storage_name: str, inbound_storage: Storage):
+    try:
+        r = redis_mgr.get_client()
+        dict_storage = inbound_storage.dict()
+        await r.json().set(f"storage:{str(dict_storage['name'])}", "$", dict_storage)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        return None
+    return JSONResponse(content=dict_storage)
+
+@app.delete("/storage/{storage_name}")
+async def delete_storage(storage_name: str, status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        await r.delete(f"storage:{str(storage_name)}")
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to push vcon IDs to one or more redis lists
+@app.post("/vcon/ingress")
+async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        for vcon_uuid in vcon_uuids:
+            await r.lpush(ingress_list, vcon_uuid)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to pop vcon IDs from one or more redis lists
+@app.get("/vcon/egress")
+async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
+    try:
+        r = redis_mgr.get_client()
+        vcon_uuids = []
+        for i in range(limit):
+            vcon_uuid = await r.rpop(egress_list)
+            if vcon_uuid:
+                vcon_uuids.append(vcon_uuid)
+        return JSONResponse(content=vcon_uuids)
+
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# Create an endpoint to count the number of vCon UUIds in a redis list
+@app.get("/vcon/count")
+async def get_vcon_count(egress_list: str, status_code=200):
+    try:
+        r = redis_mgr.get_client()
+        count = await r.llen(egress_list)
+        return JSONResponse(content=count)
+
     except Exception as e:
         logger.info("Error: {}".format(e))
         status_code = 500

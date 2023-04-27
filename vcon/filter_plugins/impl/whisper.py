@@ -7,12 +7,15 @@ import vcon
 import vcon.filter_plugins
 #import whisper
 #import scipy.io.wavfile
+
+logger = vcon.build_logger(__name__)
+
 try:
   import stable_whisper
 except Exception as e:
   #patch_url = "https://raw.githubusercontent.com/jianfch/stable-ts/main/stable_whisper.py"
   #print("Please download and install stable_whipser from: {}".format(patch_url))
-  print("please install stable_whisper:  \"pip3 install stble-ts\"", file=sys.stderr)
+  cwlogger.info("please install stable_whisper:  \"pip3 install stble-ts\"")
   raise e
 
 class Whisper(vcon.filter_plugins.FilterPlugin):
@@ -39,7 +42,7 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
     super().__init__(**options)
     # make model size configurable
     self.whisper_model_size = options.get("model_size", "base")
-    print("Initializing whisper model size: {}".format(self.whisper_model_size), file=sys.stderr)
+    logger.info("Initializing whisper model size: {}".format(self.whisper_model_size))
     self.whisper_model = stable_whisper.load_model(self.whisper_model_size)
     #stable_whisper.modify_model(self.whisper_model)
 
@@ -69,6 +72,7 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
     #out_vcon = copy.deepcopy(in_vcon)
     out_vcon = in_vcon
     output_types = options.get("output_options", ["vendor", "word_srt", "word_ass"])
+    logger.info("whisper output_types: {}".format(output_types))
 
     for dialog_index, dialog in enumerate(in_vcon.dialog):
       # TODO assuming none of the dialogs have been transcribed
@@ -110,8 +114,8 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
               # aggressive allows more variation
               #stabilized_segments = stable_whisper.stabilize_timestamps(transcript["segments"], aggressive=True)
               #transcript["segments"] = stabilized_segments
-              stable_segments = stable_whisper.stabilize_timestamps(transcript, top_focus=True)
-              transcript["stable_segments"] = stable_segments
+              # stable_segments = stable_whisper.stabilize_timestamps(transcript, top_focus=True)
+              # transcript["stable_segments"] = stable_segments
 
               # need to add transcription to dialog.analysis
               if("vendor" in output_types):

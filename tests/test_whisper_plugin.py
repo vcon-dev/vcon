@@ -41,7 +41,9 @@ def test_whisper_transcribe_inline_dialog():
   assert(isinstance(out_vcon.analysis[anal_count]["body"], dict))
   #print("transcript type: {}".format(body_type))
   print("transcript keys: {}".format(out_vcon.analysis[anal_count]["body"].keys()))
-  assert(body_len == 4) # keys in dict
+  # Stable whisper changed and the word time stamps are now part of "segments" in transcription object
+  #assert(body_len == 4) # keys in dict
+  assert(body_len == 3) # keys in dict
   assert(out_vcon.analysis[anal_count + 1]["type"] == "transcript")
   assert(out_vcon.analysis[anal_count + 1]["vendor"] == "Whisper")
   assert(out_vcon.analysis[anal_count + 1]["vendor_schema"] == "whisper_word_srt")
@@ -107,7 +109,9 @@ def test_whisper_transcribe_external_dialog():
   assert(isinstance(out_vcon.analysis[anal_count]["body"], dict))
   #print("transcript type: {}".format(body_type))
   print("transcript keys: {}".format(out_vcon.analysis[anal_count]["body"].keys()))
-  assert(body_len == 4) # keys in dict
+  # Stable whisper changed and the word time stamps are now part of "segments" in transcription object
+  #assert(body_len == 4) # keys in dict
+  assert(body_len == 3) # keys in dict
   assert(out_vcon.analysis[anal_count + 1]["type"] == "transcript")
   assert(out_vcon.analysis[anal_count + 1]["vendor"] == "Whisper")
   assert(out_vcon.analysis[anal_count + 1]["vendor_schema"] == "whisper_word_srt")

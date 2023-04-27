@@ -16,7 +16,7 @@ logger = init_logger(__name__)
 # @pytest.mark.dependency(depends=["test_1_post_dialog_vcon"])
 def test_2_json_path():
     logger.debug("Starting test_2_json_path")
-    with fastapi.testclient.TestClient(conserver.app) as client:
+    with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         query = {}
         query["path_string"] = "$.dialog[0]"
         response = client.get(

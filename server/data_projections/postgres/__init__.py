@@ -2,9 +2,9 @@ from peewee import *
 from playhouse.reflection import generate_models, print_model, print_table_sql
 
 import asyncio
-import redis.asyncio as redis
 import json
 from lib.logging_utils import init_logger
+import server.redis_mgr
 
 logger = init_logger(__name__)
 
@@ -36,7 +36,7 @@ async def start(opts=default_options):
         )
         models = generate_models(database)
         globals().update(models)
-        r = redis.Redis(host="localhost", port=6379, db=0)
+        r = server.redis_mgr.get_client()
         p = r.pubsub(ignore_subscribe_messages=True)
         await p.subscribe(*opts["ingress-topics"])
 

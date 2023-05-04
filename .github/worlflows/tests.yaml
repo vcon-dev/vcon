@@ -1,0 +1,18 @@
+name: Run Test inside docker
+
+on:
+  push:
+    branches: [ main, testactions ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build the Docker image
+        run: docker build -t conserver:latest .
+
+      - name: Run the unit tests
+        run: docker run conserver:latest python -m pytest tests/ ../tests/

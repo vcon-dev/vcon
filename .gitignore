@@ -18,3 +18,4 @@ server/.vscode
 dump.rdb
 .data
 tmp
+dist

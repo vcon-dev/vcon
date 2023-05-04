@@ -1,0 +1,10 @@
+cryptography>=37
+hsslms>=0.1.2
+python-jose[cryptography]>=3.3.0
+python-dateutil>=2.8.2
+uuid6>=2023.4.25
+python-json-logger>=2.0.7
+sox>=1.4.1
+
+[dev]
+pytest

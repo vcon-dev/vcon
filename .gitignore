@@ -1,7 +1,9 @@
 *.env
-*.swp
+**/*.swp
+dist
 layers
 venv
+vcon.egg-info
 **/__pycache__
 server/static/*.wav
 server/static/*.mp3

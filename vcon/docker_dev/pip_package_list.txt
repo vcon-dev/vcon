@@ -32,7 +32,7 @@ rocketry
 uvicorn
 python-json-logger
 fastapi
-fastapi_pagenation
+fastapi_pagination
 redis
 pyjq
 

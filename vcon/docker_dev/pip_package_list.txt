@@ -30,7 +30,7 @@ torch
 # Conserver
 rocketry
 uvicorn
-python-jsonl-logger
+python-json-logger
 fastapi
 fastapi_pagenation
 redis

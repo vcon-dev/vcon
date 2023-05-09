@@ -35,6 +35,8 @@ jobs:
         #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install -r vcon/docker_dev/pip_package_list.txt
         pip install -r vcon/docker_dev/pip_server_requirements.txt
+        pip freeze | grep stable
+        python3 -c "import stable_whisper;print(stable_whisper.__version__)"
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

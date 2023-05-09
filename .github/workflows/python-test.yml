@@ -24,6 +24,7 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
     - name: Install dependencies
       run: |
         pwd
@@ -36,6 +37,7 @@ jobs:
         pip install -r vcon/docker_dev/pip_package_list.txt
         pip install -r vcon/docker_dev/pip_server_requirements.txt
         pip freeze | grep stable
+        pip freeze | grep whisper
         python3 -c "import stable_whisper;print(stable_whisper.__version__)"
     - name: Lint with flake8
       run: |

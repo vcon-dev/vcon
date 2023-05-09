@@ -20,7 +20,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }} branch: ${{ github.ref }} os: ${{ runner.os }}
+    - name: Set up Python ${{ matrix.python-version }} branch ${{ github.ref }} os ${{ runner.os }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}

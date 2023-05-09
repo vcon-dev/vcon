@@ -25,7 +25,8 @@ python-multipart
 # stable-ts dependencies:
 numpy
 torch
-stable-ts
+# Need to hold stable-ts back until newer version (> 20230314) of whisper is available on pip
+stable-ts < 2.0.0
 
 # Conserver
 rocketry

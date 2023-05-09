@@ -22,10 +22,10 @@ transformers
 whisper
 python-multipart
 
-# stable-ds dependencies:
+# stable-ts dependencies:
 numpy
 torch
-#stable-ts
+stable-ts
 
 # Conserver
 rocketry

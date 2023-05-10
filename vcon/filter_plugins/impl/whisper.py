@@ -130,10 +130,12 @@ class Whisper(vcon.filter_plugins.FilterPlugin):
                   out_vcon.add_analysis_transcript(dialog_index, srt_bytes.decode("utf-8"), "Whisper", "whisper_word_srt", encoding = "none")
 
               if("word_ass" in output_types):
-                with tempfile.NamedTemporaryFile(prefix= temp_dir + os.sep, suffix=".ass") as temp_ass_file:
-                  stable_whisper.results_to_sentence_word_ass(transcript, temp_ass_file.name)
-                  ass_bytes = temp_ass_file.read()
-                  out_vcon.add_analysis_transcript(dialog_index, ass_bytes.decode("utf-8"), "Whisper", "whisper_word_ass", encoding = "none")
+                # Getting junk on stdout from stable_whisper.  Redirect it.
+                with contextlib.redirect_stdout(sys.stderr):
+                  with tempfile.NamedTemporaryFile(prefix= temp_dir + os.sep, suffix=".ass") as temp_ass_file:
+                    stable_whisper.results_to_sentence_word_ass(transcript, temp_ass_file.name)
+                    ass_bytes = temp_ass_file.read()
+                    out_vcon.add_analysis_transcript(dialog_index, ass_bytes.decode("utf-8"), "Whisper", "whisper_word_ass", encoding = "none")
 
           else:
             pass # ignore??

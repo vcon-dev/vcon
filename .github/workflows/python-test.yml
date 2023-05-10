@@ -45,7 +45,7 @@ jobs:
         # TODO: need to get to the point where we can run this without exit-zero
         flake8 . --count --exit-zero --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 . --count --exit-zero --ignore=E111,E114,E251,E275 --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
         # This test gets run by itself as it catches print/stdout that may only
@@ -54,4 +54,4 @@ jobs:
         pytest -v -rP tests/test_vcon_cli.py
         #
         # Run all Vcon package unit tests
-        #pytest -v -rP tests
+        pytest -v -rP tests

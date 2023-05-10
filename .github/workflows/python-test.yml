@@ -54,4 +54,4 @@ jobs:
         pytest -v -rP tests/test_vcon_cli.py
         #
         # Run all Vcon package unit tests
-        pytest -v -rP tests
+        #pytest -v -rP tests

@@ -11,6 +11,10 @@ Make sure python build and twine packages are installed:
 
 Update the version number in vcon/vcon/__init__.py
 
+Be sure to clean out the dist directory:
+
+    rm dist/*
+
 In vcon directory (root containing setup.py and vcon sub-directory):
 
     python3 -m build

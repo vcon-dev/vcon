@@ -34,6 +34,10 @@ For the real/public repo:
 
     python3 -m twine upload dist/*
 
+Commit all of the changes and tag the build release:
+
+    git tag -a vcon_x.x [xxxxx_commit_SHA] -m "Vcon pypi release"
+
 ## Building the conserver package
 
 TBD

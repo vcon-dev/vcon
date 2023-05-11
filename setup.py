@@ -62,7 +62,7 @@ setuptools.setup(
   author='Dan Petrie',
   author_email='dan.vcon@sipez.com',
   license='MIT',
-  packages=['vcon'],
+  packages=['vcon', 'vcon.filter_plugins', 'vcon.filter_plugins.impl'],
   python_requires=">=3.6",
   tests_require=['pytest'],
   install_requires=requires,

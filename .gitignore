@@ -1,6 +1,7 @@
 *.env
 **/*.swp
 dist
+src
 layers
 venv
 vcon.egg-info

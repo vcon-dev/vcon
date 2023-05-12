@@ -4,6 +4,7 @@ mypy
 flake8
 pytest
 pytest-asyncio
+build
 
 # runtime dependencies:
 cryptography >= 37
@@ -30,9 +31,9 @@ torch
 # Conserver
 rocketry
 uvicorn
-python-jsonl-logger
+python-json-logger
 fastapi
-fastapi_pagenation
+fastapi_pagination
 redis
 pyjq
 

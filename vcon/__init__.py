@@ -13,6 +13,7 @@ import logging
 import logging.config
 import pythonjsonlogger.jsonlogger
 
+__version__ = "0.2"
 
 def build_logger(name : str) -> logging.Logger:
   logger = logging.getLogger(name)

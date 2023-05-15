@@ -10,12 +10,12 @@ logger = init_logger(__name__)
 logger.info("Conserver starting up")
 
 # Load the environment
-config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.json")
+config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")
 update_config_file = os.getenv("UPDATE_CONFIG_FILE")
 
 async def load_config():
     try:
-        with open('config.yml', 'r') as file:
+        with open(config_file, 'r') as file:
             config = yaml.safe_load(file)
     except OSError as e:
         logger.error(f"Cannot find config file {config_file}")

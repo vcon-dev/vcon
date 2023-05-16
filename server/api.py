@@ -7,7 +7,7 @@ from fastapi.applications import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from uuid import UUID
-from pydantic import BaseModel, Json
+from pydantic import BaseModel, Json, Field
 from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.responses import JSONResponse
 import importlib
@@ -106,7 +106,7 @@ class Group(BaseModel):
 class Vcon(BaseModel):
     vcon: str
     uuid: UUID
-    created_at: typing.Union[int, str, datetime] = datetime.now().timestamp()
+    created_at: typing.Union[int, str, datetime] = Field(default_factory=lambda: datetime.now().timestamp())
     subject: str = None
     redacted: dict = None
     appended: dict = None

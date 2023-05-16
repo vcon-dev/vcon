@@ -47,6 +47,7 @@ class Party(BaseModel):
     gmlpos: str = None
     civicaddress: str = None
     timezone: str = None
+    meta: dict = None
 
 
 class DialogType(str, enum.Enum):
@@ -66,6 +67,7 @@ class Dialog(BaseModel):
     encoding: str = None
     alg: str = None
     signature: str = None
+    meta: dict = None
 
 
 class Analysis(BaseModel):

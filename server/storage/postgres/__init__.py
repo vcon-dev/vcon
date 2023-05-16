@@ -49,6 +49,7 @@ async def save(
             timezone = TextField(null = True)
             vcon_uuid = UUIDField()
             index = IntegerField()
+            meta = JSONField(null=True)
 
             class Meta:
                 primary_key = CompositeKey("vcon_uuid", "index")
@@ -67,6 +68,7 @@ async def save(
             signature = TextField(null = True)
             vcon_uuid = UUIDField()
             index = IntegerField()
+            meta = JSONField(null=True)
 
             class Meta:
                 primary_key = CompositeKey("vcon_uuid", "index")

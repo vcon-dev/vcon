@@ -1,20 +1,20 @@
 # Dev only packages
-vim
-screen
-less
-locate
-git
-jq
-wget
-curl
-sudo
-apt-file
-procps
-iproute2
-net-tools
-telnet
-iputils-ping
-python3.8-ven
+#vim
+#screen
+#less
+#locate
+#git
+#jq
+#wget
+#curl
+#sudo
+#apt-file
+#procps
+#iproute2
+#net-tools
+#telnet
+#iputils-ping
+#python3.8-ven
 
 # Runtime packages
 python3.8
@@ -29,6 +29,6 @@ ffmpeg
 #libcairo2-dev
 
 
-# need ed to build pyjq
+# needed to build pyjq
 autoconf
 libtool

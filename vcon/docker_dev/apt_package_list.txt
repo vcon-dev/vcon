@@ -11,6 +11,10 @@ sudo
 apt-file
 procps
 iproute2
+net-tools
+telnet
+iputils-ping
+python3.8-ven
 
 # Runtime packages
 python3.8
@@ -24,3 +28,7 @@ ffmpeg
 #pkg-config
 #libcairo2-dev
 
+
+# need ed to build pyjq
+autoconf
+libtool

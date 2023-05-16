@@ -30,7 +30,7 @@ jobs:
         pwd
         ls -l vcon/docker_dev
         # Pull out comments and python3 specific packages as the platform already has that
-        apt-get update
+        sudo apt-get update
         apt-cache madison ffmpeg
         apt-cache depends ffmpeg
         apt-cache depends ffmpeg=7:4.4.1-3ubuntu5

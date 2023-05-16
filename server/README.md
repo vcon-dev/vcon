@@ -86,7 +86,6 @@ in the first place, and adds that sales lead as an attachment.
 
 We need to run following command.
 
-SADD queue_names "bria-conserver-feed-dev"
 SADD queue_names "quiq-conserver-feed-dev"
 SADD queue_names "ringplan-conserver-feed-dev"
 SADD queue_names "volie-conserver-feed-dev"

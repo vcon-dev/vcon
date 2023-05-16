@@ -1,7 +1,15 @@
 from lib.logging_utils import init_logger
 from server.lib.vcon_redis import VconRedis
-from playhouse.postgres_ext import PostgresqlExtDatabase
-from playhouse.postgres_ext import *
+from playhouse.postgres_ext import PostgresqlExtDatabase, ArrayField, JSONField
+from peewee import (
+    Model,
+    DateTimeField,
+    IntegerField,
+    TextField,
+    DecimalField,
+    UUIDField,
+    CompositeKey,
+)
 
 logger = init_logger(__name__)
 default_options = {"name": "postgres"}
@@ -40,6 +48,11 @@ async def save(
             civicaddress = TextField(null = True)
             timezone = TextField(null = True)
             vcon_uuid = UUIDField()
+            index = IntegerField()
+            meta = JSONField(null=True)
+
+            class Meta:
+                primary_key = CompositeKey("vcon_uuid", "index")
 
         class Dialog(BaseModel):
             type = TextField()
@@ -54,6 +67,11 @@ async def save(
             alg = TextField(null = True)
             signature = TextField(null = True)
             vcon_uuid = UUIDField()
+            index = IntegerField()
+            meta = JSONField(null=True)
+
+            class Meta:
+                primary_key = CompositeKey("vcon_uuid", "index")
 
         class Analysis(BaseModel):
             type = TextField()
@@ -68,6 +86,10 @@ async def save(
             alg = TextField(null = True)
             signature = TextField(null = True)
             vcon_uuid = UUIDField()
+            index = IntegerField()
+
+            class Meta:
+                primary_key = CompositeKey("vcon_uuid", "index")
 
         class Attachment(BaseModel):
             type = TextField()
@@ -80,6 +102,10 @@ async def save(
             alg = TextField(null = True)
             signature = TextField(null = True)
             vcon_uuid = UUIDField()
+            index = IntegerField()
+
+            class Meta:
+                primary_key = CompositeKey("vcon_uuid", "index")
 
         class Group(BaseModel):
             uuid = UUIDField()
@@ -89,6 +115,10 @@ async def save(
             alg = TextField(null = True)
             signature = TextField(null = True)
             vcon_uuid = UUIDField()
+            index = IntegerField()
+
+            class Meta:
+                primary_key = CompositeKey("vcon_uuid", "index")
 
         class Redacted(BaseModel):
             body = JSONField(null = True)
@@ -107,32 +137,45 @@ async def save(
             subject = TextField(null = True)
 
         db.create_tables([Vcons, Dialog, Analysis, Attachment, Party, Group], safe=True)
- 
-        Vcons.create(
-            id=vcon.uuid,
-            uuid=vcon.uuid,
-            vcon=vcon.vcon,
-            created_at=vcon.created_at,
-            updated_at=vcon.created_at,
-            subject=vcon.subject,
-            redacted=vcon.redacted,
-            appended=vcon.appended,
-        )
-        for dialog in vcon.dialog:
-            Dialog.create(vcon_uuid=vcon.uuid, **dialog)
 
-        for analysis in vcon.analysis:
-            Analysis.create(vcon_uuid=vcon.uuid, **analysis)
-            
-        for attachment in vcon.attachments:
-            Attachment.create(vcon_uuid=vcon.uuid, **attachment)
+        vcon_data = {
+            "id": vcon.uuid,
+            "uuid": vcon.uuid,
+            "vcon": vcon.vcon,
+            "created_at": vcon.created_at,
+            "updated_at": vcon.created_at,
+            "subject": vcon.subject,
+        }
+        Vcons.insert(**vcon_data).on_conflict(
+            conflict_target=(Vcons.id), update=vcon_data
+        ).execute()
 
-        for party in vcon.parties:
-            Party.create(vcon_uuid=vcon.uuid, **party)
-            
-        for group in vcon.group:
-            Group.create(vcon_uuid=vcon.uuid, **group)
-        
+        for ind, dialog in enumerate(vcon.dialog):
+            Dialog.insert(vcon_uuid=vcon.uuid, index=ind, **dialog).on_conflict(
+                conflict_target=(Dialog.vcon_uuid, Dialog.index), update=dialog
+            ).execute()
+
+        for ind, analysis in enumerate(vcon.analysis):
+            Analysis.insert(vcon_uuid=vcon.uuid, index=ind, **analysis).on_conflict(
+                conflict_target=(Analysis.vcon_uuid, Analysis.index), update=analysis
+            ).execute()
+
+        for ind, attachment in enumerate(vcon.attachments):
+            Attachment.insert(vcon_uuid=vcon.uuid, index=ind, **attachment).on_conflict(
+                conflict_target=(Attachment.vcon_uuid, Attachment.index),
+                update=attachment,
+            ).execute()
+
+        for ind, party in enumerate(vcon.parties):
+            Party.insert(vcon_uuid=vcon.uuid, index=ind, **party).on_conflict(
+                conflict_target=(Party.vcon_uuid, Party.index), update=party
+            ).execute()
+
+        for ind, group in enumerate(vcon.group):
+            Group.insert(vcon_uuid=vcon.uuid, index=ind, **group).on_conflict(
+                conflict_target=(Group.vcon_uuid, Group.index), update=group
+            ).execute()
+
         db.close() # close connection to database
         logger.info(f"postgres storage plugin: inserted vCon: {vcon_uuid}, results: {vcon} ")
 

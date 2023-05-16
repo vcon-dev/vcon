@@ -1,5 +1,6 @@
 *.env
 **/*.swp
+**/*.swo
 dist
 src
 layers

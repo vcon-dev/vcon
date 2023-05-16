@@ -1,30 +1,21 @@
-import setuptools
+import os
 import sys
+import setuptools
 
-requires = [
-  "cryptography >= 37",
-  "hsslms",
-  "python-dateutil",
-  "python-jose",
-  "python-json-logger",
-  # "pythonjsonlogger",
-  "sox",
-  "sentry-sdk",
-  "uuid6",
+requires = []
 
-  # whisper dependencies
-  "ffmpeg-python",
-  "more-itertools",
-  "python-multipart",
-  "tqdm",
-  "transformers",
-  "whisper",
+#print("CWD: {}".format(os.getcwd()), file=sys.stderr)
+#print("files in CWD: {}".format(os.listdir(os.getcwd())), file=sys.stderr)
 
-  # stable-ds dependencies:
-  "numpy",
-  "torch",
-  "stable-ts"
-  ]
+with open("vcon/docker_dev/pip_package_list.txt") as core_file:
+  line = core_file.readline()
+  while line:
+    line=line.strip()
+    if( len(line) > 0 and line[0] != '#'):
+      requires.append(line)
+    line = core_file.readline()
+
+print("vcon package dependencies: {}".format(requires), file=sys.stderr)
 
 def get_version()-> str:
   """ 
@@ -63,6 +54,8 @@ setuptools.setup(
   author_email='dan.vcon@sipez.com',
   license='MIT',
   packages=['vcon', 'vcon.filter_plugins', 'vcon.filter_plugins.impl'],
+  data_files=[
+    ("vcon", ["vcon/docker_dev/pip_package_list.txt"])],
   python_requires=">=3.6",
   tests_require=['pytest'],
   install_requires=requires,

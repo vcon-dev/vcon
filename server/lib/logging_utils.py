@@ -1,8 +1,10 @@
 import logging
 import logging.config
 from pythonjsonlogger import jsonlogger
-from settings import LOG_LEVEL
+from settings import LOG_LEVEL, LOGGING_CONFIG_FILE
 import sys
+
+logging.config.fileConfig(LOGGING_CONFIG_FILE)
 
 
 def init_logger(name):

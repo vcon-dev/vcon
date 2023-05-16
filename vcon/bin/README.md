@@ -18,6 +18,8 @@ vcon [I/O Options] [Operations]
 
 &nbsp;&nbsp;&nbsp;&nbsp;**-o FILE** write the result of the command operation to the given file name instead of the default stdout
 
+&nbsp;&nbsp;&nbsp;&nbsp;**-r FILTER_NAME MODULE_NAME CLASS_NAME DESCRIPTION** Load the MODULE_NAME and register the CLASS_NAME as a vcon filter plugin using the FILTER_NAME, having the functionality defined in DESCRIPTION string.  This will replace any existing filter registered as FILTER_NAME.  Note, this registration only exists for the life of this vcon command.  Generally this is used in conjunction with the **filter** option defined below.
+
 ## Command Operation
 
 &nbsp;&nbsp;&nbsp;&nbsp;**add in-email FILE** read a raw SMTP/email message from the given file name and add it to the vCon dialog Object array, add the parties found in the From, To and CC fields to the vCon parties Object array, if the input vCon does not already have a subject set, read the Subject header from the SMTP message and set the vCon subject parameter.  The dialog Object parameters: parties, start, mimetype, encoding and body are all filled in based upon the information in the SMTP message.
@@ -26,6 +28,10 @@ vcon [I/O Options] [Operations]
 
 
 &nbsp;&nbsp;&nbsp;&nbsp;**add ex-recording FILE DATE PARTIES URL** add a dialog to the input vCon referencing the given recording file name, use the given date as the start time for the recording and the given parties as the participants in the recording, where the recording is stored at the given HTTPS url.  The date must be the epoch time (seconds since 1970) as an integer or double; or a string RFC2822 or RFC3339 format date. The parties must be a string representing either an integer, an integer array, or an array of integers or integer arrays in JSON format, representing the parties contributing to the media in the corresponding channel.
+
+&nbsp;&nbsp;&nbsp;&nbsp;**filter FILTER_NAME [-fo FILTER_OPTIONS]** run the FILTER_NAME filter plugin on the input vcon.  Currently the only builtin filter plugin is **transcribe**.  Othere comming soon.  FILTER_OPTIONS is a quoted curly bracket surrounded string defining a dict as input options for the filter (e.g. "{foo='bar', verbose=True, number=6}" )
+
+
 
 &nbsp;&nbsp;&nbsp;&nbsp;**sign KEY [CERT ...]** sign the input vCon using the given private key, attaching the given list of certificates as the cert chain in the x5c parameter.  The output is a vCon in the sgined form (JOSE JWS JSON).
 
@@ -78,3 +84,6 @@ To obtain the value of the uuid parameter from the output vCon:
 
     vcon -n | jq '.uuid'
 
+To create a new vcon, add a recording of parties 0 and 1, starting at the current time and pipe that into another vcon command to transcribe the recording:
+
+    vcon -n add in-recording ~/dev/vcon/examples/agent_sample.wav  "`date --rfc-3339=seconds`"  "[0,1]" | vcon filter transcribe

@@ -5,6 +5,8 @@ python-jose
 python-dateutil
 sox
 uuid6
+python-json-logger
+python-multipart
 
 # whisper dependencies
 ffmpeg-python
@@ -12,8 +14,6 @@ more-itertools
 tqdm
 transformers
 whisper
-python-multipart
-python-json-logger
 
 # stable-ts dependencies:
 numpy

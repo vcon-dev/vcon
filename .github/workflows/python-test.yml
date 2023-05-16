@@ -31,7 +31,7 @@ jobs:
         ls -l vcon/docker_dev
         # Pull out comments and python3 specific packages as the platform already has that
         echo "Installing apt packages: " $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
-        sudo apt-get install -y $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
+        sudo apt-get install -y --fix-missing $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
         python -m pip install --upgrade pip
         #python -m pip install flake8 pytest
         #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi

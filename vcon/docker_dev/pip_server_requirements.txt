@@ -86,6 +86,7 @@ pycparser
 pydantic
 pydub
 Pygments
+pyjq
 pymongo
 pyparsing
 pyrsistent
@@ -96,8 +97,10 @@ pyzmq
 qtconsole
 QtPy
 redis
+rocketry
 s3transfer
 Send2Trash
+sentry-sdk
 shortuuid
 simplejson
 sniffio
@@ -119,7 +122,6 @@ webencodings
 webhook-debugger
 websocket-client
 websockets
-git+https://github.com/openai/whisper.git@d18e9ea5dd2ca57c697e8e55f9e654f06ede25d0
 widgetsnbextension
 yarl
 zipp

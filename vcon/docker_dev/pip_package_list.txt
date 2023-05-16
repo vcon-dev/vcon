@@ -1,11 +1,3 @@
-# Dev stuff:
-pylint
-mypy
-flake8
-pytest
-pytest-asyncio
-build
-
 # runtime dependencies:
 cryptography >= 37
 hsslms
@@ -13,7 +5,6 @@ python-jose
 python-dateutil
 sox
 uuid6
-sentry-sdk
 
 # whisper dependencies
 ffmpeg-python
@@ -22,19 +13,11 @@ tqdm
 transformers
 whisper
 python-multipart
+python-json-logger
 
 # stable-ts dependencies:
 numpy
 torch
 # Need to hold stable-ts back until newer version (> 20230314) of whisper is available on pip
 stable-ts < 2.0.0
-
-# Conserver
-rocketry
-uvicorn
-python-json-logger
-fastapi
-fastapi_pagination
-redis
-pyjq
 

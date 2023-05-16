@@ -1,5 +1,4 @@
 import uvicorn
-import logging
 from lib.logging_utils import init_logger
 from settings import HOSTNAME
 import urllib
@@ -7,7 +6,6 @@ import asyncio
 import uvicorn
 from conserver import conserver_app
 from main_loop import scheduler_app
-logging.config.fileConfig("./logging.conf")
 
 logger = init_logger(__name__)
 

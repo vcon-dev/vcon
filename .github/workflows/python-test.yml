@@ -35,6 +35,7 @@ jobs:
         python -m pip install --upgrade pip
         #python -m pip install flake8 pytest
         #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r vcon/docker_dev/pip_dev_package_list.txt
         pip install -r vcon/docker_dev/pip_package_list.txt
         #pip install -r vcon/docker_dev/pip_server_requirements.txt
         pip freeze | grep stable

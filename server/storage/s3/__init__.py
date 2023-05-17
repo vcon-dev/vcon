@@ -6,18 +6,13 @@ import boto3
 logger = init_logger(__name__)
 
 
-# default_options = {
-#     "name": "s3",
-#     "AWS_KEY_ID": AWS_KEY_ID,
-#     "AWS_SECRET_KEY": AWS_SECRET_KEY,
-#     "AWS_BUCKET": AWS_BUCKET,
-#     "S3Path": "",
-# }
-
 default_options = {}
 
 
-async def save(vcon_uuid, opts):
+async def save(
+    vcon_uuid,
+    opts=default_options,
+):
     logger.info("Starting the S3 storage")
     try:
         # Cannot create redis client in global context as it can get blocked on async

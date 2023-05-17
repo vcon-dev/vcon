@@ -51,6 +51,12 @@ storages:
       host: localhost
       port: '5432'
       database: postgres
+  s3:
+    module: storage.s3
+    options:
+      aws_access_key_id: some_key
+      aws_secret_access_key: some_secret
+      aws_bucket: some_bucket
 chains:
   sample_chain:
     links:
@@ -63,6 +69,7 @@ chains:
     storages:
     - mongo
     - postgres
+    - s3
     egress_lists:
     - test_output
     enabled: 1

@@ -85,7 +85,7 @@ def test_filter(capsys):
   try:
     out_vcon.loads(out_vcon_json)
   except Exception as e:
-    print("output Vcon JSON: {}".format(out_vcon_json[0:30]))
+    print("output Vcon JSON: {}".format(out_vcon_json[0:300]))
     raise e
 
 

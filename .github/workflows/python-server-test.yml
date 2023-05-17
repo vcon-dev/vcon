@@ -1,0 +1,109 @@
+name: Python conserver unit test
+on: 
+  push:
+    # all
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  # Label of the runner job
+  conserver-unit-test-python-version:
+    # You must use a Linux environment when using service containers or container jobs
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    # Service containers to run with `runner-job`
+    services:
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
+
+    steps:
+      - name: checkout ${{ github.ref }}
+      # Downloads a copy of the code in your repository before running CI tests
+        uses: actions/checkout@v3
+      
+      - name: Set up Python ${{ matrix.python-version }} os ${{ runner.os }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: vcon/docker_dev/pip_dev_package_list.txt
+
+      # Performs a clean installation of all dependencies in the `package.json` file
+      # For more information, see https://docs.npmjs.com/cli/ci.html
+      - name: Install redis-cli
+        run: |
+          sudo apt-get install redis-tools
+
+      - name: Test connection to Redis
+        # Runs a script that creates a Redis client, populates
+        # the client with data, and retrieves data
+        run: |
+          # make sure we can connect and get response from redis server
+          export PING_OUT=`redis-cli -n 0 -h ${REDIS_HOST} -p ${REDIS_PORT} PING`
+          if [ "${PING_OUT}" == "PONG" ]; then echo "redis connection succeeded"; else echo "cli return: ${PING_OUT}"; exit 1; fi
+          
+          # confirm only one user of this server
+          if [ "`redis-cli -n 0 SADD PY_V ${{ matrix.python-version }}`" -eq 1 ]; then echo "no other python ${{matrix.python-version}} user of redis"; else echo "existing python ${{ matrix.python-version }} user of redis"; exit 2; fi
+          sleep 10
+          redis-cli -n 0 SMEMBERS PY_V 
+          export PY_V_COUNT=`redis-cli -n 0 SCARD PY_V`
+          if [ "${PY_V_COUNT}" -eq 1 ]; then echo "one user of redis"; else echo "${PY_V_COUNT} users of redis"; exit 2; fi
+
+        # Environment variables
+        env:
+          # The hostname used to communicate with the Redis service container
+          REDIS_HOST: localhost
+          # The default Redis port
+          REDIS_PORT: 6379
+
+      - name: Install dependencies
+        run: |
+          pwd
+          ls -l vcon/docker_dev
+          # Pull out comments and python3 specific packages as the platform already has that
+          sudo apt-get update
+          apt-cache madison ffmpeg
+          apt-cache depends ffmpeg
+          apt-cache depends ffmpeg=7:4.4.1-3ubuntu5
+          apt-cache depends ffmpeg=7:4.4.2-0ubuntu0.22.04.1
+          apt-cache depends ffmpeg=7:4.4.2-0ubuntu0.22.04.1
+          apt-cache madison intel-media-va-driver
+          apt-cache depends intel-media-va-driver
+          echo "Installing apt packages: " $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
+          sudo apt-get install -y --fix-missing $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
+          python -m pip install --upgrade pip
+          #python -m pip install flake8 pytest
+          #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          #pip install -r vcon/docker_dev/pip_dev_package_list.txt
+          pip install -r vcon/docker_dev/pip_package_list.txt
+          pip install -r vcon/docker_dev/pip_server_requirements.txt
+          pip freeze | grep stable
+          pip freeze | grep whisper
+          python3 -c "import stable_whisper;print(stable_whisper.__version__)"
+
+      - name: Test conserver package with pytest
+        run: |
+          # Run all Vcon package unit tests
+          (cd server; pytest -v -rP tests)
+
+      - name: fix pip cache issue by creating dir
+        run: |
+          mkdir -p -- "$(pip cache dir)"
+          echo "$(pip cache dir)"
+

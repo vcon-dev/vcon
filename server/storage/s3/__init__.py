@@ -2,24 +2,22 @@ from lib.logging_utils import init_logger
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
 import boto3
-from settings import AWS_KEY_ID, AWS_SECRET_KEY, AWS_BUCKET
 
 logger = init_logger(__name__)
 
 
-default_options = {
-    "name": "s3",
-    "AWS_KEY_ID": AWS_KEY_ID,
-    "AWS_SECRET_KEY": AWS_SECRET_KEY,
-    "AWS_BUCKET": AWS_BUCKET,
-    "S3Path": "",
-}
+# default_options = {
+#     "name": "s3",
+#     "AWS_KEY_ID": AWS_KEY_ID,
+#     "AWS_SECRET_KEY": AWS_SECRET_KEY,
+#     "AWS_BUCKET": AWS_BUCKET,
+#     "S3Path": "",
+# }
+
+default_options = {}
 
 
-async def save(
-    vcon_uuid,
-    opts=default_options,
-):
+async def save(vcon_uuid, opts):
     logger.info("Starting the S3 storage")
     try:
         # Cannot create redis client in global context as it can get blocked on async
@@ -28,14 +26,16 @@ async def save(
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         s3 = boto3.client(
             "s3",
-            aws_access_key_id=opts['AWS_KEY_ID'],
-            aws_secret_access_key=opts['AWS_SECRET_KEY']
+            aws_access_key_id=opts['aws_access_key_id'],
+            aws_secret_access_key=opts['aws_secret_access_key']
         )
-        s3.put_object(
-            Bucket=opts['AWS_BUCKET'],
-            Key=f"{opts['S3Path']}/{vcon_uuid}",
-            Body=vcon.dumps()
-        )
+
+        s3_path = opts.get('s3_path')
+        key = vcon_uuid + ".vcon"
+        if s3_path:
+            key = s3_path + "/" + key
+        s3.put_object(Bucket=opts["aws_bucket"], Key=key, Body=vcon.dumps())
+
         logger.info(f"s3 storage plugin: inserted vCon: {vcon_uuid}")   
     except Exception as e:
         logger.error(f"s3 storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")

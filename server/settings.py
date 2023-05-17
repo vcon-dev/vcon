@@ -3,9 +3,6 @@ from pathlib import Path
 
 MONGODB_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DEEPGRAM_KEY = os.getenv("DEEPGRAM_KEY")
-AWS_KEY_ID = os.getenv("AWS_KEY_ID")
-AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
-AWS_BUCKET = os.getenv("AWS_BUCKET")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost")
 TICK_INTERVAL = int(os.getenv("TICK_INTERVAL", 5))
 HOSTNAME = os.getenv("HOSTNAME", "http://localhost:8000")

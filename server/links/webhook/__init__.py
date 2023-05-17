@@ -8,10 +8,7 @@ default_options = {
     "webhook-urls": ["https://eo91qivu6evxsty.m.pipedream.net"],
 }
 
-async def run(
-    vcon_uuid,
-    opts=default_options,
-):
+async def run(vcon_uuid, opts=default_options,):
     logger.debug("Starting transcribe::run")
     # Cannot create redis client in global context as it will get created on async
     # event loop which may go away.

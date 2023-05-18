@@ -7,7 +7,7 @@ on:
 
 jobs:
   # Label of the runner job
-  conserver-unit-test-python-version:
+  server-utest-python-version:
     # You must use a Linux environment when using service containers or container jobs
     runs-on: ubuntu-latest
 

@@ -10,7 +10,7 @@ on:
     branches: [ $default-branch ]
 
 jobs:
-  vcon-utest-python-version
+  vcon-utest-python-version:
 
     runs-on: ubuntu-latest
     strategy:

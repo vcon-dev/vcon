@@ -92,7 +92,7 @@ jobs:
           echo "Installing apt packages: " $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
           sudo apt-get install -y --fix-missing $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
           # need to install libpython for the version running, needed for pyjq and other pip package builds
-          sudo apt-get install -y libpython${{ matrix.python-version }}-dev
+          sudo apt-get install -y libpython3-dev
           # get latest pip install package list
           python -m pip install --upgrade pip
           #python -m pip install flake8 pytest

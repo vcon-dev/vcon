@@ -4,6 +4,7 @@ mypy
 flake8
 pytest
 pytest-asyncio
+pytest-dependency
 build
 twine
 

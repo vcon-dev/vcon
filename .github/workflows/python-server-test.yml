@@ -107,7 +107,7 @@ jobs:
       - name: Test conserver package with pytest
         run: |
           # Run all Vcon package unit tests
-          (cd server; pytest -v -rP tests/test_jq_query.py tests/test_json_path_query.py)
+          (cd server; pytest -v -rP tests)
 
       - name: fix pip cache issue by creating dir
         run: |

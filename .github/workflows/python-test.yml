@@ -27,6 +27,8 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+        # This does not seem to actually load the pip dev packages.  However
+        # leaving this in so that it does not pull in **/requirements.txt
         cache-dependency-path: vcon/docker_dev/pip_dev_package_list.txt
 
     - name: Install dependencies
@@ -45,9 +47,7 @@ jobs:
         echo "Installing apt packages: " $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
         sudo apt-get install -y --fix-missing $(grep -vE "^\s*#" vcon/docker_dev/apt_package_list.txt | grep -v python3 | tr "\n" " ")
         python -m pip install --upgrade pip
-        #python -m pip install flake8 pytest
-        #if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        #pip install -r vcon/docker_dev/pip_dev_package_list.txt
+        pip install -r vcon/docker_dev/pip_dev_package_list.txt
         pip install -r vcon/docker_dev/pip_package_list.txt
         #pip install -r vcon/docker_dev/pip_server_requirements.txt
         pip freeze | grep stable

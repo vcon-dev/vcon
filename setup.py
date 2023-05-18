@@ -57,7 +57,7 @@ setuptools.setup(
   data_files=[
     ("vcon", ["vcon/docker_dev/pip_package_list.txt"])],
   python_requires=">=3.6",
-  tests_require=['pytest'],
+  tests_require=['pytest', 'pytest-asyncio', 'pytest-dependency'],
   install_requires=requires,
   scripts=['vcon/bin/vcon'],
   # entry_points={

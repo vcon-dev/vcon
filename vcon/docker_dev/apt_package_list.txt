@@ -32,3 +32,4 @@ ffmpeg
 # needed to build pyjq
 autoconf
 libtool
+libpython3-dev

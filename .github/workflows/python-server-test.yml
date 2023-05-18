@@ -20,8 +20,8 @@ jobs:
     services:
       # Label used to access the service container
       redis:
-        # Docker Hub image
-        image: redis
+        # Docker Hub image.  Need stack for JSON path operations support
+        image: redis/redis-stack-server
         # Set health checks to wait until redis has started
         options: >-
           --health-cmd "redis-cli ping"
@@ -50,7 +50,7 @@ jobs:
         run: |
           sudo apt-get install redis-tools
 
-      - name: Test connection to Redis
+      - name: Test connection and operations with Redis
         # Runs a script that creates a Redis client, populates
         # the client with data, and retrieves data
         run: |
@@ -64,6 +64,10 @@ jobs:
           redis-cli -n 0 SMEMBERS PY_V 
           export PY_V_COUNT=`redis-cli -n 0 SCARD PY_V`
           if [ "${PY_V_COUNT}" -eq 1 ]; then echo "one user of redis"; else echo "${PY_V_COUNT} users of redis"; exit 2; fi
+
+          # Verify that we have support of JSON path operations in redis server
+          redis-cli -n 0 JSON.SET v '$' '{"a": "aaa"}'
+          redis-cli -n 0 JSON.GET v '$.a'
 
         # Environment variables
         env:

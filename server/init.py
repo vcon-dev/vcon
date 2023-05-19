@@ -6,8 +6,10 @@ import asyncio
 import uvicorn
 from conserver import conserver_app
 from main_loop import scheduler_app
+from lib.error_tracking import init_error_tracker
 
 logger = init_logger(__name__)
+init_error_tracker()
 
 class Server(uvicorn.Server):
     def handle_exit(self, sig: int, frame) -> None:

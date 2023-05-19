@@ -3,7 +3,8 @@ on:
   push:
     # all
   pull_request:
-    branches: [ $default-branch ]
+    # all PRs for now
+    #branches: [ $default-branch ]
 
 jobs:
   # Label of the runner job

@@ -1,25 +1,28 @@
-import os
+""" Build script for vcon core package for pypi """
+# import os
 import sys
 import setuptools
 
 requires = []
 
-#print("CWD: {}".format(os.getcwd()), file=sys.stderr)
-#print("files in CWD: {}".format(os.listdir(os.getcwd())), file=sys.stderr)
+# print("CWD: {}".format(os.getcwd()), file=sys.stderr)
+# print("files in CWD: {}".format(os.listdir(os.getcwd())), file=sys.stderr)
+
 
 def get_requirements(filename, requires = []) -> dict:
   with open(filename) as core_file:
     line = core_file.readline()
     while line:
-      line=line.strip()
+      line = line.strip()
       if( len(line) > 0 and line[0] != '#'):
         requires.append(line)
       line = core_file.readline()
   return(requires)
 
-requires = get_requirements("vcon/docker_dev/pip_package_list.txt", requires)
 
-print("vcon package dependencies: {}".format(requires), file=sys.stderr)
+requires = get_requirements("vcon/docker_dev/pip_package_list.txt", requires)
+print("vcon package dependencies: {}".format(requires), file = sys.stderr)
+
 
 def get_version()-> str:
   """ 
@@ -46,12 +49,13 @@ def get_version()-> str:
 
   return(version)
 
+
 __version__ = get_version()
 
 setuptools.setup(
   name='vcon',
   version=__version__,
-  #version="0.1",
+  # version="0.1",
   description='vCon container manipulation package',
   url='http://github.com/von-dev/vcon',
   author='Dan Petrie',

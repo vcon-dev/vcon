@@ -107,7 +107,7 @@ class TestTranscribe:
             # assert(not loop.is_closed())
 
     # @pytest.mark.incremental
-    @pytest.mark.dependency(depends=["tests/test_post_dialog.py::test_1_post_dialog_vcon"], scope="session")
+    @pytest.mark.dependency(depends=["tests/test_b_post_dialog.py::test_1_post_dialog_vcon"], scope="session")
     def test_21_get_dialog_vcon(self):
         try:
             get_response = None

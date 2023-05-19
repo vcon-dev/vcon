@@ -14,7 +14,7 @@ def get_requirements(filename, requires = []) -> dict:
     line = core_file.readline()
     while line:
       line = line.strip()
-      if( len(line) > 0 and line[0] != '#'):
+      if(len(line) > 0 and line[0] != '#'):
         requires.append(line)
       line = core_file.readline()
   return(requires)
@@ -24,7 +24,7 @@ requires = get_requirements("vcon/docker_dev/pip_package_list.txt", requires)
 print("vcon package dependencies: {}".format(requires), file = sys.stderr)
 
 
-def get_version()-> str:
+def get_version() -> str:
   """ 
   This is kind of a PITA, but the build system barfs when we import vcon here
   as depenencies are not installed yet in the vritual environment that the 

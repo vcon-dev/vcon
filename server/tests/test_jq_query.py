@@ -1,3 +1,4 @@
+""" Unit tests for jq json query entrypoint """
 import os
 from lib.logging_utils import init_logger
 import json
@@ -11,11 +12,13 @@ import pyjq
 
 logger = init_logger(__name__)
 
+
 # simple test to be sure pyjq is installed correctly and working
 def test_2_jq():
   json_dict = {"a": "bbb"}
   result = pyjq.all(".a", json_dict)
   assert(result[0] == "bbb")
+
 
 # @pytest.mark.incremental
 @pytest.mark.dependency

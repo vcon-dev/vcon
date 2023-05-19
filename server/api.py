@@ -16,8 +16,11 @@ import typing
 import enum
 import pyjq
 from typing import List
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 import redis_mgr
+from settings import CONSERVER_API_TOKEN
+
 
 class Chain(BaseModel):
     links: typing.List[str] = []
@@ -127,7 +130,7 @@ logger.info("Conserver starting up")
 # Load FastAPI app
 app = FastAPI.conserver_app
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -135,6 +138,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+if CONSERVER_API_TOKEN:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["*"]
+    )
+
+    @app.middleware("http")
+    async def auth_middleware(request, call_next):
+        authorization_header = request.headers.get("Authorization")
+        if not authorization_header:
+            logger.warning("Authorization token is missing")
+            return JSONResponse(status_code=401, content={"message": "Authorization token is missing"})
+
+        token_parts = authorization_header.split("Bearer ")
+        if len(token_parts) != 2 or token_parts[1] != CONSERVER_API_TOKEN:
+            logger.error("Invalid authorization header", authorization_header)
+            return JSONResponse(status_code=403, content={"message": "Invalid token"})
+
+        response = await call_next(request)
+        return response
+
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/vcon", response_model=Page[str])

@@ -1,3 +1,4 @@
+""" Unit test for transcribe link using transcribe filter plugin """
 import pytest
 import fastapi.testclient
 from lib.logging_utils import init_logger
@@ -5,7 +6,6 @@ import asyncio
 
 import vcon
 import conserver
-import redis_mgr
 import conserver_test
 
 logger = init_logger(__name__)
@@ -15,6 +15,7 @@ def delete_test_vcon():
     # delete_response = get_client().delete("/vcon/{}".format(conserver_test.UUID))
     # print("delete response: {}".format(delete_response.status_code))
     pass
+
 
 # Run before each test function
 @pytest.fixture(autouse=True)

@@ -71,7 +71,7 @@ async def tick():
                             options = storage.get('options', module.default_options)
                             result = await module.save(inbound_vcon, options)
                         except Exception as e:
-                            logger.error("Error saving vCon %s to storage %s: %s", inbound_vcon, storage, e)
+                            logger.error("Error saving vCon %s to storage %s: %s", inbound_vcon, storage_name, e)
     
     logger.debug("Finished processing chain %s", chain_name)
 

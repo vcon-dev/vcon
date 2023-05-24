@@ -75,4 +75,4 @@ chains:
     enabled: 1
 adapters:
   example:
-    module: adapters.example
+    module: adapters.chatgpt

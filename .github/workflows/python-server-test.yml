@@ -45,7 +45,12 @@ jobs:
           cache: 'pip'
           # This does not seem to actually load the pip dev packages.  However
           # leaving this in so that it does not pull in **/requirements.txt
-          cache-dependency-path: vcon/docker_dev/pip_dev_package_list.txt
+          # and its supposed to be used in the hash for the cache to determine
+          # if a re-build is needed.
+          cache-dependency-path: |
+            vcon/docker_dev/pip_dev_package_list.txt
+            vcon/docker_dev/pip_package_list.txt
+            vcon/docker_dev/pip_server_requirements.txt
 
       # Performs a clean installation of all dependencies in the `package.json` file
       # For more information, see https://docs.npmjs.com/cli/ci.html

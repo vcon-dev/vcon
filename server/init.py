@@ -3,7 +3,6 @@ from lib.logging_utils import init_logger
 from settings import HOSTNAME
 import urllib
 import asyncio
-import uvicorn
 from conserver import conserver_app
 from main_loop import scheduler_app
 
@@ -22,8 +21,7 @@ async def main():
     logger.info("Conserver binding to host: {} port: {}".format(host_ip, port_num))
 
     server = Server(config=uvicorn.Config(
-        app=conserver_app, 
-        log_level="trace",
+        app=conserver_app,
         workers=1, 
         loop="asyncio",
         host=host_ip, 

@@ -1,0 +1,9 @@
+# Dev stuff:
+pylint
+mypy
+flake8
+pytest
+pytest-asyncio
+build
+twine
+

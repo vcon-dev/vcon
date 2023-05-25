@@ -141,7 +141,7 @@ app.add_middleware(
 async def get_vcons():
     r = redis_mgr.get_client()
     keys = await r.keys("vcon:*")
-    uuids = [key.replace("vcon:", "") for key in keys]
+    uuids = [key.decode().replace("vcon:", "") for key in keys]
     return paginate(uuids)
 
 

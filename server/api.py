@@ -57,7 +57,7 @@ class DialogType(str, enum.Enum):
 class Dialog(BaseModel):
     type: DialogType
     start: typing.Union[int, str, datetime]
-    duration: float = None
+    duration: typing.Union[int, float] = None
     parties: typing.Union[int, typing.List[typing.Union[int, typing.List[int]]]]
     mimetype: str = None
     filename: str = None

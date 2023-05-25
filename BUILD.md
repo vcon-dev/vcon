@@ -9,7 +9,12 @@ Make sure python build and twine packages are installed:
 
     pip3 install --upgrade build twine
 
-Update the version number in vcon/vcon/__init__.py
+Create a clean clone of the branch that you want to build as any files in your development area may get accidently included in the vcon package:
+
+    get clone https://github.com/vcon-dev/vcon.git
+    git checkout [xxxxx_commit_SHA]
+
+Update the package __version__ number in vcon/vcon/__init__.py
 
 Be sure to clean out the dist directory:
 

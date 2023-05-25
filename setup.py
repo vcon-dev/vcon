@@ -1,32 +1,30 @@
-import setuptools
+""" Build script for vcon core package for pypi """
+# import os
 import sys
+import setuptools
 
-requires = [
-  "cryptography >= 37",
-  "hsslms",
-  "python-dateutil",
-  "python-jose",
-  "python-json-logger",
-  # "pythonjsonlogger",
-  "sox",
-  "sentry-sdk",
-  "uuid6",
+requires = []
 
-  # whisper dependencies
-  "ffmpeg-python",
-  "more-itertools",
-  "python-multipart",
-  "tqdm",
-  "transformers",
-  "whisper",
+# print("CWD: {}".format(os.getcwd()), file=sys.stderr)
+# print("files in CWD: {}".format(os.listdir(os.getcwd())), file=sys.stderr)
 
-  # stable-ds dependencies:
-  "numpy",
-  "torch",
-  "stable-ts"
-  ]
 
-def get_version()-> str:
+def get_requirements(filename, requires = []) -> dict:
+  with open(filename) as core_file:
+    line = core_file.readline()
+    while line:
+      line = line.strip()
+      if(len(line) > 0 and line[0] != '#'):
+        requires.append(line)
+      line = core_file.readline()
+  return(requires)
+
+
+requires = get_requirements("vcon/docker_dev/pip_package_list.txt", requires)
+print("vcon package dependencies: {}".format(requires), file = sys.stderr)
+
+
+def get_version() -> str:
   """ 
   This is kind of a PITA, but the build system barfs when we import vcon here
   as depenencies are not installed yet in the vritual environment that the 
@@ -51,20 +49,23 @@ def get_version()-> str:
 
   return(version)
 
+
 __version__ = get_version()
 
 setuptools.setup(
   name='vcon',
   version=__version__,
-  #version="0.1",
+  # version="0.1",
   description='vCon container manipulation package',
   url='http://github.com/von-dev/vcon',
   author='Dan Petrie',
   author_email='dan.vcon@sipez.com',
   license='MIT',
   packages=['vcon', 'vcon.filter_plugins', 'vcon.filter_plugins.impl'],
+  data_files=[
+    ("vcon", ["vcon/docker_dev/pip_package_list.txt"])],
   python_requires=">=3.6",
-  tests_require=['pytest'],
+  tests_require=['pytest', 'pytest-asyncio', 'pytest-dependency'],
   install_requires=requires,
   scripts=['vcon/bin/vcon'],
   # entry_points={

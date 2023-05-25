@@ -1,3 +1,4 @@
+""" Unit tests for jq json query entrypoint """
 import os
 from lib.logging_utils import init_logger
 import json
@@ -7,14 +8,22 @@ import pytest
 import conserver
 import vcon
 import conserver_test
+import pyjq
 
 logger = init_logger(__name__)
+
+
+# simple test to be sure pyjq is installed correctly and working
+def test_2_jq():
+  json_dict = {"a": "bbb"}
+  result = pyjq.all(".a", json_dict)
+  assert(result[0] == "bbb")
 
 
 # @pytest.mark.incremental
 @pytest.mark.dependency
 # @pytest.mark.dependency(depends=["test_1_post_dialog_vcon"])
-def test_2_jq():
+def test_2_jq_entrypoint():
     logger.debug("Starting test_2_jq")
     with fastapi.testclient.TestClient(conserver.conserver_app) as client:
         query = {}

@@ -70,8 +70,7 @@ pycparser==2.21
 pydantic==1.10.2
 pydub==0.25.1
 pyflakes==2.2.0
-# Note: pyjq requires apt-get install libtool autoconf libpython3.8-dev
-# change to your version of libpython
+# Note: pyjq requires apt-get install libtool autoconf libpython3-dev
 pyjq
 Pygments==2.12.0
 pymongo==3.11.1

@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from uuid import UUID
 from pydantic import BaseModel, Json, Field
-from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.responses import JSONResponse
 import importlib
 from redis.commands.json.path import Path
@@ -16,6 +15,15 @@ import typing
 import enum
 import pyjq
 from typing import List
+import tqdm
+import boto3
+import json
+from datetime import datetime
+import redis
+import tqdm
+import redis.commands.search.aggregation as aggregations
+from redis.commands.search.aggregation import Asc
+
 
 import redis_mgr
 
@@ -137,13 +145,46 @@ app.add_middleware(
 )
 
 
-@app.get("/vcon", response_model=Page[str])
-async def get_vcons():
-    r = redis_mgr.get_client()
-    keys = await r.keys("vcon:*")
-    uuids = [key.replace("vcon:", "") for key in keys]
-    return paginate(uuids)
+@app.get("/vcon", response_model=List[str])
+async def get_vcons(page: int = 0, size: int = 50, since: datetime = None, until: datetime = None):
+    """
+    Gets the conversations, using the since and until parameters to filter the results.:
 
+    - **page**: the page number to return (starting at 1)
+    - **size**: the number of conversations to return per page
+    - **since**: each conversation started after this date will be returned
+    - **until**: each conversation started before this date will be returned
+    :param item: User input.
+
+    There is a maximum of 1000 conversations returned per page.
+    There is a maximum of pages and offset of 10000. Reset the date to get more conversations.
+
+    """
+
+    # Assumes that the REDIS database has a full-text index called "vconIdx"
+    r = redis_mgr.get_client()
+    index_name = 'vconIdx'
+    try:
+        indexInfo  = await r.ft(index_name).info()
+    except redis.exceptions.ResponseError:
+        print("Must have the index " + index_name + " in the database")
+        exit(1)
+
+    # Get the last vcon from the database
+    since_ts = since.timestamp() if since else 0
+    print("since: " + str(type(since)) + str(since))
+    print("since_ts: " + str(since_ts))
+    until_ts = until.timestamp() if until else datetime.now().timestamp()
+
+    req = aggregations.AggregateRequest().filter(f"@created_at >= {str(since_ts)} && @created_at < {str(until_ts)}").sort_by(Asc("@created_at")).limit((page-1)*size, size)
+    req.load('$')
+    results = await r.ft(index_name).aggregate(req)
+
+    uuids = []
+    for row in tqdm.tqdm(results.rows):
+        vcon = json.loads(row[1].decode("UTF-8"))
+        uuids.append(str(vcon['uuid']))
+    return uuids
 
 @app.get("/vcon/{vcon_uuid}")
 async def get_vcon(vcon_uuid: UUID):
@@ -174,7 +215,7 @@ async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
     return JSONResponse(content=query_result)
 
 
-@app.get("/vcon/{vcon_uuid}/JSONPath", response_model=Page[Party])
+@app.get("/vcon/{vcon_uuid}/JSONPath", response_model=List[Party])
 async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
     try:
         logger.info("JSONPath query string: {}".format(path_string))
@@ -187,7 +228,7 @@ async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
     return JSONResponse(content=query_result)
 
 
-@app.get("/vcon/{vcon_uuid}/party", response_model=Page[Party])
+@app.get("/vcon/{vcon_uuid}/party", response_model=List[Party])
 async def get_parties(vcon_uuid: UUID):
     try:
         r = redis_mgr.get_client()
@@ -198,7 +239,7 @@ async def get_parties(vcon_uuid: UUID):
     return paginate(parties[0])
 
 
-@app.get("/vcon/{vcon_uuid}/dialog", response_model=Page[Dialog])
+@app.get("/vcon/{vcon_uuid}/dialog", response_model=List[Dialog])
 async def get_dialogs(vcon_uuid: UUID):
     try:
         r = redis_mgr.get_client()
@@ -209,7 +250,7 @@ async def get_dialogs(vcon_uuid: UUID):
     return paginate(dialogs[0])
 
 
-@app.get("/vcon/{vcon_uuid}/analysis", response_model=Page[Analysis])
+@app.get("/vcon/{vcon_uuid}/analysis", response_model=List[Analysis])
 async def get_analyses(vcon_uuid: UUID):
     try:
         r = redis_mgr.get_client()
@@ -220,7 +261,7 @@ async def get_analyses(vcon_uuid: UUID):
     return paginate(analyses[0])
 
 
-@app.get("/vcon/{vcon_uuid}/attachment", response_model=Page[Attachment])
+@app.get("/vcon/{vcon_uuid}/attachment", response_model=List[Attachment])
 async def get_attachments(vcon_uuid: UUID):
     try:
         r = redis_mgr.get_client()
@@ -229,9 +270,6 @@ async def get_attachments(vcon_uuid: UUID):
         logger.info("Error: {}".format(e))
         return None
     return paginate(attachments[0])
-
-
-add_pagination(app)
 
 
 @app.post("/vcon")

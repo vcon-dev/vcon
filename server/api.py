@@ -23,7 +23,10 @@ import redis
 import tqdm
 import redis.commands.search.aggregation as aggregations
 from redis.commands.search.aggregation import Asc
-
+import redis
+import json
+from datetime import datetime
+import tqdm
 
 import redis_mgr
 
@@ -146,18 +149,50 @@ app.add_middleware(
 
 
 @app.get("/vcon", response_model=List[str])
-async def get_vcons(page: int = 0, size: int = 50, since: datetime = None, until: datetime = None):
-    """
-    Gets the conversations, using the since and until parameters to filter the results.:
+async def get_vcons(q: str = "@duration:[100 inf]", page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
+    """ Gets the UUIDs of the matching conversations, to be travered by successive calls to /vcon/{uuid} to retreive the full
+    text of the vCon.  
+    
+    ## Summary
+    This is the top level path to search for vCons.  It returns a list of UUIDs that can be used to retrieve the full vCon
+    using the /vcon/{uuid} path.  The search can be filtered by the following parameters:
+
+    ## Parameters
+    ### Query Parameters
+    **q**: the query to search for, can be a simple string or a complex query using the RediSearch Query Syntax. Defaults to "\*" 
+    The syntax of the query is described in this link to the Rediseach documentation: [RediSearch documentation, (https://oss.redislabs.com/redisearch/Query_Syntax.html)]
+   
+    As an example, to search for all vCons with a duration greater than 10 minutes, the query would be:
+    ```@duration:[600 inf]```
+
+    As another, to search for all vCons with a duration greater than 10 minutes and a party with the name "John Doe", the query would be:
+    ```@duration:[600 inf] @name:"John Doe"```
+
+    The folowing parameters are indexed by RediSearch and can be used in the query:
+    - **created_at**: the timestamp of the vcon, which is the timestamp of the first dialog in the vCon
+    - **tel**: the telephone number of a party
+    - **mailto**: the email address of a party
+    - **name**: the name of a party
+    - **duration**: the duration of a dialog
+    - **role**: the role in the conversation
+    - **type**: the type of dialog as defined in the vCon spec: recording, text, etc.
+    - **disposition**: the disposition of a call
+
+
+    ### Path Parameters
+    The following parameters are used to control the pagination of the results:
 
     - **page**: the page number to return (starting at 1)
     - **size**: the number of conversations to return per page
     - **since**: each conversation started after this date will be returned
     - **until**: each conversation started before this date will be returned
-    :param item: User input.
 
-    There is a maximum of 1000 conversations returned per page.
-    There is a maximum of pages and offset of 10000. Reset the date to get more conversations.
+    ## Returns
+    A list of UUIDs of the matching conversations.
+
+    ## Notes
+    * There is a maximum of 1000 conversations returned per page.
+    * There is a maximum of pages and offset of 10000. Reset the date to get more conversations.
 
     """
 
@@ -171,12 +206,14 @@ async def get_vcons(page: int = 0, size: int = 50, since: datetime = None, until
         exit(1)
 
     # Get the last vcon from the database
-    since_ts = since.timestamp() if since else 0
-    print("since: " + str(type(since)) + str(since))
-    print("since_ts: " + str(since_ts))
-    until_ts = until.timestamp() if until else datetime.now().timestamp()
+    # if the since or until params are set, then add this to the redis query
+    if since:
+        q += " @created_at:[{} +inf]".format(since.timestamp())
+    if until:
+        q += " @created_at:[-inf {}]".format(until.timestamp())
+    
 
-    req = aggregations.AggregateRequest().filter(f"@created_at >= {str(since_ts)} && @created_at < {str(until_ts)}").sort_by(Asc("@created_at")).limit((page-1)*size, size)
+    req = aggregations.AggregateRequest(query=q).sort_by(Asc("@created_at")).limit((page-1)*size, size)
     req.load('$')
     results = await r.ft(index_name).aggregate(req)
 
@@ -550,3 +587,22 @@ async def get_vcon_count(egress_list: str, status_code=200):
         logger.info("Error: {}".format(e))
         status_code = 500
     return status_code
+
+def add_ts(r, key):
+    vcon = r.json().get(key)
+    # Convert "created_at" to timestamp
+    created_at = vcon['created_at']
+    created_at_ts = datetime.fromisoformat(created_at).timestamp()
+
+    # Add "created_at_ts" to the JSON
+    vcon['created_at_ts'] = created_at_ts
+    r.json().set(key, "$", vcon)
+
+@app.on_event("startup")
+async def startup_event():
+    if False:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        keys = r.keys("vcon:*")
+        for key in tqdm.tqdm(keys):
+            add_ts(r,key)
+        r.close()

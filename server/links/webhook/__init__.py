@@ -24,7 +24,7 @@ async def run(vcon_uuid, opts=default_options,):
         async with aiohttp.ClientSession() as session:
             logger.info(f"webhook plugin: posting vcon {vcon_uuid} to webhook url: {url}")
             async with session.post(url, json=json_dict) as resp:
-                logger.info(f"webhook plugin response for {vcon_uuid}: {resp.status} {resp.text()}")
+                logger.info(f"webhook plugin response for {vcon_uuid}: {resp.status} {await resp.text()}")
     # Return the vcon_uuid down the chain.
     # If you want the vCon processing to stop (if you are filtering them, for instance)
     # send None

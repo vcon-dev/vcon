@@ -15,7 +15,10 @@ repo = CSVFileRepo(filename="tasks.csv", model=MinimalRecord)
 scheduler_app = Rocketry(execution="async", logger_repo=repo)
 
 if TICK_INTERVAL > 0:
-    @scheduler_app.task(f"every {TICK_INTERVAL} seconds")  
+    tick_interval_str = f"every {TICK_INTERVAL} ms"
+    logger.info("tick_interval_str: %s", tick_interval_str)
+
+    @scheduler_app.task(tick_interval_str)
     async def run_tick():
         await tick()        
 

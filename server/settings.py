@@ -4,7 +4,7 @@ from pathlib import Path
 MONGODB_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DEEPGRAM_KEY = os.getenv("DEEPGRAM_KEY")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost")
-TICK_INTERVAL = int(os.getenv("TICK_INTERVAL", 5))
+TICK_INTERVAL = int(os.getenv("TICK_INTERVAL", 5000))
 HOSTNAME = os.getenv("HOSTNAME", "http://localhost:8000")
 ENV = os.getenv("ENV", "dev")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")

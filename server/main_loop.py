@@ -5,10 +5,14 @@ import redis_mgr
 from redis_mgr import set_key, get_key
 from settings import TICK_INTERVAL
 from rocketry import Rocketry
+from rocketry.log import MinimalRecord
+from redbird.repos import CSVFileRepo
 
 logger = init_logger(__name__)
 
-scheduler_app = Rocketry(execution="async")
+repo = CSVFileRepo(filename="tasks.csv", model=MinimalRecord)
+
+scheduler_app = Rocketry(execution="async", logger_repo=repo)
 
 if TICK_INTERVAL > 0:
     @scheduler_app.task(f"every {TICK_INTERVAL} seconds")  

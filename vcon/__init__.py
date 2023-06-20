@@ -856,6 +856,11 @@ class Vcon():
       return(json.dumps(self._jwe_dict, default=lambda o: o.__dict__, **dumps_options))
 
     raise InvalidVconState("vCon state: {} is not valid for dumps".format(self._state))
+  
+
+  def __str__(self):
+    return self.dumps()
+
 
   def load(self, file_handle: typing.TextIO) -> None:
     """

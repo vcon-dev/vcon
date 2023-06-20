@@ -43,8 +43,14 @@ async def save(
             updated_at = DateTimeField(null=True)
             subject = TextField(null=True)
             vcon_json = BinaryJSONField(null=True)
+            type = TextField()
 
         db.create_tables([Vcons], safe=True)
+
+        try:
+            source = next(json.loads(a["body"])["source"] for a in vcon.attachments if a["type"] == "ingress_info")
+        except Exception:
+            source = None
 
         vcon_data = {
             "id": vcon.uuid,
@@ -54,13 +60,14 @@ async def save(
             "updated_at": vcon.created_at,
             "subject": vcon.subject,
             "vcon_json": json.loads(vcon.dumps()),
+            "type": source,
         }
         Vcons.insert(**vcon_data).on_conflict(
             conflict_target=(Vcons.id), update=vcon_data
         ).execute()
 
         db.close()
-        logger.info(f"postgres storage plugin: inserted vCon: {vcon_uuid}, results: {vcon} ")
+        logger.info(f"postgres storage plugin: inserted vCon: {vcon_uuid}")
 
     except Exception as e:
         logger.error(f"postgres storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")

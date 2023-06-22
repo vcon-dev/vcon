@@ -4,96 +4,39 @@ from lib.logging_utils import init_logger
 from fastapi.applications import FastAPI
 from pydantic import BaseModel
 from typing import List, Optional
-from enum import Enum
-import datetime
-import redis_mgr
+import weaviate
+import os
+import logging
+from settings import WEVIATE_HOST, WEVIATE_API_KEY
+from fastapi import Depends
+import openai
+from starlette.responses import FileResponse
+
 
 app = FastAPI.conserver_app
 scheduler = app.scheduler
 logger = init_logger(__name__)
 
-from typing import Optional
-import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, Body, UploadFile
-from starlette.responses import FileResponse
 
-from pydantic import BaseModel
-from typing import List, Optional
-
-class Source(str, Enum):
-    email = "email"
-    file = "file"
-    chat = "chat"
-    call = 'call'
-
-class AnalysisType(str, Enum):
-    sentiment = "sentiment"
-    topic = "topic"
-    entity = "entity"
-    intent = "intent"
-    summary = "summary"
-    keywords = "keywords"
-    transcript = "transcript"
-    promises = "promises"
-    raw = "raw"
-    script="script"
-
-class DocumentMetadata(BaseModel):
-    source: Optional[Source] = None
-    source_id: Optional[str] = None
-    url: Optional[str] = None
-    created_at: Optional[str] = None
-    author: Optional[str] = None
-    recording_url: Optional[str] = None
-    conversation_id: Optional[str] = None
-    agent_email: Optional[str] = None
-    customer_email: Optional[str] = None
-    customer_telephone: Optional[str] = None
-    store_name: Optional[str] = None
-    analysis_type: Optional[AnalysisType] = None
-
-class DocumentChunkMetadata(DocumentMetadata):
-    document_id: Optional[str] = None
     
 class DocumentChunk(BaseModel):
-    id: Optional[str] = None
-    text: str
-    metadata: DocumentChunkMetadata
+    vcon_id: str
+    vcon_summary: str
     embedding: Optional[List[float]] = None
-
 
 class DocumentChunkWithScore(DocumentChunk):
     score: float
 
-
 class Document(BaseModel):
-    id: Optional[str] = None
-    text: str
-    metadata: Optional[DocumentMetadata] = None
-
+    vcon_id: str
+    vcon_summary: str
 
 class DocumentWithChunks(Document):
     chunks: List[DocumentChunk]
 
 
-class DocumentMetadataFilter(BaseModel):
-    source: Optional[Source] = None
-    source_id: Optional[str] = None
-    url: Optional[str] = None
-    created_at: Optional[datetime.datetime] = None
-    author: Optional[str] = None
-    recording_url: Optional[str] = None
-    conversation_id: Optional[str] = None
-    agent_email: Optional[str] = None
-    customer_email: Optional[str] = None
-    customer_telephone: Optional[str] = None
-    store_name: Optional[str] = None
-    analysis_type: Optional[AnalysisType] = None
-
 class Query(BaseModel):
     query: str
-    filter: Optional[DocumentMetadataFilter] = None
-    top_k: Optional[int] = 3
 
 
 class QueryWithEmbedding(Query):
@@ -114,7 +57,6 @@ class QueryResponse(BaseModel):
 
 @app.route("/.well-known/ai-plugin.json")
 async def get_manifest(request):
-    print("get_manifest")
     file_path = "./adapters/chatgpt/ai-plugin.json"
     return FileResponse(file_path, media_type="text/json")
 
@@ -133,19 +75,72 @@ async def get_openapi(request):
     return FileResponse(file_path, media_type="text/json")
 
 
-@app.post("/query", response_model=QueryResponse)
-async def query_main(request: QueryRequest = Body(...)):
-    try:
-        print("request.queries", request.queries)
-        results = await datastore.query(
-            request.queries,
-        )
-        return QueryResponse(results=results)
-    except Exception as e:
-        print("Error:", e)
-        #  Print all the details of the exception
-        import traceback
-        print(traceback.format_exc())
-        
-        raise HTTPException(status_code=500, detail="Internal Service Error")
+INDEX_NAME = 'Vcon'
 
+SCHEMA = {
+    "class": INDEX_NAME
+}
+
+def get_embedding(text):
+    """
+    Get the embedding for a given text
+    """
+    results = openai.Embedding.create(input=text, model="text-embedding-ada-002")
+
+    return results["data"][0]["embedding"]
+
+
+def get_client():
+    """
+    Get a client to the Weaviate server
+    """
+    return weaviate.Client(WEVIATE_HOST,
+                           auth_client_secret=weaviate.AuthApiKey(api_key=WEVIATE_API_KEY))
+
+
+def init_db():
+    """
+    Create the schema for the database if it doesn't exist yet
+    """
+    client = get_client()
+
+    if not client.schema.contains(SCHEMA):
+        logging.debug("Creating schema")
+        client.schema.create_class(SCHEMA)
+    else:
+        class_name = SCHEMA["class"]
+        logging.debug(f"Schema for {class_name} already exists")
+        logging.debug("Skipping schema creation")
+
+
+@app.post("/query", response_model=List[QueryResult])
+def query(query: Query, client=Depends(get_client)) -> List[Document]:
+    """
+    Query for conversations by time, agent, customer, transcript.
+    Examples: "test.agent@strolid", +15083640000, "Jack Black Ford"
+    """
+    query_vector = get_embedding(query.query)
+
+    results = (
+        client.query.get(INDEX_NAME, ["vcon_id", "vcon_summary"])
+        .with_near_vector({"vector": query_vector})
+        .with_limit(4)
+        .with_additional("certainty")
+        .do()
+    )
+
+    docs = results["data"]["Get"][INDEX_NAME]
+
+    return [
+        QueryResult(
+            query=query.query,
+            results=[
+                DocumentChunkWithScore(
+                    vcon_id=doc["vcon_id"],
+                    vcon_summary=doc["vcon_summary"],
+                    score=doc["_additional"]["certainty"],
+                )
+                for doc in docs
+            ],
+        )
+    ]

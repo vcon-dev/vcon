@@ -16,20 +16,38 @@ import enum
 import pyjq
 from typing import List
 import tqdm
-import boto3
 import json
 from datetime import datetime
 import redis
-import tqdm
 import redis.commands.search.aggregation as aggregations
 from redis.commands.search.aggregation import Asc
-import redis
-import json
-from datetime import datetime
-import tqdm
-
+from urllib.parse import quote, unquote
 import redis_mgr
 
+from peewee import *
+from playhouse.postgres_ext import *
+from settings import VCON_STORAGE
+import logging
+logger = logging.getLogger('peewee')
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
+
+if VCON_STORAGE:
+    class VConModel(Model):
+        id = UUIDField(primary_key=True)
+        vcon = CharField()
+        uuid = UUIDField()
+        created_at = DateTimeField()
+        updated_at = DateTimeField(null=True)
+        subject = CharField(null=True)
+        vcon_json = BinaryJSONField(null=True)
+        type = CharField(null=True)
+
+        class Meta:
+            table_name = "vcons"
+            database = PostgresqlExtDatabase(VCON_STORAGE)
+            
 class Chain(BaseModel):
     links: typing.List[str] = []
     ingress_lists: typing.List[str] = []
@@ -54,7 +72,7 @@ class Party(BaseModel):
     mailto: str = None
     name: str = None
     validation: str = None
-    jcard: Json = None
+    jcard: str = None
     gmlpos: str = None
     civicaddress: str = None
     timezone: str = None
@@ -107,7 +125,7 @@ class Attachment(BaseModel):
 
 class Group(BaseModel):
     uuid: UUID
-    body: Json = None
+    body: str = None
     encoding: str = None
     url: str = None
     alg: str = None
@@ -117,7 +135,7 @@ class Group(BaseModel):
 class Vcon(BaseModel):
     vcon: str
     uuid: UUID
-    created_at: typing.Union[int, str, datetime] = Field(default_factory=lambda: datetime.now().timestamp())
+    created_at: typing.Union[int, str, datetime]
     subject: str = None
     redacted: dict = None
     appended: dict = None
@@ -149,92 +167,68 @@ app.add_middleware(
 
 
 @app.get("/vcon", response_model=List[str])
-async def get_vcons(q: str = "@duration:[100 inf]", page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
-    """ Gets the UUIDs of the matching conversations, to be travered by successive calls to /vcon/{uuid} to retreive the full
-    text of the vCon.  
-    
-    ## Summary
-    This is the top level path to search for vCons.  It returns a list of UUIDs that can be used to retrieve the full vCon
-    using the /vcon/{uuid} path.  The search can be filtered by the following parameters:
-
-    ## Parameters
-    ### Query Parameters
-    **q**: the query to search for, can be a simple string or a complex query using the RediSearch Query Syntax. Defaults to "\*" 
-    The syntax of the query is described in this link to the Rediseach documentation: [RediSearch documentation, (https://oss.redislabs.com/redisearch/Query_Syntax.html)]
-   
-    As an example, to search for all vCons with a duration greater than 10 minutes, the query would be:
-    ```@duration:[600 inf]```
-
-    As another, to search for all vCons with a duration greater than 10 minutes and a party with the name "John Doe", the query would be:
-    ```@duration:[600 inf] @name:"John Doe"```
-
-    The folowing parameters are indexed by RediSearch and can be used in the query:
-    - **created_at**: the timestamp of the vcon, which is the timestamp of the first dialog in the vCon
-    - **tel**: the telephone number of a party
-    - **mailto**: the email address of a party
-    - **name**: the name of a party
-    - **duration**: the duration of a dialog
-    - **role**: the role in the conversation
-    - **type**: the type of dialog as defined in the vCon spec: recording, text, etc.
-    - **disposition**: the disposition of a call
-
-
-    ### Path Parameters
-    The following parameters are used to control the pagination of the results:
-
-    - **page**: the page number to return (starting at 1)
-    - **size**: the number of conversations to return per page
-    - **since**: each conversation started after this date will be returned
-    - **until**: each conversation started before this date will be returned
-
-    ## Returns
-    A list of UUIDs of the matching conversations.
-
-    ## Notes
-    * There is a maximum of 1000 conversations returned per page.
-    * There is a maximum of pages and offset of 10000. Reset the date to get more conversations.
-
+async def get_vcons(page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
+    """ 
+    Gets the UUIDs of conversations between the given dates, sorted by date desc.
+    Use/vcon/{uuid} to retreive the full text of the vCon.  
+    Use page, size, since, and until parameters to paginate the results.
     """
+    if VCON_STORAGE:
+        offset = (page - 1) * size
+        query = VConModel.select()
+        if since:
+            query = query.where(VConModel.created_at > since)
+        if until:
+            query = query.where(VConModel.created_at < until)
+        query = query.order_by(VConModel.created_at.desc()).offset(offset).limit(size)
+        r = [str(vcon.uuid) for vcon in query]
+        return r
 
-    # Assumes that the REDIS database has a full-text index called "vconIdx"
-    r = redis_mgr.get_client()
-    index_name = 'vconIdx'
-    try:
-        indexInfo  = await r.ft(index_name).info()
-    except redis.exceptions.ResponseError:
-        print("Must have the index " + index_name + " in the database")
-        exit(1)
+    else:
+        # Assumes that the REDIS database has a full-text index called "vconIdx"
+        r = redis_mgr.get_client()
+        index_name = 'vconIdx'
+        try:
+            indexInfo  = await r.ft(index_name).info()
+        except redis.exceptions.ResponseError:
+            print("Must have the index " + index_name + " in the database")
+            exit(1)
 
-    # Get the last vcon from the database
-    # if the since or until params are set, then add this to the redis query
-    if since:
-        q += " @created_at:[{} +inf]".format(since.timestamp())
-    if until:
-        q += " @created_at:[-inf {}]".format(until.timestamp())
-    
+        # Get the last vcon from the database
+        # if the since or until params are set, then add this to the redis query
+        if since:
+            q += " @created_at:[{} +inf]".format(since.timestamp())
+        if until:
+            q += " @created_at:[-inf {}]".format(until.timestamp())
+        
 
-    req = aggregations.AggregateRequest(query=q).sort_by(Asc("@created_at")).limit((page-1)*size, size)
-    req.load('$')
-    results = await r.ft(index_name).aggregate(req)
+        req = aggregations.AggregateRequest(query=q).sort_by(Asc("@created_at")).limit((page-1)*size, size)
+        req.load('$')
+        results = await r.ft(index_name).aggregate(req)
 
-    uuids = []
-    for row in tqdm.tqdm(results.rows):
-        vcon = json.loads(row[1].decode("UTF-8"))
-        uuids.append(str(vcon['uuid']))
-    return uuids
+        uuids = []
+        for row in tqdm.tqdm(results.rows):
+            vcon = json.loads(row[1].decode("UTF-8"))
+            uuids.append(str(vcon['uuid']))
+        return uuids
 
 @app.get("/vcon/{vcon_uuid}")
 async def get_vcon(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug(
-        "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
-    )
-    return JSONResponse(content=vcon)
+    if VCON_STORAGE:
+        q = VConModel.select().where(VConModel.uuid == vcon_uuid)
+        r = q.get()
+        return JSONResponse(content=r.vcon_json)
+    else:
+        try:
+            r = redis_mgr.get_client()
+            vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
+        except Exception as e:
+            logger.info("Error: {}".format(e))
+            return None
+        logger.debug(
+            "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
+        )
+        return JSONResponse(content=vcon)
 
 
 @app.get("/vcon/{vcon_uuid}/jq")
@@ -264,63 +258,39 @@ async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
         return None
     return JSONResponse(content=query_result)
 
-
-@app.get("/vcon/{vcon_uuid}/party", response_model=List[Party])
-async def get_parties(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        parties = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.parties")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(parties[0])
-
-
-@app.get("/vcon/{vcon_uuid}/dialog", response_model=List[Dialog])
-async def get_dialogs(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        dialogs = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.dialog")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(dialogs[0])
-
-
-@app.get("/vcon/{vcon_uuid}/analysis", response_model=List[Analysis])
-async def get_analyses(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        analyses = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.analysis")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(analyses[0])
-
-
-@app.get("/vcon/{vcon_uuid}/attachment", response_model=List[Attachment])
-async def get_attachments(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        attachments = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.attachments")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(attachments[0])
-
-
 @app.post("/vcon")
 async def post_vcon(inbound_vcon: Vcon):
-    try:
-        r = redis_mgr.get_client()
-        dict_vcon = inbound_vcon.dict()
-        dict_vcon["uuid"] = str(inbound_vcon.uuid)
-        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
-    return JSONResponse(content=dict_vcon)
+    if VCON_STORAGE:
+        # Create a new vcon in the database
+        # Use peewee
+        id = inbound_vcon.uuid
+        vcon_json = inbound_vcon.json()
+        uuid = inbound_vcon.uuid
+        created_at = inbound_vcon.created_at
+        updated_at = inbound_vcon.updated_at or inbound_vcon.created_at
+        subject = inbound_vcon.subject
+        type = inbound_vcon.type
+        vcon = VConModel.create(
+            id=id,
+            uuid=uuid,
+            created_at=created_at,
+            updated_at=updated_at,
+            subject=subject,
+            type=type,
+            vcon_json=vcon_json,
+        )
+        return JSONResponse(content=inbound_vcon.dict())
+    else:
+        try:
+            r = redis_mgr.get_client()
+            dict_vcon = inbound_vcon.dict()
+            dict_vcon["uuid"] = str(inbound_vcon.uuid)
+            await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
+        except Exception as e:
+            logger.info("Error: {}".format(e))
+            return None
+        logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+        return JSONResponse(content=dict_vcon)
 
 
 @app.put("/vcon/{vcon_uuid}")

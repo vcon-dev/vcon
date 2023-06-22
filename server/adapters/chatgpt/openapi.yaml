@@ -1,43 +1,1101 @@
+---
 openapi: 3.0.2
 info:
-  title: Retrieval Plugin API
-  description: A retrieval API for querying and filtering documents based on natural language queries and metadata
-  version: 1.0.0
-  servers:
-    - url: http://localhost:8000  
+  title: FastAPI
+  version: 0.1.1
 paths:
-  /query:
-    post:
-      summary: Query
-      description: Accepts search query objects array each with query and optional filter. Break down complex questions into sub-questions. Refine results by criteria, e.g. time / source, don't do this often. Split queries if ResponseTooLargeError occurs.
-      operationId: query_query_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/QueryRequest"
-        required: true
+  "/vcon":
+    get:
+      summary: Get Vcons
+      description: "Gets the UUIDs of the matching conversations, to be travered by
+        successive calls to /vcon/{uuid} to retreive the full\ntext of the vCon.  \n\n##
+        Summary\nThis is the top level path to search for vCons.  It returns a list
+        of UUIDs that can be used to retrieve the full vCon\nusing the /vcon/{uuid}
+        path.  The search can be filtered by the following parameters:\n\n## Parameters\n###
+        Query Parameters\n**q**: the query to search for, can be a simple string or
+        a complex query using the RediSearch Query Syntax. Defaults to \"\\*\" \nThe
+        syntax of the query is described in this link to the Rediseach documentation:
+        [RediSearch documentation, (https://oss.redislabs.com/redisearch/Query_Syntax.html)]\n\nAs
+        an example, to search for all vCons with a duration greater than 10 minutes,
+        the query would be:\n```@duration:[600 inf]```\n\nAs another, to search for
+        all vCons with a duration greater than 10 minutes and a party with the name
+        \"John Doe\", the query would be:\n```@duration:[600 inf] @name:\"John Doe\"```\n\nThe
+        folowing parameters are indexed by RediSearch and can be used in the query:\n-
+        **created_at**: the timestamp of the vcon, which is the timestamp of the first
+        dialog in the vCon\n- **tel**: the telephone number of a party\n- **mailto**:
+        the email address of a party\n- **name**: the name of a party\n- **duration**:
+        the duration of a dialog\n- **role**: the role in the conversation\n- **type**:
+        the type of dialog as defined in the vCon spec: recording, text, etc.\n- **disposition**:
+        the disposition of a call\n\n\n### Path Parameters\nThe following parameters
+        are used to control the pagination of the results:\n\n- **page**: the page
+        number to return (starting at 1)\n- **size**: the number of conversations
+        to return per page\n- **since**: each conversation started after this date
+        will be returned\n- **until**: each conversation started before this date
+        will be returned\n\n## Returns\nA list of UUIDs of the matching conversations.\n\n##
+        Notes\n* There is a maximum of 1000 conversations returned per page.\n* There
+        is a maximum of pages and offset of 10000. Reset the date to get more conversations."
+      operationId: get_vcons_vcon_get
+      parameters:
+      - required: false
+        schema:
+          title: Q
+          type: string
+          default: "@duration:[100 inf]"
+        name: q
+        in: query
+      - required: false
+        schema:
+          title: Page
+          type: integer
+          default: 1
+        name: page
+        in: query
+      - required: false
+        schema:
+          title: Size
+          type: integer
+          default: 50
+        name: size
+        in: query
+      - required: false
+        schema:
+          title: Since
+          type: string
+          format: date-time
+        name: since
+        in: query
+      - required: false
+        schema:
+          title: Until
+          type: string
+          format: date-time
+        name: until
+        in: query
       responses:
-        "200":
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueryResponse"
-        "422":
+                title: Response Get Vcons Vcon Get
+                type: array
+                items:
+                  type: string
+        '422':
           description: Validation Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPValidationError"
+                "$ref": "#/components/schemas/HTTPValidationError"
+    post:
+      summary: Post Vcon
+      operationId: post_vcon_vcon_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Vcon"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}":
+    get:
+      summary: Get Vcon
+      operationId: get_vcon_vcon__vcon_uuid__get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    put:
+      summary: Put Vcon
+      operationId: put_vcon_vcon__vcon_uuid__put
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Vcon"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      summary: Delete Vcon
+      operationId: delete_vcon_vcon__vcon_uuid__delete
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      - required: false
+        schema:
+          title: Status Code
+          default: 204
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    patch:
+      summary: Patch Vcon
+      operationId: patch_vcon_vcon__vcon_uuid__patch
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      - required: true
+        schema:
+          title: Plugin
+          type: string
+        name: plugin
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Vcon"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/jq":
+    get:
+      summary: Get Vcon Jq Transform
+      operationId: get_vcon_jq_transform_vcon__vcon_uuid__jq_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      - required: true
+        schema:
+          title: Jq Transform
+        name: jq_transform
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/JSONPath":
+    get:
+      summary: Get Vcon Json Path
+      operationId: get_vcon_json_path_vcon__vcon_uuid__JSONPath_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      - required: true
+        schema:
+          title: Path String
+          type: string
+        name: path_string
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Vcon Json Path Vcon  Vcon Uuid  Jsonpath Get
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Party"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/party":
+    get:
+      summary: Get Parties
+      operationId: get_parties_vcon__vcon_uuid__party_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Parties Vcon  Vcon Uuid  Party Get
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Party"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/dialog":
+    get:
+      summary: Get Dialogs
+      operationId: get_dialogs_vcon__vcon_uuid__dialog_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Dialogs Vcon  Vcon Uuid  Dialog Get
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Dialog"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/analysis":
+    get:
+      summary: Get Analyses
+      operationId: get_analyses_vcon__vcon_uuid__analysis_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Analyses Vcon  Vcon Uuid  Analysis Get
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Analysis"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/{vcon_uuid}/attachment":
+    get:
+      summary: Get Attachments
+      operationId: get_attachments_vcon__vcon_uuid__attachment_get
+      parameters:
+      - required: true
+        schema:
+          title: Vcon Uuid
+          type: string
+          format: uuid
+        name: vcon_uuid
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Get Attachments Vcon  Vcon Uuid  Attachment Get
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Attachment"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/chain":
+    get:
+      summary: Get Chains
+      operationId: get_chains_chain_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Post Chain
+      operationId: post_chain_chain_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Chain"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/chain/{chain_name}":
+    get:
+      summary: Get Chain
+      operationId: get_chain_chain__chain_name__get
+      parameters:
+      - required: true
+        schema:
+          title: Chain Name
+          type: string
+        name: chain_name
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    put:
+      summary: Put Chain
+      operationId: put_chain_chain__chain_name__put
+      parameters:
+      - required: true
+        schema:
+          title: Chain Name
+          type: string
+        name: chain_name
+        in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Chain"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      summary: Delete Chain
+      operationId: delete_chain_chain__chain_name__delete
+      parameters:
+      - required: true
+        schema:
+          title: Chain Name
+          type: string
+        name: chain_name
+        in: path
+      - required: false
+        schema:
+          title: Status Code
+          default: 204
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/link":
+    get:
+      summary: Get Links
+      operationId: get_links_link_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Post Link
+      operationId: post_link_link_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Link"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/link/{link_name}":
+    get:
+      summary: Get Link
+      operationId: get_link_link__link_name__get
+      parameters:
+      - required: true
+        schema:
+          title: Link Name
+          type: string
+        name: link_name
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    put:
+      summary: Put Link
+      operationId: put_link_link__link_name__put
+      parameters:
+      - required: true
+        schema:
+          title: Link Name
+          type: string
+        name: link_name
+        in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Link"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      summary: Delete Link
+      operationId: delete_link_link__link_name__delete
+      parameters:
+      - required: true
+        schema:
+          title: Link Name
+          type: string
+        name: link_name
+        in: path
+      - required: false
+        schema:
+          title: Status Code
+          default: 204
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/storage":
+    get:
+      summary: Get Storages
+      operationId: get_storages_storage_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Post Storage
+      operationId: post_storage_storage_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Storage"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/storage/{storage_name}":
+    get:
+      summary: Get Storage
+      operationId: get_storage_storage__storage_name__get
+      parameters:
+      - required: true
+        schema:
+          title: Storage Name
+          type: string
+        name: storage_name
+        in: path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    put:
+      summary: Put Storage
+      operationId: put_storage_storage__storage_name__put
+      parameters:
+      - required: true
+        schema:
+          title: Storage Name
+          type: string
+        name: storage_name
+        in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Storage"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      summary: Delete Storage
+      operationId: delete_storage_storage__storage_name__delete
+      parameters:
+      - required: true
+        schema:
+          title: Storage Name
+          type: string
+        name: storage_name
+        in: path
+      - required: false
+        schema:
+          title: Status Code
+          default: 204
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/ingress":
+    post:
+      summary: Post Vcon Ingress
+      operationId: post_vcon_ingress_vcon_ingress_post
+      parameters:
+      - required: true
+        schema:
+          title: Ingress List
+          type: string
+        name: ingress_list
+        in: query
+      - required: false
+        schema:
+          title: Status Code
+          default: 204
+        name: status_code
+        in: query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Vcon Uuids
+              type: array
+              items:
+                type: string
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/egress":
+    get:
+      summary: Get Vcon Engress
+      operationId: get_vcon_engress_vcon_egress_get
+      parameters:
+      - required: true
+        schema:
+          title: Egress List
+          type: string
+        name: egress_list
+        in: query
+      - required: false
+        schema:
+          title: Limit
+          default: 1
+        name: limit
+        in: query
+      - required: false
+        schema:
+          title: Status Code
+          default: 200
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/vcon/count":
+    get:
+      summary: Get Vcon Count
+      operationId: get_vcon_count_vcon_count_get
+      parameters:
+      - required: true
+        schema:
+          title: Egress List
+          type: string
+        name: egress_list
+        in: query
+      - required: false
+        schema:
+          title: Status Code
+          default: 200
+        name: status_code
+        in: query
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/create_vcon":
+    post:
+      summary: Create Vcon
+      operationId: create_vcon_create_vcon_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              "$ref": "#/components/schemas/Body_create_vcon_create_vcon_post"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/tick":
+    get:
+      summary: Tick
+      operationId: tick_tick_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  "/query":
+    post:
+      summary: Query Main
+      operationId: query_main_query_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/QueryRequest"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/QueryResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
 components:
   schemas:
+    Analysis:
+      title: Analysis
+      required:
+      - type
+      - dialog
+      type: object
+      properties:
+        type:
+          title: Type
+          type: string
+        dialog:
+          title: Dialog
+          type: integer
+        mimetype:
+          title: Mimetype
+          type: string
+        filename:
+          title: Filename
+          type: string
+        vendor:
+          title: Vendor
+          type: string
+        body:
+          title: Body
+          type: string
+        encoding:
+          title: Encoding
+          type: string
+        url:
+          title: Url
+          type: string
+        alg:
+          title: Alg
+          type: string
+        signature:
+          title: Signature
+          type: string
+    AnalysisType:
+      title: AnalysisType
+      enum:
+      - sentiment
+      - topic
+      - entity
+      - intent
+      - summary
+      - keywords
+      - transcript
+      - promises
+      - raw
+      - script
+      type: string
+      description: An enumeration.
+    Attachment:
+      title: Attachment
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          title: Type
+          type: string
+        party:
+          title: Party
+          type: integer
+        mimetype:
+          title: Mimetype
+          type: string
+        filename:
+          title: Filename
+          type: string
+        body:
+          title: Body
+          type: string
+        encoding:
+          title: Encoding
+          type: string
+        url:
+          title: Url
+          type: string
+        alg:
+          title: Alg
+          type: string
+        signature:
+          title: Signature
+          type: string
+    Body_create_vcon_create_vcon_post:
+      title: Body_create_vcon_create_vcon_post
+      required:
+      - name1
+      - name2
+      - tel1
+      - tel2
+      - ingress_list
+      - filename
+      type: object
+      properties:
+        name1:
+          title: Name1
+          type: string
+        name2:
+          title: Name2
+          type: string
+        tel1:
+          title: Tel1
+          type: string
+        tel2:
+          title: Tel2
+          type: string
+        ingress_list:
+          title: Ingress List
+          type: string
+        filename:
+          title: Filename
+          type: string
+          format: binary
+    Chain:
+      title: Chain
+      type: object
+      properties:
+        links:
+          title: Links
+          type: array
+          items:
+            type: string
+          default: []
+        ingress_lists:
+          title: Ingress Lists
+          type: array
+          items:
+            type: string
+          default: []
+        storage:
+          title: Storage
+          type: array
+          items:
+            type: string
+          default: []
+        egress_lists:
+          title: Egress Lists
+          type: array
+          items:
+            type: string
+          default: []
+        enabled:
+          title: Enabled
+          type: integer
+          default: 1
+    Dialog:
+      title: Dialog
+      required:
+      - type
+      - start
+      - parties
+      type: object
+      properties:
+        type:
+          "$ref": "#/components/schemas/DialogType"
+        start:
+          title: Start
+          anyOf:
+          - type: integer
+          - type: string
+          - type: string
+            format: date-time
+        duration:
+          title: Duration
+          type: number
+        parties:
+          title: Parties
+          anyOf:
+          - type: integer
+          - type: array
+            items:
+              anyOf:
+              - type: integer
+              - type: array
+                items:
+                  type: integer
+        mimetype:
+          title: Mimetype
+          type: string
+        filename:
+          title: Filename
+          type: string
+        body:
+          title: Body
+          type: string
+        url:
+          title: Url
+          type: string
+        encoding:
+          title: Encoding
+          type: string
+        alg:
+          title: Alg
+          type: string
+        signature:
+          title: Signature
+          type: string
+    DialogType:
+      title: DialogType
+      enum:
+      - recording
+      - text
+      type: string
+      description: An enumeration.
     DocumentChunkMetadata:
       title: DocumentChunkMetadata
       type: object
       properties:
         source:
-          $ref: "#/components/schemas/Source"
+          "$ref": "#/components/schemas/Source"
         source_id:
           title: Source Id
           type: string
@@ -50,15 +1108,35 @@ components:
         author:
           title: Author
           type: string
+        recording_url:
+          title: Recording Url
+          type: string
+        conversation_id:
+          title: Conversation Id
+          type: string
+        agent_email:
+          title: Agent Email
+          type: string
+        customer_email:
+          title: Customer Email
+          type: string
+        customer_telephone:
+          title: Customer Telephone
+          type: string
+        store_name:
+          title: Store Name
+          type: string
+        analysis_type:
+          "$ref": "#/components/schemas/AnalysisType"
         document_id:
           title: Document Id
           type: string
     DocumentChunkWithScore:
       title: DocumentChunkWithScore
       required:
-        - text
-        - metadata
-        - score
+      - text
+      - metadata
+      - score
       type: object
       properties:
         id:
@@ -68,7 +1146,7 @@ components:
           title: Text
           type: string
         metadata:
-          $ref: "#/components/schemas/DocumentChunkMetadata"
+          "$ref": "#/components/schemas/DocumentChunkMetadata"
         embedding:
           title: Embedding
           type: array
@@ -81,22 +1159,66 @@ components:
       title: DocumentMetadataFilter
       type: object
       properties:
-        document_id:
-          title: Document Id
-          type: string
         source:
-          $ref: "#/components/schemas/Source"
+          "$ref": "#/components/schemas/Source"
         source_id:
           title: Source Id
           type: string
+        url:
+          title: Url
+          type: string
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
         author:
           title: Author
           type: string
-        start_date:
-          title: Start Date
+        recording_url:
+          title: Recording Url
           type: string
-        end_date:
-          title: End Date
+        conversation_id:
+          title: Conversation Id
+          type: string
+        agent_email:
+          title: Agent Email
+          type: string
+        customer_email:
+          title: Customer Email
+          type: string
+        customer_telephone:
+          title: Customer Telephone
+          type: string
+        store_name:
+          title: Store Name
+          type: string
+        analysis_type:
+          "$ref": "#/components/schemas/AnalysisType"
+    Group:
+      title: Group
+      required:
+      - uuid
+      type: object
+      properties:
+        uuid:
+          title: Uuid
+          type: string
+          format: uuid
+        body:
+          title: Body
+          type: string
+          format: json-string
+        encoding:
+          title: Encoding
+          type: string
+        url:
+          title: Url
+          type: string
+        alg:
+          title: Alg
+          type: string
+        signature:
+          title: Signature
           type: string
     HTTPValidationError:
       title: HTTPValidationError
@@ -106,18 +1228,75 @@ components:
           title: Detail
           type: array
           items:
-            $ref: "#/components/schemas/ValidationError"
+            "$ref": "#/components/schemas/ValidationError"
+    Link:
+      title: Link
+      required:
+      - module
+      type: object
+      properties:
+        module:
+          title: Module
+          type: string
+        options:
+          title: Options
+          type: object
+          default: {}
+        ingress_lists:
+          title: Ingress Lists
+          type: array
+          items:
+            type: string
+          default: []
+        egress_lists:
+          title: Egress Lists
+          type: array
+          items:
+            type: string
+          default: []
+    Party:
+      title: Party
+      type: object
+      properties:
+        tel:
+          title: Tel
+          type: string
+        stir:
+          title: Stir
+          type: string
+        mailto:
+          title: Mailto
+          type: string
+        name:
+          title: Name
+          type: string
+        validation:
+          title: Validation
+          type: string
+        jcard:
+          title: Jcard
+          type: string
+          format: json-string
+        gmlpos:
+          title: Gmlpos
+          type: string
+        civicaddress:
+          title: Civicaddress
+          type: string
+        timezone:
+          title: Timezone
+          type: string
     Query:
       title: Query
       required:
-        - query
+      - query
       type: object
       properties:
         query:
           title: Query
           type: string
         filter:
-          $ref: "#/components/schemas/DocumentMetadataFilter"
+          "$ref": "#/components/schemas/DocumentMetadataFilter"
         top_k:
           title: Top K
           type: integer
@@ -125,30 +1304,30 @@ components:
     QueryRequest:
       title: QueryRequest
       required:
-        - queries
+      - queries
       type: object
       properties:
         queries:
           title: Queries
           type: array
           items:
-            $ref: "#/components/schemas/Query"
+            "$ref": "#/components/schemas/Query"
     QueryResponse:
       title: QueryResponse
       required:
-        - results
+      - results
       type: object
       properties:
         results:
           title: Results
           type: array
           items:
-            $ref: "#/components/schemas/QueryResult"
+            "$ref": "#/components/schemas/QueryResult"
     QueryResult:
       title: QueryResult
       required:
-        - query
-        - results
+      - query
+      - results
       type: object
       properties:
         query:
@@ -158,21 +1337,35 @@ components:
           title: Results
           type: array
           items:
-            $ref: "#/components/schemas/DocumentChunkWithScore"
+            "$ref": "#/components/schemas/DocumentChunkWithScore"
     Source:
       title: Source
       enum:
-        - email
-        - file
-        - chat
+      - email
+      - file
+      - chat
+      - call
       type: string
       description: An enumeration.
+    Storage:
+      title: Storage
+      required:
+      - module
+      type: object
+      properties:
+        module:
+          title: Module
+          type: string
+        options:
+          title: Options
+          type: object
+          default: {}
     ValidationError:
       title: ValidationError
       required:
-        - loc
-        - msg
-        - type
+      - loc
+      - msg
+      - type
       type: object
       properties:
         loc:
@@ -180,11 +1373,71 @@ components:
           type: array
           items:
             anyOf:
-              - type: string
-              - type: integer
+            - type: string
+            - type: integer
         msg:
           title: Message
           type: string
         type:
           title: Error Type
           type: string
+    Vcon:
+      title: Vcon
+      required:
+      - vcon
+      - uuid
+      type: object
+      properties:
+        vcon:
+          title: Vcon
+          type: string
+        uuid:
+          title: Uuid
+          type: string
+          format: uuid
+        created_at:
+          title: Created At
+          anyOf:
+          - type: integer
+          - type: string
+          - type: string
+            format: date-time
+        subject:
+          title: Subject
+          type: string
+        redacted:
+          title: Redacted
+          type: object
+        appended:
+          title: Appended
+          type: object
+        group:
+          title: Group
+          type: array
+          items:
+            "$ref": "#/components/schemas/Group"
+          default: []
+        parties:
+          title: Parties
+          type: array
+          items:
+            "$ref": "#/components/schemas/Party"
+          default: []
+        dialog:
+          title: Dialog
+          type: array
+          items:
+            "$ref": "#/components/schemas/Dialog"
+          default: []
+        analysis:
+          title: Analysis
+          type: array
+          items:
+            "$ref": "#/components/schemas/Analysis"
+          default: []
+        attachments:
+          title: Attachments
+          type: array
+          items:
+            "$ref": "#/components/schemas/Attachment"
+          default: []

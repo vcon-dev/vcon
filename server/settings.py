@@ -19,3 +19,10 @@ SLACK_TOKEN = os.getenv(
 OPENAI_API_KEY = os.getenv(
     "OPENAI_API_KEY", "sk-1234567890-1234567890-1234567890-1234567890"
 )
+VCON_STORAGE="postgresql://postgres:a7h96dG4vdUWtGLSpCNG@conserver.coeic8iojiit.us-east-1.rds.amazonaws.com:5432/postgres"
+#VCON_STORAGE="postgres://localhost:5432/vcon"
+INDEX_NAME = "vcon"
+WEVIATE_HOST=os.getenv("WEVIATE_HOST", "localhost:8000")
+WEVIATE_API_KEY=os.getenv('WEVIATE_API_KEY')
+
+

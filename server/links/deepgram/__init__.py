@@ -1,23 +1,51 @@
-import asyncio
+from typing import Optional
 from lib.logging_utils import init_logger
-from settings import DEEPGRAM_KEY
 from deepgram import Deepgram
-import time
-
-
+import retry
 from server.lib.vcon_redis import VconRedis
-import server.redis_mgr
-from lib.logging_utils import init_logger
+
 logger = init_logger(__name__)
 
 default_options = {
     "minimum_duration": 60,
+    "DEEPGRAM_KEY": None
 }
+
+
+def get_transcription(vcon, index):
+    for a in vcon.analysis:
+        if a["dialog"] == index and a['type'] == 'transcription':
+            return a
+    return None
+
+
+@retry.retry(tries=3, delay=1, backoff=2)
+async def transcribe_dg(dg_client, dialog) -> Optional[dict]:
+    url = dialog['url']
+    source = {'url': url}
+    logger.info(f"Source: {url}")
+
+    options = {
+        "model": "nova",
+        "smart_format": True,
+    }
+    try:
+        response = await dg_client.transcription.prerecorded(source, options)
+        alternatives = response['results']['channels'][0]['alternatives']
+        return alternatives[0]
+    except Exception:
+        logger.exception("Transaction failed: %s, %s", source, options)
+        return None
+
 
 async def run(
     vcon_uuid,
     opts=default_options,
 ):
+    merged_opts = default_options.copy()
+    merged_opts.update(opts)
+    opts = merged_opts
+    
     logger.debug("Starting deepgram plugin")
     # Cannot create reids client in global context as redis clients get started on async
     # event loop which may go away.
@@ -30,6 +58,12 @@ async def run(
                 f"deepgram plugin: skipping non-recording dialog {index} in vCon: {vcon_uuid}"
             )
             continue
+        
+        if not dialog["url"]:
+            logger.debug(
+                f"deepgram plugin: skipping no URL dialog {index} in vCon: {vcon_uuid}"
+            )
+            continue
 
         if dialog["duration"] < opts["minimum_duration"]:
             logger.debug(
@@ -37,98 +71,29 @@ async def run(
             )
             continue
 
+        # See if it was already transcibed
+        if get_transcription(vCon, index):
+            logger.debug("Dialog %s already transcribed", index)
+            continue
+
         logger.info("deepgram plugin: processing vCon: {}".format(vcon_uuid))
         logger.info("Duration of recording: {}".format(dialog["duration"]))
 
-        # convert mp3 file to wav file
-        filename = f"static/{str(vcon_uuid)}_{index}.wav"
-        try:
-            dg_client = Deepgram(DEEPGRAM_KEY)
-            audio = open(filename, "rb")
-            source = {"buffer": audio, "mimetype": "audio/x-wav"}
-            transcription = await dg_client.transcription.prerecorded(
-                source,
-                {
-                    "detect_topics": True,
-                    "redact": "pci",
-                    "redact": "ssn",
-                    "diarize": True,
-                },
-            )
+        dg_client = Deepgram(opts["DEEPGRAM_KEY"])
+        logger.info(f"DG KEY: {opts['DEEPGRAM_KEY']}")
+        result = await transcribe_dg(dg_client, dialog)
+        if not result:
+            break
+    
+        print(vCon.uuid, " transcribed")
 
-            # Now that the transcription is complete, we can get the result
-            result = transcription["results"]["channels"][0]["alternatives"][0]
-            transcript = result["transcript"]
-            words = result["words"]
-            topics = []
-            for topic in result["topics"]:
-                topics += topic["topics"]
-
-
-            vCon.add_analysis_transcript(
-                index, transcript, "deepgram", analysis_type="transcript"
-            )
-            vCon.add_analysis_transcript(
-                index, words, "deepgram", analysis_type="word_map"
-            )
-            vCon.add_analysis_transcript(
-                index, topics, "deepgram", analysis_type="topics"
-            )
-        except Exception as e:
-            logger.error("transcription plugin: error: {}".format(e))
-
-    await vcon_redis.store_vcon(vCon)
-
-    vCon.add_analysis(0, 'tags', opts['tags'])
+        vCon.add_analysis_transcript(
+            index, result, "deepgram", analysis_type="transcript"
+        )
     await vcon_redis.store_vcon(vCon)
 
     # Return the vcon_uuid down the chain.
     # If you want the vCon processing to stop (if you are filtering them, for instance)
     # send None
     return vcon_uuid
-
-#TODO FIX THIS: Second definition of default_options.
-default_options = {"name": "deepgram", "ingress-topics": [], "egress-topics": []}
-options = {}
-
-async def start(opts=default_options):
-    logger.info("Starting the deepgram plugin")
-    try:
-        r = server.redis_mgr.get_client()
-        p = r.pubsub(ignore_subscribe_messages=True)
-        await p.subscribe(*opts["ingress-topics"])
-
-        while True:
-            try:
-                message = await p.get_message()
-                if message:
-                    vConUuid = message["data"].decode("utf-8")
-                    logger.info("deepgram plugin: received vCon: {}".format(vConUuid))
-                    try:
-                        # get the start time
-                        st = time.time()
-                        returnVconUuuid = await run(vConUuid, opts)
-                        # get the end time
-                        et = time.time()
-
-                        # get the execution time
-                        elapsed_time = et - st
-                        logger.info(f"deepgram Execution time {elapsed_time} seconds")
-
-                    except Exception as e:
-                        logger.error(
-                            "deepgram plugin threw unhandled error: {}".format(e)
-                        )
-                        returnVconUuuid = None
-
-                    if returnVconUuuid:
-                        for topic in opts["egress-topics"]:
-                            await r.publish(topic, vConUuid)
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                logger.error("deepgram plugin: error: {}".format(e))
-    except asyncio.CancelledError:
-        logger.debug("deepgram Cancelled")
-
-    logger.info("deepgram stopped")
 

@@ -14,7 +14,7 @@ default_options = {
 
 def get_transcription(vcon, index):
     for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'transcription':
+        if a["dialog"] == index and a['type'] == 'transcript':
             return a
     return None
 

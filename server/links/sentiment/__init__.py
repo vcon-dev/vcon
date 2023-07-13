@@ -23,11 +23,18 @@ def get_summary(vcon, index):
     return None
 
 
-def summarize(transcript):
+def get_customer_issue(vcon, index):
+    for a in vcon.analysis:
+        if a["dialog"] == index and a['type'] == 'customer_issue':
+            return a
+    return None
+
+
+def find_customer_issue(summary):
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Summarize this transcript in a few sentences, then indicate if they customer was frustrated or not, and if agent was helpful?"},
-        {"role": "assistant", "content": transcript}
+        {"role": "user", "content": "If there were any communication issues, frustrations, anger or dissapointment, respond with only the words 'NEEDS REVIEW', otherwise respond 'NO REVIEW NEEDED"},
+        {"role": "assistant", "content": summary}
     ]
     sentiment_result = openai.ChatCompletion.create(
         model="gpt-3.5-turbo-16k",
@@ -43,7 +50,7 @@ async def run(
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    logger.info("Starting summary for vCon: %s", vcon_uuid)
+    logger.info("Starting sentiment plugin for: %s", vcon_uuid)
     openai.api_key = opts["OPENAI_API_KEY"]
     # Cannot create redis client in global context as it will wait on async event
     # loop which may go away.
@@ -51,21 +58,20 @@ async def run(
     vCon = await vcon_redis.get_vcon(vcon_uuid)
 
     for index, dialog in enumerate(vCon.dialog):
-        transcription = get_transcription(vCon, index)
-        if not transcription:
-            logger.info("No transcript found for vCon: %s", vCon.uuid)
+        summary = get_summary(vCon , index)
+        if not summary:
+            logger.info("No summary found for vcon: %s", vCon.uuid)
             continue
 
-        transcription_text = transcription['body']['transcript']
-        summary = get_summary(vCon , index)
-        # See if it already has summary
-        if summary:
-            logger.info("Dialog %s already summarized in vCon: %s", index, vCon.uuid)
+        customer_issue = get_customer_issue(vCon , index)
+        if customer_issue:
+            logger.info("There's a customer_issue already for vCon: %s", vCon.uuid)
             continue
-        summary = summarize(transcription_text)
-        logger.info("Summarized vCon: %s", vCon.uuid)
+
+        customer_issue = find_customer_issue(summary["body"])
+        logger.info("Checked customer_sentiment: %s", vCon.uuid)
         vCon.add_analysis_transcript(
-            index, summary, "openai", analysis_type="summary"
+            index, customer_issue, "openai", analysis_type="customer_issue"
         )
     await vcon_redis.store_vcon(vCon)
 

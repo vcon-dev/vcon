@@ -23,7 +23,6 @@ def get_transcription(vcon, index):
 async def transcribe_dg(dg_client, dialog) -> Optional[dict]:
     url = dialog['url']
     source = {'url': url}
-    logger.info(f"Source: {url}")
 
     options = {
         "model": "nova",
@@ -46,7 +45,7 @@ async def run(
     merged_opts.update(opts)
     opts = merged_opts
     
-    logger.debug("Starting deepgram plugin")
+    logger.info("Starting deepgram plugin for vCon: %s", vcon_uuid)
     # Cannot create reids client in global context as redis clients get started on async
     # event loop which may go away.
     vcon_redis = VconRedis()
@@ -54,38 +53,34 @@ async def run(
 
     for index, dialog in enumerate(vCon.dialog):
         if dialog["type"] != "recording":
-            logger.debug(
-                f"deepgram plugin: skipping non-recording dialog {index} in vCon: {vcon_uuid}"
+            logger.info(
+                "deepgram plugin: skipping non-recording dialog %s in vCon: %s", index, vCon.uuid
             )
             continue
         
         if not dialog["url"]:
-            logger.debug(
-                f"deepgram plugin: skipping no URL dialog {index} in vCon: {vcon_uuid}"
+            logger.info(
+                "deepgram plugin: skipping no URL dialog %s in vCon: %s", index, vCon.uuid
             )
             continue
 
         if dialog["duration"] < opts["minimum_duration"]:
-            logger.debug(
-                f"deepgram plugin: skipping short recording dialog {index} in vCon: {vcon_uuid}"
+            logger.info(
+                "Skipping short recording dialog %s in vCon: %s", index, vCon.uuid
             )
             continue
 
         # See if it was already transcibed
         if get_transcription(vCon, index):
-            logger.debug("Dialog %s already transcribed", index)
+            logger.info("Dialog %s already transcribed on vCon: %s", index, vCon.uuid)
             continue
 
-        logger.info("deepgram plugin: processing vCon: {}".format(vcon_uuid))
-        logger.info("Duration of recording: {}".format(dialog["duration"]))
-
         dg_client = Deepgram(opts["DEEPGRAM_KEY"])
-        logger.info(f"DG KEY: {opts['DEEPGRAM_KEY']}")
         result = await transcribe_dg(dg_client, dialog)
         if not result:
             break
     
-        print(vCon.uuid, " transcribed")
+        logger.info("Transcribed vCon: %s", vCon.uuid)
 
         vCon.add_analysis_transcript(
             index, result, "deepgram", analysis_type="transcript"

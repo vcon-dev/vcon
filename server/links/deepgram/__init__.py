@@ -87,8 +87,8 @@ async def run(
         )
     await vcon_redis.store_vcon(vCon)
 
-    # Return the vcon_uuid down the chain.
-    # If you want the vCon processing to stop (if you are filtering them, for instance)
+    # Forward the vcon_uuid down the chain.
+    # If you want the vCon processing to stop (if you are filtering them out, for instance)
     # send None
     return vcon_uuid
 

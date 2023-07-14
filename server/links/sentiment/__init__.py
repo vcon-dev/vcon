@@ -5,7 +5,8 @@ import openai
 logger = init_logger(__name__)
 
 default_options = {
-    "prompt": "Summarize this conversation: ",
+    "prompt": "If there were any communication issues, frustrations, anger or dissapointment, respond with only the words 'NEEDS REVIEW', otherwise respond 'NO REVIEW NEEDED'",
+    "analysis_type": "sentiment",
 }
 
 
@@ -16,24 +17,17 @@ def get_transcription(vcon, index):
     return None
 
 
-def get_summary(vcon, index):
+def get_analysys_for_type(vcon, index, analysis_type):
     for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'summary':
+        if a["dialog"] == index and a['type'] == analysis_type:
             return a
     return None
 
 
-def get_customer_issue(vcon, index):
-    for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'customer_issue':
-            return a
-    return None
-
-
-def find_customer_issue(summary):
+def generate_analysis(summary, prompt):
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "If there were any communication issues, frustrations, anger or dissapointment, respond with only the words 'NEEDS REVIEW', otherwise respond 'NO REVIEW NEEDED"},
+        {"role": "user", "content": prompt},
         {"role": "assistant", "content": summary}
     ]
     sentiment_result = openai.ChatCompletion.create(
@@ -47,35 +41,41 @@ async def run(
     vcon_uuid,
     opts=default_options,
 ):
+    link_name = __name__.split(".")[-1]
+    logger.info(f"Starting {link_name} plugin for: {vcon_uuid}")
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    logger.info("Starting sentiment plugin for: %s", vcon_uuid)
-    openai.api_key = opts["OPENAI_API_KEY"]
+    propogate_to_next_link = True
     # Cannot create redis client in global context as it will wait on async event
     # loop which may go away.
     vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
 
+    openai.api_key = opts["OPENAI_API_KEY"]
+
     for index, dialog in enumerate(vCon.dialog):
-        summary = get_summary(vCon , index)
+        # TODO ask Thomas why we user summary insted of transcript
+        summary = get_analysys_for_type(vCon , index, "summary")
         if not summary:
             logger.info("No summary found for vcon: %s", vCon.uuid)
             continue
 
-        customer_issue = get_customer_issue(vCon , index)
-        if customer_issue:
-            logger.info("There's a customer_issue already for vCon: %s", vCon.uuid)
+        analysis = get_analysys_for_type(vCon , index, opts["analysis_type"])
+        if analysis:
+            logger.info("There's a analysis type %s already for vCon: %s", opts["analysis_type"], vCon.uuid)
             continue
 
-        customer_issue = find_customer_issue(summary["body"])
-        logger.info("Checked customer_sentiment: %s", vCon.uuid)
+        analysis = generate_analysis(summary["body"], opts["prompt"])
         vCon.add_analysis_transcript(
-            index, customer_issue, "openai", analysis_type="customer_issue"
+            index, analysis, "openai", analysis_type=opts["analysis_type"]
         )
+
+        # if opts["filter"] and opts["filter"] not in sentiment:
+        #     logger.info("Filtered out because of sentiment filter: %s", vCon.uuid)
+        #     propogate_to_next_link = False
+
     await vcon_redis.store_vcon(vCon)
 
-    # Return the vcon_uuid down the chain.
-    # If you want the vCon processing to stop (if you are filtering them, for instance)
-    # send None
-    return vcon_uuid
+    if propogate_to_next_link:
+        return vcon_uuid

@@ -5,7 +5,8 @@ import openai
 logger = init_logger(__name__)
 
 default_options = {
-    "prompt": "Summarize this conversation: ",
+    "prompt": "Summarize this transcript in a few sentences, then indicate if they customer was frustrated or not, and if agent was helpful?",
+    "analysis_type": "summary",
 }
 
 
@@ -16,17 +17,17 @@ def get_transcription(vcon, index):
     return None
 
 
-def get_summary(vcon, index):
+def get_analysys_for_type(vcon, index, analysis_type):
     for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'summary':
+        if a["dialog"] == index and a['type'] == analysis_type:
             return a
     return None
 
 
-def summarize(transcript):
+def generate_analysis(transcript, prompt):
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Summarize this transcript in a few sentences, then indicate if they customer was frustrated or not, and if agent was helpful?"},
+        {"role": "user", "content": prompt},
         {"role": "assistant", "content": transcript}
     ]
     sentiment_result = openai.ChatCompletion.create(
@@ -40,15 +41,18 @@ async def run(
     vcon_uuid,
     opts=default_options,
 ):
+    link_name = __name__.split(".")[-1]
+    logger.info(f"Starting {link_name} plugin for: {vcon_uuid}")
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    logger.info("Starting summary for vCon: %s", vcon_uuid)
-    openai.api_key = opts["OPENAI_API_KEY"]
+    propogate_to_next_link = True
     # Cannot create redis client in global context as it will wait on async event
     # loop which may go away.
     vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
+
+    openai.api_key = opts["OPENAI_API_KEY"]
 
     for index, dialog in enumerate(vCon.dialog):
         transcription = get_transcription(vCon, index)
@@ -57,19 +61,16 @@ async def run(
             continue
 
         transcription_text = transcription['body']['transcript']
-        summary = get_summary(vCon , index)
+        analysis = get_analysys_for_type(vCon , index, opts["analysis_type"])
         # See if it already has summary
-        if summary:
+        if analysis:
             logger.info("Dialog %s already summarized in vCon: %s", index, vCon.uuid)
             continue
-        summary = summarize(transcription_text)
-        logger.info("Summarized vCon: %s", vCon.uuid)
+        analysis = generate_analysis(transcription_text, opts["prompt"])
         vCon.add_analysis_transcript(
-            index, summary, "openai", analysis_type="summary"
+            index, analysis, "openai", analysis_type=opts["analysis_type"]
         )
     await vcon_redis.store_vcon(vCon)
 
-    # Return the vcon_uuid down the chain.
-    # If you want the vCon processing to stop (if you are filtering them, for instance)
-    # send None
-    return vcon_uuid
+    if propogate_to_next_link:
+        return vcon_uuid

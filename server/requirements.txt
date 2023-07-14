@@ -96,6 +96,7 @@ rsa==4.9
 s3transfer==0.6.0
 simplejson==3.17.6
 six==1.16.0
+slack-sdk==3.21.3
 soundfile==0.11.0
 sox==1.4.1
 SQLAlchemy==1.4.41

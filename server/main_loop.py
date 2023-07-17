@@ -80,6 +80,6 @@ async def tick():
                         except Exception as e:
                             logger.error("Error saving vCon %s to storage %s: %s", vcon_id, storage_name, e)
     
-    logger.debug("Finished processing chain %s", chain_name)
+        logger.debug("Finished processing chain %s", chain_name)
 
 

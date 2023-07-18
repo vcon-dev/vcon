@@ -18,14 +18,23 @@ default_options = {
 
 
 def get_team(vcon):
-    team_name = "rainbow"
+    team_name = None
     for a in vcon.attachments:
         if a['type'] == 'strolid_dealer':
             t_obj = json.loads(a['body'])
             team = t_obj.get('team', None)
             if team:
-                team_name = t_obj['name']
+                team_name = team['name']
+                team_name = team_name.split()[0].lower()
     return team_name
+
+def get_dealer(vcon):
+    dealer = None
+    for a in vcon.attachments:
+        if a['type'] == 'strolid_dealer':
+            d_obj = json.loads(a['body'])
+            dealer = d_obj.get('name', None)
+    return dealer
 
 
 def get_summary(vcon, index):
@@ -35,7 +44,7 @@ def get_summary(vcon, index):
     return None
 
 
-def post_blocks_to_channel(token, channel_name, abstract, url):
+def post_blocks_to_channel(token, channel_name, abstract, url, opts):
     blocks = [
         {
             "type": "section",
@@ -79,6 +88,10 @@ def post_blocks_to_channel(token, channel_name, abstract, url):
         )
     except Exception as e:
         # Code to run if an exception is raised
+        client.chat_postMessage(
+            channel=opts["default_channel_name"],
+            text=f"The channel name doesn't exist - {channel_name}"
+        )
         logger.error(f"An error occurred posting to {channel_name}: {e}")
 
 
@@ -108,10 +121,16 @@ async def run(
 
         url = f"{opts['url']}?_vcon_id=\"{vcon.uuid}\""
         team_name = get_team(vcon)
+        dealer_name = get_dealer(vcon)
         summary = get_summary(vcon, a['dialog'])
-        summary_text = summary['body']
-        abstract = summary_text + f" #{team_name}"
-        post_blocks_to_channel(opts['token'], opts['channel_name'], abstract, url)
+        abstract = summary['body']
+        
+        if team_name:
+            channel_name = f"team-{team_name}-alerts"
+            abstract = abstract + f" #{dealer_name}"
+            post_blocks_to_channel(opts['token'], channel_name , abstract, url, opts)
+
+        post_blocks_to_channel(opts['token'], opts["default_channel_name"] , abstract, url, opts)
         a['was_posted_to_slack'] = True
 
     await vcon_redis.store_vcon(vcon)

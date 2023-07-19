@@ -11,13 +11,6 @@ default_options = {
 }
 
 
-def get_transcription(vcon, index):
-    for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'transcript':
-            return a
-    return None
-
-
 def get_analysys_for_type(vcon, index, analysis_type):
     for a in vcon.analysis:
         if a["dialog"] == index and a['type'] == analysis_type:
@@ -56,18 +49,18 @@ async def run(
     openai.api_key = opts["OPENAI_API_KEY"]
 
     for index, dialog in enumerate(vCon.dialog):
-        transcription = get_transcription(vCon, index)
-        if not transcription:
+        transcript = get_analysys_for_type(vCon, index, 'transcript')
+        if not transcript:
             logger.info("No transcript found for vCon: %s", vCon.uuid)
             continue
 
-        transcription_text = transcription['body']['transcript']
+        transcript_text = transcript['body']['transcript']
         analysis = get_analysys_for_type(vCon , index, opts["analysis_type"])
         # See if it already has summary
         if analysis:
             logger.info("Dialog %s already summarized in vCon: %s", index, vCon.uuid)
             continue
-        analysis = generate_analysis(transcription_text, opts["prompt"], opts["model"])
+        analysis = generate_analysis(transcript_text, opts["prompt"], opts["model"])
         vCon.add_analysis_transcript(
             index, analysis, "openai", analysis_type=opts["analysis_type"]
         )

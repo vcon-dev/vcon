@@ -2,7 +2,7 @@ import importlib
 from lib.logging_utils import init_logger
 from fastapi.applications import FastAPI
 import redis_mgr
-from redis_mgr import set_key, get_key
+from redis_mgr import get_key
 from settings import TICK_INTERVAL
 from rocketry import Rocketry
 from rocketry.log import MinimalRecord
@@ -20,10 +20,11 @@ if TICK_INTERVAL > 0:
 
     @scheduler_app.task(tick_interval_str)
     async def run_tick():
-        await tick()        
+        await tick()
 
 app = FastAPI.conserver_app
 app.scheduler = scheduler_app
+
 
 # We decorate this with the TICK path so that we can use external tools to trigger the tick
 @app.get("/tick")
@@ -81,5 +82,3 @@ async def tick():
                             logger.error("Error saving vCon %s to storage %s: %s", vcon_id, storage_name, e)
     
         logger.debug("Finished processing chain %s", chain_name)
-
-

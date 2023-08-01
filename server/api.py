@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from uuid import UUID
 from pydantic import BaseModel, Json, Field
-from fastapi_pagination import Page, add_pagination, paginate
 from fastapi.responses import JSONResponse
 import importlib
 from redis.commands.json.path import Path
@@ -16,12 +15,39 @@ import typing
 import enum
 import pyjq
 from typing import List
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-
+import tqdm
+import json
+from datetime import datetime
+import redis
+import redis.commands.search.aggregation as aggregations
+from redis.commands.search.aggregation import Asc
+from urllib.parse import quote, unquote
 import redis_mgr
-from settings import CONSERVER_API_TOKEN
+
+from peewee import *
+from playhouse.postgres_ext import *
+from settings import VCON_STORAGE
+import logging
+logger = logging.getLogger('peewee')
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
 
 
+if VCON_STORAGE:
+    class VConModel(Model):
+        id = UUIDField(primary_key=True)
+        vcon = CharField()
+        uuid = UUIDField()
+        created_at = DateTimeField()
+        updated_at = DateTimeField(null=True)
+        subject = CharField(null=True)
+        vcon_json = BinaryJSONField(null=True)
+        type = CharField(null=True)
+
+        class Meta:
+            table_name = "vcons"
+            database = PostgresqlExtDatabase(VCON_STORAGE)
+            
 class Chain(BaseModel):
     links: typing.List[str] = []
     ingress_lists: typing.List[str] = []
@@ -46,11 +72,10 @@ class Party(BaseModel):
     mailto: str = None
     name: str = None
     validation: str = None
-    jcard: Json = None
+    jcard: str = None
     gmlpos: str = None
     civicaddress: str = None
     timezone: str = None
-    meta: dict = None
 
 
 class DialogType(str, enum.Enum):
@@ -61,7 +86,7 @@ class DialogType(str, enum.Enum):
 class Dialog(BaseModel):
     type: DialogType
     start: typing.Union[int, str, datetime]
-    duration: typing.Union[int, float] = None
+    duration: float = None
     parties: typing.Union[int, typing.List[typing.Union[int, typing.List[int]]]]
     mimetype: str = None
     filename: str = None
@@ -70,7 +95,6 @@ class Dialog(BaseModel):
     encoding: str = None
     alg: str = None
     signature: str = None
-    meta: dict = None
 
 
 class Analysis(BaseModel):
@@ -101,7 +125,7 @@ class Attachment(BaseModel):
 
 class Group(BaseModel):
     uuid: UUID
-    body: Json = None
+    body: str = None
     encoding: str = None
     url: str = None
     alg: str = None
@@ -111,7 +135,7 @@ class Group(BaseModel):
 class Vcon(BaseModel):
     vcon: str
     uuid: UUID
-    created_at: typing.Union[int, str, datetime] = Field(default_factory=lambda: datetime.now().timestamp())
+    created_at: typing.Union[int, str, datetime]
     subject: str = None
     redacted: dict = None
     appended: dict = None
@@ -132,7 +156,7 @@ logger.info("Conserver starting up")
 # Load FastAPI app
 app = FastAPI.conserver_app
 
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -142,51 +166,69 @@ app.add_middleware(
 )
 
 
-if CONSERVER_API_TOKEN:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["*"]
-    )
+@app.get("/vcon", response_model=List[str])
+async def get_vcons(page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
+    """ 
+    Gets the UUIDs of conversations between the given dates, sorted by date desc.
+    Use/vcon/{uuid} to retreive the full text of the vCon.  
+    Use page, size, since, and until parameters to paginate the results.
+    """
+    if VCON_STORAGE:
+        offset = (page - 1) * size
+        query = VConModel.select()
+        if since:
+            query = query.where(VConModel.created_at > since)
+        if until:
+            query = query.where(VConModel.created_at < until)
+        query = query.order_by(VConModel.created_at.desc()).offset(offset).limit(size)
+        r = [str(vcon.uuid) for vcon in query]
+        return r
 
-    @app.middleware("http")
-    async def auth_middleware(request, call_next):
-        authorization_header = request.headers.get("Authorization")
-        if not authorization_header:
-            logger.warning("Authorization token is missing")
-            return JSONResponse(status_code=401, content={"message": "Authorization token is missing"})
+    else:
+        # Assumes that the REDIS database has a full-text index called "vconIdx"
+        r = redis_mgr.get_client()
+        index_name = 'vconIdx'
+        try:
+            indexInfo  = await r.ft(index_name).info()
+        except redis.exceptions.ResponseError:
+            print("Must have the index " + index_name + " in the database")
+            exit(1)
 
-        token_parts = authorization_header.split("Bearer ")
-        if len(token_parts) != 2 or token_parts[1] != CONSERVER_API_TOKEN:
-            logger.error("Invalid authorization header", authorization_header)
-            return JSONResponse(status_code=403, content={"message": "Invalid token"})
+        # Get the last vcon from the database
+        # if the since or until params are set, then add this to the redis query
+        if since:
+            q += " @created_at:[{} +inf]".format(since.timestamp())
+        if until:
+            q += " @created_at:[-inf {}]".format(until.timestamp())
+        
 
-        response = await call_next(request)
-        return response
+        req = aggregations.AggregateRequest(query=q).sort_by(Asc("@created_at")).limit((page-1)*size, size)
+        req.load('$')
+        results = await r.ft(index_name).aggregate(req)
 
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.get("/vcon", response_model=Page[str])
-async def get_vcons():
-    r = redis_mgr.get_client()
-    keys = await r.keys("vcon:*")
-    uuids = [key.replace("vcon:", "") for key in keys]
-    return paginate(uuids)
-
+        uuids = []
+        for row in tqdm.tqdm(results.rows):
+            vcon = json.loads(row[1].decode("UTF-8"))
+            uuids.append(str(vcon['uuid']))
+        return uuids
 
 @app.get("/vcon/{vcon_uuid}")
 async def get_vcon(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug(
-        "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
-    )
-    return JSONResponse(content=vcon)
+    if VCON_STORAGE:
+        q = VConModel.select().where(VConModel.uuid == vcon_uuid)
+        r = q.get()
+        return JSONResponse(content=r.vcon_json)
+    else:
+        try:
+            r = redis_mgr.get_client()
+            vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
+        except Exception as e:
+            logger.info("Error: {}".format(e))
+            return None
+        logger.debug(
+            "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
+        )
+        return JSONResponse(content=vcon)
 
 
 @app.get("/vcon/{vcon_uuid}/jq")
@@ -204,7 +246,7 @@ async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
     return JSONResponse(content=query_result)
 
 
-@app.get("/vcon/{vcon_uuid}/JSONPath", response_model=Page[Party])
+@app.get("/vcon/{vcon_uuid}/JSONPath", response_model=List[Party])
 async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
     try:
         logger.info("JSONPath query string: {}".format(path_string))
@@ -216,66 +258,39 @@ async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
         return None
     return JSONResponse(content=query_result)
 
-
-@app.get("/vcon/{vcon_uuid}/party", response_model=Page[Party])
-async def get_parties(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        parties = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.parties")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(parties[0])
-
-
-@app.get("/vcon/{vcon_uuid}/dialog", response_model=Page[Dialog])
-async def get_dialogs(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        dialogs = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.dialog")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(dialogs[0])
-
-
-@app.get("/vcon/{vcon_uuid}/analysis", response_model=Page[Analysis])
-async def get_analyses(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        analyses = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.analysis")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(analyses[0])
-
-
-@app.get("/vcon/{vcon_uuid}/attachment", response_model=Page[Attachment])
-async def get_attachments(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        attachments = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.attachments")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(attachments[0])
-
-
-add_pagination(app)
-
-
 @app.post("/vcon")
 async def post_vcon(inbound_vcon: Vcon):
-    try:
-        r = redis_mgr.get_client()
-        dict_vcon = inbound_vcon.dict()
-        dict_vcon["uuid"] = str(inbound_vcon.uuid)
-        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
-    return JSONResponse(content=dict_vcon)
+    if VCON_STORAGE:
+        # Create a new vcon in the database
+        # Use peewee
+        id = inbound_vcon.uuid
+        vcon_json = inbound_vcon.json()
+        uuid = inbound_vcon.uuid
+        created_at = inbound_vcon.created_at
+        updated_at = inbound_vcon.updated_at or inbound_vcon.created_at
+        subject = inbound_vcon.subject
+        type = inbound_vcon.type
+        vcon = VConModel.create(
+            id=id,
+            uuid=uuid,
+            created_at=created_at,
+            updated_at=updated_at,
+            subject=subject,
+            type=type,
+            vcon_json=vcon_json,
+        )
+        return JSONResponse(content=inbound_vcon.dict())
+    else:
+        try:
+            r = redis_mgr.get_client()
+            dict_vcon = inbound_vcon.dict()
+            dict_vcon["uuid"] = str(inbound_vcon.uuid)
+            await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
+        except Exception as e:
+            logger.info("Error: {}".format(e))
+            return None
+        logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+        return JSONResponse(content=dict_vcon)
 
 
 @app.put("/vcon/{vcon_uuid}")
@@ -542,3 +557,22 @@ async def get_vcon_count(egress_list: str, status_code=200):
         logger.info("Error: {}".format(e))
         status_code = 500
     return status_code
+
+def add_ts(r, key):
+    vcon = r.json().get(key)
+    # Convert "created_at" to timestamp
+    created_at = vcon['created_at']
+    created_at_ts = datetime.fromisoformat(created_at).timestamp()
+
+    # Add "created_at_ts" to the JSON
+    vcon['created_at_ts'] = created_at_ts
+    r.json().set(key, "$", vcon)
+
+@app.on_event("startup")
+async def startup_event():
+    if False:
+        r = redis.Redis(host='localhost', port=6379, db=0)
+        keys = r.keys("vcon:*")
+        for key in tqdm.tqdm(keys):
+            add_ts(r,key)
+        r.close()

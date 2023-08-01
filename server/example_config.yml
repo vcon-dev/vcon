@@ -73,3 +73,6 @@ chains:
     egress_lists:
     - test_output
     enabled: 1
+adapters:
+  chatgpt:
+    module: adapters.chatgpt

@@ -7,5 +7,4 @@ FastAPI.conserver_app = conserver_app
 # Now load all the modules
 import api  # noqa
 import lifecycle  # noqa
-import admin  # noqa
 import main_loop  # noqa

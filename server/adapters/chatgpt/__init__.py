@@ -111,36 +111,3 @@ def init_db():
         class_name = SCHEMA["class"]
         logging.debug(f"Schema for {class_name} already exists")
         logging.debug("Skipping schema creation")
-
-
-@app.post("/query", response_model=List[QueryResult])
-def query(query: Query, client=Depends(get_client)) -> List[Document]:
-    """
-    Query for conversations by time, agent, customer, transcript.
-    Examples: "test.agent@strolid", +15083640000, "Jack Black Ford"
-    """
-    query_vector = get_embedding(query.query)
-
-    results = (
-        client.query.get(INDEX_NAME, ["vcon_id", "vcon_summary"])
-        .with_near_vector({"vector": query_vector})
-        .with_limit(4)
-        .with_additional("certainty")
-        .do()
-    )
-
-    docs = results["data"]["Get"][INDEX_NAME]
-
-    return [
-        QueryResult(
-            query=query.query,
-            results=[
-                DocumentChunkWithScore(
-                    vcon_id=doc["vcon_id"],
-                    vcon_summary=doc["vcon_summary"],
-                    score=doc["_additional"]["certainty"],
-                )
-                for doc in docs
-            ],
-        )
-    ]

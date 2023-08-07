@@ -12,9 +12,6 @@ from lib.logging_utils import init_logger
 import redis.asyncio.connection
 import redis.asyncio.client
 from settings import REDIS_URL
-import pytest_asyncio
-import pytest
-import uuid
 
 
 
@@ -70,7 +67,7 @@ def get_client():
     global REDIS_POOL
     if REDIS_POOL is None:
         logger.info("REDIS_POOL is not initialized")
-        raise Exception("redis pool not initialize")
+        create_pool()
         #create_pool()
     r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
     logger.debug("client type: {}".format(type(r)))
@@ -91,3 +88,7 @@ async def delete_key(key):
     result = await r.delete(key)
     return result
 
+async def show_keys(pattern):
+    r = get_client()
+    result = await r.keys(pattern)
+    return result

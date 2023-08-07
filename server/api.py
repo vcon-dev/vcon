@@ -15,7 +15,6 @@ from peewee import *
 from playhouse.postgres_ext import *
 from pydantic import BaseModel
 from settings import VCON_STORAGE, VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME
-from starlette.staticfiles import StaticFiles
 
 # Our local modules``
 sys.path.append("..")
@@ -24,7 +23,6 @@ logger.info("API starting up")
 
 # Load FastAPI app
 app = FastAPI.conserver_app
-app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

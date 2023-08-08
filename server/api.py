@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Union
 from uuid import UUID
+import traceback
 
 import redis_mgr
 import tqdm
@@ -139,17 +140,25 @@ async def get_vcon(vcon_uuid: UUID):
     if VCON_STORAGE:
         q = VConPeeWee.select().where(VConPeeWee.uuid == vcon_uuid)
         r = q.get()
-        return JSONResponse(content=r.vcon_json)
+        # If we didn't find the vcon, return a 404, otherwise return the vcon
+        if r is None:
+            return JSONResponse(status_code=404)
+        else:
+            return JSONResponse(content=r.vcon_json)
+    
+    # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
+    try:
+        r = redis_mgr.get_client()
+        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
+    except Exception as e:
+        logger.info(traceback.format_exc())
+        return None
+    logger.debug(
+        "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
+    )
+    if vcon is None:
+        return JSONResponse(content=None, status_code=404)
     else:
-        try:
-            r = redis_mgr.get_client()
-            vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
-        except Exception as e:
-            logger.info("Error: {}".format(e))
-            return None
-        logger.debug(
-            "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
-        )
         return JSONResponse(content=vcon)
 
 @app.post("/vcon")
@@ -183,10 +192,15 @@ async def post_vcon(inbound_vcon: Vcon):
             created_at = datetime.fromisoformat(dict_vcon['created_at'])
             timestamp = int(created_at.timestamp())
 
+            # Store the vcon in redis
+            logger.debug("Posting vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
             await r.json().set(key, "$", dict_vcon)
+            # Add the vcon to the sorted set
+            logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
             await add_vcon_to_set(key, timestamp)
         except Exception as e:
-            logger.info("Error: {}".format(e))
+            # Print all of the details of the exception
+            logger.info(traceback.format_exc())
             return None
         logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
         return JSONResponse(content=dict_vcon)
@@ -198,7 +212,8 @@ async def delete_vcon(vcon_uuid: UUID, status_code=204):
         r = redis_mgr.get_client()
         await r.delete(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
-        logger.info("Error: {}".format(e))
+        # Print all of the details of the exception
+        logger.info(traceback.format_exc())
         status_code = 500
     return status_code
 

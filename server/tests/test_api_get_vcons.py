@@ -1,18 +1,7 @@
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-import pytest
-import asyncio
 from lib.logging_utils import init_logger
-
-import fastapi.testclient
-import conserver
-
-app = conserver.conserver_app
-client = TestClient(app)
-
+logger = init_logger(__name__)
+import httpx
 
 def test_api_get_vcons():
-    response = client.get("/")
-    print("response: {}".format(response))
+    response = httpx.get("http://localhost:8000/vcon")
     assert response.status_code == 200
-    assert response.json() == {"msg": "Hello World"}

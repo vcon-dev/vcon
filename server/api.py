@@ -99,13 +99,12 @@ async def startup_event():
                 await add_vcon_to_set(vcon_key, timestamp)
 
 # These are the vCon data models
-@app.get("/vcon", response_model=List[str])
+@app.get("/vcon", 
+         response_model=List[str],
+         summary="Gets a list of vCon UUIDs", 
+         description="Enables pagination of vCon UUIDs.  Use the page and size parameters to paginate the results. Can also filter by date with the since and until parameters.", 
+         tags=["vcon"])
 async def get_vcons(page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
-    """ 
-    Gets the UUIDs of conversations between the given dates, sorted by date desc.
-    Use/vcon/{uuid} to retreive the full text of the vCon.  
-    Use page, size, since, and until parameters to paginate the results.
-    """
     if VCON_STORAGE:
         offset = (page - 1) * size
         query = VConPeeWee.select()
@@ -135,7 +134,11 @@ async def get_vcons(page: int = 1, size: int = 50, since: datetime = None, until
         vcon_uuids = [vcon.decode("utf-8").split(":")[1] for vcon in vcon_uuids]
         return vcon_uuids
         
-@app.get("/vcon/{vcon_uuid}")
+@app.get("/vcon/{vcon_uuid}",
+        response_model=Vcon,
+         summary="Gets a particular vCon by UUID", 
+         description="How to get a particular vCon by UUID", 
+         tags=["vcon"])
 async def get_vcon(vcon_uuid: UUID):
     if VCON_STORAGE:
         q = VConPeeWee.select().where(VConPeeWee.uuid == vcon_uuid)
@@ -161,7 +164,11 @@ async def get_vcon(vcon_uuid: UUID):
     else:
         return JSONResponse(content=vcon)
 
-@app.post("/vcon")
+@app.post("/vcon",
+        response_model=Vcon,
+        summary="Inserts a vCon into the database", 
+        description="How to insert a vCon into the database.", 
+        tags=["vcon"])
 async def post_vcon(inbound_vcon: Vcon):
     if VCON_STORAGE:
         # Create a new vcon in the database
@@ -205,8 +212,12 @@ async def post_vcon(inbound_vcon: Vcon):
         logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
         return JSONResponse(content=dict_vcon)
 
-@app.delete("/vcon/{vcon_uuid}")
-async def delete_vcon(vcon_uuid: UUID, status_code=204):
+@app.delete("/vcon/{vcon_uuid}",
+            status_code=204,
+            summary="Deletes a particular vCon by UUID", 
+            description="How to remove a vCon from the conserver.", 
+            tags=["vcon"])
+async def delete_vcon(vcon_uuid: UUID):
     # FIX: support the VCON_STORAGE case
     try:
         r = redis_mgr.get_client()
@@ -219,8 +230,13 @@ async def delete_vcon(vcon_uuid: UUID, status_code=204):
 
 # Ingress and egress endpoints for vCon IDs
 # Create an endpoint to push vcon IDs to one or more redis lists
-@app.post("/vcon/ingress")
-async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_code=204):
+@app.post("/vcon/ingress",
+    status_code=204,
+    summary="Inserts a vCon UUID into one or more chains", 
+    description="Inserts a vCon UUID into one or more chains.", 
+    tags=["chain"])
+async def post_vcon_ingress(vcon_uuids: List[str], 
+    ingress_list: str):
     try:
         r = redis_mgr.get_client()
         for vcon_uuid in vcon_uuids:
@@ -231,8 +247,12 @@ async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_cod
     return status_code
 
 # Create an endpoint to pop vcon IDs from one or more redis lists
-@app.get("/vcon/egress")
-async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
+@app.get("/vcon/egress",
+    status_code=204,
+    summary="Removes one or more vCon UUIDs from the output of a chain (egress)",
+    description="Removes one or more vCon UUIDs from the output of a chain (egress)", 
+    tags=["chain"])
+async def get_vcon_egress(egress_list: str, limit=1, status_code=200):
     try:
         r = redis_mgr.get_client()
         vcon_uuids = []
@@ -248,7 +268,11 @@ async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
     return status_code
 
 # Create an endpoint to count the number of vCon UUIds in a redis list
-@app.get("/vcon/count")
+@app.get("/vcon/count",
+    status_code=204,
+    summary="Returns the number of vCons at the end of a chain", 
+    description="Returns the number of vCons at the end of a chain.", 
+    tags=["chain"])
 async def get_vcon_count(egress_list: str, status_code=200):
     try:
         r = redis_mgr.get_client()
@@ -260,7 +284,11 @@ async def get_vcon_count(egress_list: str, status_code=200):
         status_code = 500
     return status_code
 
-@app.get("/config")
+@app.get("/config",
+    status_code=204,
+    summary="Returns the config file for the conserver",
+    description="Returns the config file for the conserver", 
+    tags=["config"])
 async def get_config(status_code=200):
     try:
         r = redis_mgr.get_client()
@@ -274,7 +302,11 @@ async def get_config(status_code=200):
 
 # THis endpoint is used to update the config file, then calls
 # the load_config endpoint to load the new config file into redis
-@app.post("/config")
+@app.post("/config",
+    status_code=204,
+    summary="Updates the config file for the conserver",
+    description="Updates the config file for the conserver", 
+    tags=["config"])
 async def post_config(config: Dict, status_code=204):
     try:
         await load_config(config)
@@ -284,7 +316,11 @@ async def post_config(config: Dict, status_code=204):
     return status_code
 
 # This endpoint clears the config
-@app.delete("/config")
+@app.delete("/config",
+    status_code=204,
+    summary="Clears the config file for the conserver",
+    description="Clears the config file for the conserver", 
+    tags=["config"])
 async def delete_config(status_code=204):
     try:
         r = redis_mgr.get_client()

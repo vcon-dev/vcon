@@ -292,7 +292,7 @@ async def get_vcon_count(egress_list: str, status_code=200):
 async def get_config(status_code=200):
     try:
         r = redis_mgr.get_client()
-        config = await r.json().get("config_file")
+        config = await r.json().get("config")
         return JSONResponse(content=config)
 
     except Exception as e:
@@ -307,7 +307,7 @@ async def get_config(status_code=200):
     summary="Updates the config file for the conserver",
     description="Updates the config file for the conserver", 
     tags=["config"])
-async def post_config(config: Dict, status_code=204):
+async def post_config(config: Dict, update_file_name=None, status_code=204):
     try:
         await load_config(config)
     except Exception as e:

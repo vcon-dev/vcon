@@ -10,9 +10,13 @@ import time
 logger = init_logger(__name__)
 logger.debug("Loading the environment")
 
-update_config_file = os.getenv("UPDATE_CONFIG_FILE")
+update_config_file = os.getenv("UPDATE_CONFIG_FILE", None)
 
-async def load_config(config):
+async def load_config(config, update_config_file=update_config_file):
+    # For this function, there are two approaches: to replace
+    # the configuration file, or to take this configuration file
+    # and overlay it. The overlay approach is the default
+
     # Get the redis client
     r = await redis_mgr.get_client()
 
@@ -54,9 +58,29 @@ async def load_config(config):
         module_name = adapter['module']
         importlib.import_module(module_name)
 
-    # Save the config file in redis, so that it can be retrieved later
-    logger.debug("Saving the config file")
-    await set_key("config", config)
+    # If we are updating the config file, then derive it from the database
+    if update_config_file:
+        logger.debug("Updating the config file")
+        config = {}
+        config['links'] = {}
+        config['storages'] = {}
+        config['chains'] = {}
+        config['adapters'] = {}
+        config['links'] = await r.hgetall("link:*")
+        config['storages'] = await r.hgetall("storage:*")
+        config['chains'] = await r.hgetall("chain:*")
+        config['adapters'] = await r.hgetall("adapter:*")
+
+        # Convert the config to yaml
+        config = yaml.dump(config)
+
+        # Write the config to the config file
+        with open(update_config_file, "w") as f:
+            f.write(config)
+
+        # Save the config file in redis, so that it can be retrieved later
+        logger.debug("Saving the config file")
+        await set_key("config", config)
 
     logger.debug("Configuration loaded")
     return chain_names

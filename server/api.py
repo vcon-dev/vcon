@@ -285,7 +285,6 @@ async def get_vcon_count(egress_list: str, status_code=200):
     return status_code
 
 @app.get("/config",
-    status_code=204,
     summary="Returns the config file for the conserver",
     description="Returns the config file for the conserver", 
     tags=["config"])
@@ -303,7 +302,6 @@ async def get_config(status_code=200):
 # THis endpoint is used to update the config file, then calls
 # the load_config endpoint to load the new config file into redis
 @app.post("/config",
-    status_code=204,
     summary="Updates the config file for the conserver",
     description="Updates the config file for the conserver", 
     tags=["config"])

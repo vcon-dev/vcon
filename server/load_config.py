@@ -78,9 +78,9 @@ async def load_config(config, update_config_file=update_config_file):
         with open(update_config_file, "w") as f:
             f.write(config)
 
-        # Save the config file in redis, so that it can be retrieved later
-        logger.debug("Saving the config file")
-        await set_key("config", config)
+    # Save the config file in redis, so that it can be retrieved later
+    logger.debug("Saving the config file")
+    await set_key("config", config)
 
     logger.debug("Configuration loaded")
     return chain_names

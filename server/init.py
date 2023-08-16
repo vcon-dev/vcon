@@ -12,6 +12,7 @@ init_error_tracker()
 
 class Server(uvicorn.Server):
     def handle_exit(self, sig: int, frame) -> None:
+        logger.info("Shutting down Uvicorn server")
         scheduler_app.session.shut_down()
         return super().handle_exit(sig, frame)
 
@@ -36,4 +37,5 @@ async def main():
     await asyncio.wait([sched, api])
 
 if __name__ == "__main__":
+    logger.info("Starting Conserver server main loop ...")
     asyncio.run(main())

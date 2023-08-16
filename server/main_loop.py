@@ -27,7 +27,11 @@ app.scheduler = scheduler_app
 
 
 # We decorate this with the TICK path so that we can use external tools to trigger the tick
-@app.get("/tick")
+@app.get("/tick",
+    status_code=204,
+    summary="Makes a tick happen on the conserver. Can be used to trigger a tick from outside the conserver.",
+    description="Makes a tick happen on the conserver. Can be used to trigger a tick from outside the conserver. Chains are processed on each tick.", 
+    tags=["tick"])
 async def tick():
     logger.debug("Starting tick")
     r = await redis_mgr.get_client()

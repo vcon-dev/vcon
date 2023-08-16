@@ -220,8 +220,9 @@ async def post_vcon(inbound_vcon: Vcon):
 async def delete_vcon(vcon_uuid: UUID):
     # FIX: support the VCON_STORAGE case
     try:
+        status_code = 204
         r = redis_mgr.get_client()
-        await r.delete(f"vcon:{str(vcon_uuid)}")
+        await r.json().delete(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
         # Print all of the details of the exception
         logger.info(traceback.format_exc())

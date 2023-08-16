@@ -27,7 +27,7 @@ def test_api_vcon_lifecycle():
 
     # Delete the vcon
     response = httpx.delete("http://localhost:8000/vcon/{}".format(test_vcon["uuid"]))
-    assert response.status_code == 200
+    assert response.status_code == 204
 
     # Read the vcon back
     response = httpx.get("http://localhost:8000/vcon/{}".format(test_vcon["uuid"]))

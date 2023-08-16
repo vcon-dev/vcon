@@ -22,3 +22,4 @@ server/.vscode
 dump.rdb
 .data
 tmp
+docker-compose.override.yml

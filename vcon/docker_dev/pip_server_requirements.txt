@@ -20,6 +20,7 @@ fastapi[all]
 fastapi-pagination
 fastapi-utils
 fastjsonschema
+Faker
 filelock
 frozenlist
 future

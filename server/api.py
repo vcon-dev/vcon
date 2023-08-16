@@ -1,133 +1,29 @@
+import logging
 import sys
-import asyncio
-from lib.logging_utils import init_logger
 from datetime import datetime
-from fastapi import HTTPException
-from fastapi.applications import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.staticfiles import StaticFiles
+from typing import Dict, List, Union
 from uuid import UUID
-from pydantic import BaseModel, Json, Field
-from fastapi_pagination import Page, add_pagination, paginate
-from fastapi.responses import JSONResponse
-import importlib
-from redis.commands.json.path import Path
-import typing
-import enum
-import pyjq
-from typing import List
+import traceback
 
 import redis_mgr
-
-class Chain(BaseModel):
-    links: typing.List[str] = []
-    ingress_lists: typing.List[str] = []
-    storage: typing.List[str] = []
-    egress_lists: typing.List[str] = []
-    enabled: int = 1
-
-class Link(BaseModel):
-    module: str
-    options: typing.Dict[str, typing.Any] = {}
-    ingress_lists: typing.List[str] = []
-    egress_lists: typing.List[str] = []
-
-class Storage(BaseModel):
-    module: str
-    options: typing.Dict[str, typing.Any] = {}
-
-
-class Party(BaseModel):
-    tel: str = None
-    stir: str = None
-    mailto: str = None
-    name: str = None
-    validation: str = None
-    jcard: Json = None
-    gmlpos: str = None
-    civicaddress: str = None
-    timezone: str = None
-
-
-class DialogType(str, enum.Enum):
-    recording = "recording"
-    text = "text"
-
-
-class Dialog(BaseModel):
-    type: DialogType
-    start: typing.Union[int, str, datetime]
-    duration: typing.Union[int, float] = None
-    parties: typing.Union[int, typing.List[typing.Union[int, typing.List[int]]]]
-    mimetype: str = None
-    filename: str = None
-    body: str = None
-    url: str = None
-    encoding: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Analysis(BaseModel):
-    type: str
-    dialog: int
-    mimetype: str = None
-    filename: str = None
-    vendor: str = None
-    _schema: str = None
-    body: str = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Attachment(BaseModel):
-    type: str
-    party: int = None
-    mimetype: str = None
-    filename: str = None
-    body: str = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Group(BaseModel):
-    uuid: UUID
-    body: Json = None
-    encoding: str = None
-    url: str = None
-    alg: str = None
-    signature: str = None
-
-
-class Vcon(BaseModel):
-    vcon: str
-    uuid: UUID
-    created_at: typing.Union[int, str, datetime] = Field(default_factory=lambda: datetime.now().timestamp())
-    subject: str = None
-    redacted: dict = None
-    appended: dict = None
-    group: typing.List[Group] = []
-    parties: typing.List[Party] = []
-    dialog: typing.List[Dialog] = []
-    analysis: typing.List[Analysis] = []
-    attachments: typing.List[Attachment] = []
-
+import tqdm
+from fastapi.applications import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from lib.logging_utils import init_logger
+from load_config import load_config
+from peewee import *
+from playhouse.postgres_ext import *
+from pydantic import BaseModel
+from settings import VCON_STORAGE, VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME
 
 # Our local modules``
 sys.path.append("..")
-
 logger = init_logger(__name__)
-logger.info("Conserver starting up")
-
+logger.info("API starting up")
 
 # Load FastAPI app
 app = FastAPI.conserver_app
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -136,344 +32,212 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class Vcon(BaseModel):
+    vcon: str
+    uuid: UUID
+    created_at: Union[int, str, datetime]
+    subject: str = None
+    redacted: dict = None
+    appended: dict = None
+    group: List[Dict] = []
+    parties: List[Dict] = []
+    dialog: List[Dict] = []
+    analysis: List[Dict] = []
+    attachments: List[Dict] = []
 
-@app.get("/vcon", response_model=Page[str])
-async def get_vcons():
+if VCON_STORAGE:
+    class VConPeeWee(Model):
+        id = UUIDField(primary_key=True)
+        vcon = CharField()
+        uuid = UUIDField()
+        created_at = DateTimeField()
+        updated_at = DateTimeField(null=True)
+        subject = CharField(null=True)
+        vcon_json = BinaryJSONField(null=True)
+        type = CharField(null=True)
+
+        class Meta:
+            table_name = "vcons"
+            database = PostgresqlExtDatabase(VCON_STORAGE)
+
+
+async def add_vcon_to_set(vcon_uuid: UUID, timestamp: int):
     r = redis_mgr.get_client()
-    keys = await r.keys("vcon:*")
-    uuids = [key.replace("vcon:", "") for key in keys]
-    return paginate(uuids)
+    await r.zadd(VCON_SORTED_SET_NAME, {vcon_uuid: timestamp})
 
+@app.on_event("startup")
+async def startup_event():
+    if VCON_STORAGE:
+        # Use peewee to connect to the database and create the table if 
+        # we are supporting an external database
+        # This is how we manage the expiration of keys in REDIS
+        # We use a postgres database to store the vcon data
+        logger.info("Using external database {}".format(VCON_STORAGE))
+    else:
+        # Use redis to store the vcon data
+        # Use a sorted set, with the created_at field as the score, so that we can
+        # sort the results by date.  Convert the created_at field to a unix timestamp
+        logger.info("Using redis database")
+        sorted_set = VCON_SORTED_SET_NAME
 
-@app.get("/vcon/{vcon_uuid}")
+        # On startup, iterate over all the vCon keys in the database, and add them to the sorted set
+        # This is a one-time operation, so we can do it synchronously
+        # CHeck to see if we need to reset the sorted set
+        r = redis_mgr.get_client()
+        if VCON_SORTED_FORCE_RESET == "true" or await r.zcard(sorted_set) == 0:
+            logger.info("Resetting the sorted set")
+            # Delete the sorted set
+            await r.delete(sorted_set)
+            vcon_keys = await r.keys("vcon:*")
+
+            logger.info("Adding {} vcons to the sorted set".format(len(vcon_keys)))
+            for vcon_key in tqdm.tqdm(vcon_keys):
+                vcon = await r.json().get(vcon_key)
+                # Convert the ISO string to a unix timestamp
+                created_at = datetime.fromisoformat(vcon['created_at'])
+                timestamp = int(created_at.timestamp())
+                await add_vcon_to_set(vcon_key, timestamp)
+
+# These are the vCon data models
+@app.get("/vcon", 
+         response_model=List[str],
+         summary="Gets a list of vCon UUIDs", 
+         description="Enables pagination of vCon UUIDs.  Use the page and size parameters to paginate the results. Can also filter by date with the since and until parameters.", 
+         tags=["vcon"])
+async def get_vcons(page: int = 1, size: int = 50, since: datetime = None, until: datetime = None):
+    if VCON_STORAGE:
+        offset = (page - 1) * size
+        query = VConPeeWee.select()
+        if since:
+            query = query.where(VConPeeWee.created_at > since)
+        if until:
+            query = query.where(VConPeeWee.created_at < until)
+        query = query.order_by(VConPeeWee.created_at.desc()).offset(offset).limit(size)
+        r = [str(vcon.uuid) for vcon in query]
+        return r
+
+    else:
+        # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
+        r = redis_mgr.get_client()
+        until_timestamp = "+inf"
+        since_timestamp = "-inf"
+
+        # We can either use the page and offset, or the since and until parameters
+        if since:
+            since_timestamp = int(since.timestamp())
+        if until:
+            until_timestamp = int(until.timestamp())
+        offset = (page - 1) * size
+        vcon_uuids = await r.zrevrangebyscore(VCON_SORTED_SET_NAME, until_timestamp, since_timestamp, start=offset, num=size)
+
+        # Convert the vcon_uuids to strings and strip the vcon: prefix
+        vcon_uuids = [vcon.decode("utf-8").split(":")[1] for vcon in vcon_uuids]
+        return vcon_uuids
+        
+@app.get("/vcon/{vcon_uuid}",
+        response_model=Vcon,
+         summary="Gets a particular vCon by UUID", 
+         description="How to get a particular vCon by UUID", 
+         tags=["vcon"])
 async def get_vcon(vcon_uuid: UUID):
+    if VCON_STORAGE:
+        q = VConPeeWee.select().where(VConPeeWee.uuid == vcon_uuid)
+        r = q.get()
+        # If we didn't find the vcon, return a 404, otherwise return the vcon
+        if r is None:
+            return JSONResponse(status_code=404)
+        else:
+            return JSONResponse(content=r.vcon_json)
+    
+    # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
     try:
         r = redis_mgr.get_client()
         vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
-        logger.info("Error: {}".format(e))
+        logger.info(traceback.format_exc())
         return None
     logger.debug(
         "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
     )
-    return JSONResponse(content=vcon)
+    if vcon is None:
+        return JSONResponse(content=None, status_code=404)
+    else:
+        return JSONResponse(content=vcon)
 
-
-@app.get("/vcon/{vcon_uuid}/jq")
-async def get_vcon_jq_transform(vcon_uuid: UUID, jq_transform):
-    try:
-        logger.info("jq transform string: {}".format(jq_transform))
-        r = redis_mgr.get_client()
-        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
-        query_result = pyjq.all(jq_transform, vcon)
-        logger.debug("jq  transform result: {}".format(query_result))
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-
-    return JSONResponse(content=query_result)
-
-
-@app.get("/vcon/{vcon_uuid}/JSONPath", response_model=Page[Party])
-async def get_vcon_json_path(vcon_uuid: UUID, path_string: str):
-    try:
-        logger.info("JSONPath query string: {}".format(path_string))
-        r = redis_mgr.get_client()
-        query_result = await r.json().get(f"vcon:{str(vcon_uuid)}", path_string)
-        logger.debug("JSONPath query result: {}".format(query_result))
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return JSONResponse(content=query_result)
-
-
-@app.get("/vcon/{vcon_uuid}/party", response_model=Page[Party])
-async def get_parties(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        parties = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.parties")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(parties[0])
-
-
-@app.get("/vcon/{vcon_uuid}/dialog", response_model=Page[Dialog])
-async def get_dialogs(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        dialogs = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.dialog")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(dialogs[0])
-
-
-@app.get("/vcon/{vcon_uuid}/analysis", response_model=Page[Analysis])
-async def get_analyses(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        analyses = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.analysis")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(analyses[0])
-
-
-@app.get("/vcon/{vcon_uuid}/attachment", response_model=Page[Attachment])
-async def get_attachments(vcon_uuid: UUID):
-    try:
-        r = redis_mgr.get_client()
-        attachments = await r.json().get(f"vcon:{str(vcon_uuid)}", "$.attachments")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return paginate(attachments[0])
-
-
-add_pagination(app)
-
-
-@app.post("/vcon")
+@app.post("/vcon",
+        response_model=Vcon,
+        summary="Inserts a vCon into the database", 
+        description="How to insert a vCon into the database.", 
+        tags=["vcon"])
 async def post_vcon(inbound_vcon: Vcon):
-    try:
-        r = redis_mgr.get_client()
-        dict_vcon = inbound_vcon.dict()
-        dict_vcon["uuid"] = str(inbound_vcon.uuid)
-        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
-    return JSONResponse(content=dict_vcon)
-
-
-@app.put("/vcon/{vcon_uuid}")
-async def put_vcon(vcon_uuid: UUID, inbound_vcon: Vcon):
-    try:
-        r = redis_mgr.get_client()
-        dict_vcon = inbound_vcon.dict()
-        dict_vcon["uuid"] = str(inbound_vcon.uuid)
-        await r.json().set(f"vcon:{str(dict_vcon['uuid'])}", "$", dict_vcon)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return JSONResponse(content=dict_vcon)
-
-
-@app.patch("/vcon/{vcon_uuid}", response_model=Vcon)
-async def patch_vcon(vcon_uuid: UUID, plugin: str):
-    r = redis_mgr.get_client()
-    try:
-        plugin_module = importlib.import_module(plugin)
-        await asyncio.create_task(plugin_module.run(vcon_uuid))
-    except Exception as e:
-        message = "Error in plugin: {} {}".format(plugin, e)
-        logger.info(message)
-        raise HTTPException(
-            status_code=500, detail="server error in plugin: {}".format(plugin)
+    if VCON_STORAGE:
+        # Create a new vcon in the database
+        # Use peewee
+        id = inbound_vcon.uuid
+        vcon_json = inbound_vcon.json()
+        uuid = inbound_vcon.uuid
+        created_at = inbound_vcon.created_at
+        updated_at = inbound_vcon.updated_at or inbound_vcon.created_at
+        subject = inbound_vcon.subject
+        type = inbound_vcon.type
+        vcon = VConPeeWee.create(
+            id=id,
+            uuid=uuid,
+            created_at=created_at,
+            updated_at=updated_at,
+            subject=subject,
+            type=type,
+            vcon_json=vcon_json,
         )
+        return JSONResponse(content=inbound_vcon.dict())
+    else:
+        try:
+            r = redis_mgr.get_client()
+            dict_vcon = inbound_vcon.dict()
+            dict_vcon["uuid"] = str(inbound_vcon.uuid)
+            key = f"vcon:{str(dict_vcon['uuid'])}"
+            created_at = datetime.fromisoformat(dict_vcon['created_at'])
+            timestamp = int(created_at.timestamp())
 
-    dict_vcon = await r.json().get(f"vcon:{str(vcon_uuid)}", Path.root_path())
+            # Store the vcon in redis
+            logger.debug("Posting vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+            await r.json().set(key, "$", dict_vcon)
+            # Add the vcon to the sorted set
+            logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
+            await add_vcon_to_set(key, timestamp)
+        except Exception as e:
+            # Print all of the details of the exception
+            logger.info(traceback.format_exc())
+            return None
+        logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+        return JSONResponse(content=dict_vcon)
 
-    if dict_vcon is None:
-        message = "Error: patch plugin results for Vcon {} not found".format(vcon_uuid)
-        logger.info(message)
-        raise HTTPException(
-            status_code=500,
-            detail="server error, no result from plugin: {}".format(plugin),
-        )
-
-    return JSONResponse(content=dict_vcon)
-
-
-@app.delete("/vcon/{vcon_uuid}")
-async def delete_vcon(vcon_uuid: UUID, status_code=204):
+@app.delete("/vcon/{vcon_uuid}",
+            status_code=204,
+            summary="Deletes a particular vCon by UUID", 
+            description="How to remove a vCon from the conserver.", 
+            tags=["vcon"])
+async def delete_vcon(vcon_uuid: UUID):
+    # FIX: support the VCON_STORAGE case
     try:
+        status_code = 204
         r = redis_mgr.get_client()
-        await r.delete(f"vcon:{str(vcon_uuid)}")
+        await r.json().delete(f"vcon:{str(vcon_uuid)}")
     except Exception as e:
-        logger.info("Error: {}".format(e))
+        # Print all of the details of the exception
+        logger.info(traceback.format_exc())
         status_code = 500
     return status_code
 
-@app.get("/chain")
-async def get_chains():
-    try:
-        r = redis_mgr.get_client()
-        keys = await r.keys("chain:*")
-        chains = {}
-        for key in keys:
-            chain = await r.json().get(key, "$")
-            key_name = key.decode().split(":")[1]
-            chains[key_name] = chain
-        return JSONResponse(content=chains)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-
-@app.get("/chain/{chain_name}")
-async def get_chain(chain_name: str):
-    try:
-        r = redis_mgr.get_client()
-        chain = await r.json().get(f"chain:{chain_name}", "$")
-        return JSONResponse(content=chain)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    
-@app.post("/chain")
-async def post_chain(inbound_chain: Chain):
-    try:
-        r = redis_mgr.get_client()
-        dict_chain = inbound_chain.dict()
-        await r.json().set(f"chain:{str(dict_chain['name'])}", "$", dict_chain)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted chain  {} len {}".format(inbound_chain.name, len(dict_chain)))
-    return JSONResponse(content=dict_chain)
-
-@app.put("/chain/{chain_name}")
-async def put_chain(chain_name: str, inbound_chain: Chain):
-    try:
-        r = redis_mgr.get_client()
-        dict_chain = inbound_chain.dict()
-        await r.json().set(f"chain:{str(dict_chain['name'])}", "$", dict_chain)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return JSONResponse(content=dict_chain)
-
-@app.delete("/chain/{chain_name}")
-async def delete_chain(chain_name: str, status_code=204):
-    try:
-        r = redis_mgr.get_client()
-        await r.delete(f"chain:{str(chain_name)}")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        status_code = 500
-    return status_code
-
-@app.get("/link")
-async def get_links():
-    try:
-        r = redis_mgr.get_client()
-        keys = await r.keys("link:*")
-        links = {}
-        for key in keys:
-            link = await r.json().get(key, "$")
-            key_name = key.decode().split(":")[1]
-            links[key_name] = link
-        return JSONResponse(content=links)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    
-@app.get("/link/{link_name}")
-async def get_link(link_name: str):
-    try:
-        r = redis_mgr.get_client()
-        link = await r.json().get(f"link:{link_name}", "$")
-        return JSONResponse(content=link)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    
-@app.post("/link")
-async def post_link(inbound_link: Link):
-    try:
-        r = redis_mgr.get_client()
-        dict_link = inbound_link.dict()
-        await r.json().set(f"link:{str(dict_link['name'])}", "$", dict_link)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted link  {} len {}".format(inbound_link.name, len(dict_link)))
-    return JSONResponse(content=dict_link)
-
-@app.put("/link/{link_name}")
-async def put_link(link_name: str, inbound_link: Link):
-    try:
-        r = redis_mgr.get_client()
-        dict_link = inbound_link.dict()
-        await r.json().set(f"link:{str(dict_link['name'])}", "$", dict_link)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return JSONResponse(content=dict_link)
-
-@app.delete("/link/{link_name}")
-async def delete_link(link_name: str, status_code=204):
-    try:
-        r = redis_mgr.get_client()
-        await r.delete(f"link:{str(link_name)}")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        status_code = 500
-    return status_code
-
-@app.get("/storage")
-async def get_storages():
-    try:
-        r = redis_mgr.get_client()
-        keys = await r.keys("storage:*")
-        storages = {}
-        for key in keys:
-            storage = await r.json().get(key, "$")
-            key_name = key.decode().split(":")[1]
-            storages[key_name] = storage
-        return JSONResponse(content=storages)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    
-@app.get("/storage/{storage_name}")
-async def get_storage(storage_name: str):
-    try:
-        r = redis_mgr.get_client()
-        storage = await r.json().get(f"storage:{storage_name}", "$")
-        return JSONResponse(content=storage)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    
-@app.post("/storage")
-async def post_storage(inbound_storage: Storage):
-    try:
-        r = redis_mgr.get_client()
-        dict_storage = inbound_storage.dict()
-        await r.json().set(f"storage:{str(dict_storage['name'])}", "$", dict_storage)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    logger.debug("Posted storage  {} len {}".format(inbound_storage.name, len(dict_storage)))
-    return JSONResponse(content=dict_storage)
-
-@app.put("/storage/{storage_name}")
-async def put_storage(storage_name: str, inbound_storage: Storage):
-    try:
-        r = redis_mgr.get_client()
-        dict_storage = inbound_storage.dict()
-        await r.json().set(f"storage:{str(dict_storage['name'])}", "$", dict_storage)
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        return None
-    return JSONResponse(content=dict_storage)
-
-@app.delete("/storage/{storage_name}")
-async def delete_storage(storage_name: str, status_code=204):
-    try:
-        r = redis_mgr.get_client()
-        await r.delete(f"storage:{str(storage_name)}")
-    except Exception as e:
-        logger.info("Error: {}".format(e))
-        status_code = 500
-    return status_code
-
+# Ingress and egress endpoints for vCon IDs
 # Create an endpoint to push vcon IDs to one or more redis lists
-@app.post("/vcon/ingress")
-async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_code=204):
+@app.post("/vcon/ingress",
+    status_code=204,
+    summary="Inserts a vCon UUID into one or more chains", 
+    description="Inserts a vCon UUID into one or more chains.", 
+    tags=["chain"])
+async def post_vcon_ingress(vcon_uuids: List[str], 
+    ingress_list: str):
     try:
         r = redis_mgr.get_client()
         for vcon_uuid in vcon_uuids:
@@ -484,8 +248,12 @@ async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str, status_cod
     return status_code
 
 # Create an endpoint to pop vcon IDs from one or more redis lists
-@app.get("/vcon/egress")
-async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
+@app.get("/vcon/egress",
+    status_code=204,
+    summary="Removes one or more vCon UUIDs from the output of a chain (egress)",
+    description="Removes one or more vCon UUIDs from the output of a chain (egress)", 
+    tags=["chain"])
+async def get_vcon_egress(egress_list: str, limit=1, status_code=200):
     try:
         r = redis_mgr.get_client()
         vcon_uuids = []
@@ -501,13 +269,74 @@ async def get_vcon_engress(egress_list: str, limit=1, status_code=200):
     return status_code
 
 # Create an endpoint to count the number of vCon UUIds in a redis list
-@app.get("/vcon/count")
+@app.get("/vcon/count",
+    status_code=204,
+    summary="Returns the number of vCons at the end of a chain", 
+    description="Returns the number of vCons at the end of a chain.", 
+    tags=["chain"])
 async def get_vcon_count(egress_list: str, status_code=200):
     try:
         r = redis_mgr.get_client()
         count = await r.llen(egress_list)
         return JSONResponse(content=count)
 
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+@app.get("/config",
+    summary="Returns the config file for the conserver",
+    description="Returns the config file for the conserver", 
+    tags=["config"])
+async def get_config(status_code=200):
+    try:
+        r = redis_mgr.get_client()
+        config = await r.json().get("config")
+        return JSONResponse(content=config)
+
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# THis endpoint is used to update the config file, then calls
+# the load_config endpoint to load the new config file into redis
+@app.post("/config",
+    summary="Updates the config file for the conserver",
+    description="Updates the config file for the conserver", 
+    tags=["config"])
+async def post_config(config: Dict, update_file_name=None, status_code=204):
+    try:
+        await load_config(config)
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        status_code = 500
+    return status_code
+
+# This endpoint clears the config
+@app.delete("/config",
+    status_code=204,
+    summary="Clears the config file for the conserver",
+    description="Clears the config file for the conserver", 
+    tags=["config"])
+async def delete_config(status_code=204):
+    try:
+        r = redis_mgr.get_client()
+        await r.delete("config")
+        # Delete the links
+        links = await r.keys("link:*")
+        for link in links:
+            await r.delete(link)
+        # Delete the storages
+        storages = await r.keys("storage:*")
+        for storage in storages:
+            await r.delete(storage)
+        # Delete the chains
+        chains = await r.keys("chain:*")
+        for chain in chains:
+            await r.delete(chain)
+            
     except Exception as e:
         logger.info("Error: {}".format(e))
         status_code = 500

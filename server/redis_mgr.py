@@ -9,12 +9,9 @@ The redis connection pool must be shutdown and restarted when FASTApi does.
 """
 
 from lib.logging_utils import init_logger
-import redis.asyncio.connection
-import redis.asyncio.client
+from redis.asyncio.connection import ConnectionPool
+from redis.asyncio.client import Redis
 from settings import REDIS_URL
-import pytest_asyncio
-import pytest
-import uuid
 
 
 
@@ -32,7 +29,7 @@ def create_pool():
     else:
         logger.info("Creating Redis pool...")
         REDIS_POOL_INITIALIZATION_COUNT += 1
-        REDIS_POOL = redis.asyncio.connection.ConnectionPool.from_url(REDIS_URL)
+        REDIS_POOL = ConnectionPool.from_url(REDIS_URL)
         logger.info(
             "Redis pool created. redis connection: host: {} port: {} max connections: {} initialization count: {}".format(
                 REDIS_POOL.connection_kwargs.get("host", "None"),
@@ -41,8 +38,6 @@ def create_pool():
                 REDIS_POOL_INITIALIZATION_COUNT,
             )
         )
-
-    #logger.debug(dir(REDIS_POOL))
 
 
 async def shutdown_pool():
@@ -60,34 +55,47 @@ async def shutdown_pool():
 
 
 def log_pool_stats():
-  if(REDIS_POOL):
-    logger.info("redis pool max: {} in use: {}  available: {}".format(REDIS_POOL.max_connections, len(REDIS_POOL._in_use_connections), len(REDIS_POOL._available_connections)))
-  else:
-    logger.info("no active redis pool")
+    if REDIS_POOL:
+        logger.info(
+            "redis pool max: {} in use: {}  available: {}".format(
+                REDIS_POOL.max_connections,
+                len(REDIS_POOL._in_use_connections),
+                len(REDIS_POOL._available_connections),
+            )
+        )
+    else:
+        logger.info("no active redis pool")
+
 
 def get_client():
     logger.debug("entering get_client")
     global REDIS_POOL
     if REDIS_POOL is None:
         logger.info("REDIS_POOL is not initialized")
-        raise Exception("redis pool not initialize")
-        #create_pool()
-    r = redis.asyncio.client.Redis(connection_pool=REDIS_POOL)
+        create_pool()
+    r = Redis(connection_pool=REDIS_POOL)
     logger.debug("client type: {}".format(type(r)))
     return r
+
 
 async def set_key(key, value):
     r = get_client()
     result = await r.json().set(key, "$", value)
     return result
 
+
 async def get_key(key):
     r = get_client()
     result = await r.json().get(key)
     return result
+
 
 async def delete_key(key):
     r = get_client()
     result = await r.delete(key)
     return result
 
+async def show_keys(pattern):
+    r = get_client()
+    result = await r.keys(pattern)
+    return result

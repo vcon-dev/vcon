@@ -74,5 +74,5 @@ chains:
     - test_output
     enabled: 1
 adapters:
-  example:
-    module: adapters.example
+  chatgpt:
+    module: adapters.chatgpt

@@ -2,11 +2,11 @@ version: "3.3"
 services:
   conserver:
     build: .
-    command: bash -c "python ./init.py"
+    command: bash -c "rm tasks.csv ; python ./init.py"
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
     depends_on:
       - redis
     env_file:
@@ -15,7 +15,7 @@ services:
   redis:
     image: "redis/redis-stack:latest"
     ports:
-      - "8001:8001"
+      - "${REDIS_EXTERNAL_PORT:-8001}:8001"
     environment:
       REDIS_ARGS: --save 20 1
     mem_limit: 1gb
@@ -27,26 +27,26 @@ services:
       timeout: 10s
       retries: 5
 
-  mongo:
-    image: mongo
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-    profiles:
-      - dev
+  # mongo:
+  #   image: mongo
+  #   restart: always
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+  #   profiles:
+  #     - dev
 
-  mongo-express:
-    image: mongo-express
-    restart: always
-    ports:
-      - 8081:8081
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-    profiles:
-      - dev
+  # mongo-express:
+  #   image: mongo-express
+  #   restart: always
+  #   ports:
+  #     - 8081:8081
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: root
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: example
+  #     ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+  #   profiles:
+  #     - dev
 
   jupyter:
     build: .

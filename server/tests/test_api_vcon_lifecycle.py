@@ -4,14 +4,17 @@ import pytest
 import httpx
 
 
-# import conserver
-# app = conserver.conserver_app
+import conserver
+app = conserver.conserver_app
 
 
 def post_vcon(vcon):
-    response = httpx.post("http://localhost:8000/vcon", json=vcon)
-    print("response: {}".format(response))
-    assert response.status_code == 200
+    # Use the TestClient to make requests to the app.
+    with TestClient(app) as client:
+        response = client.post("/vcon", json=vcon)
+        assert response.status_code == 201
+        print("response: {}".format(response))
+        return response
 
 @pytest.mark.anyio
 def test_api_vcon_lifecycle():
@@ -20,16 +23,22 @@ def test_api_vcon_lifecycle():
     test_vcon = generate_mock_vcon()
     post_vcon(test_vcon)
 
-    # Read the vcon back
-    response = httpx.get("http://localhost:8000/vcon/{}".format(test_vcon["uuid"]))
-    assert response.status_code == 200
-    print("response: {}".format(response))
+    # Read the vcon back using the test client
+    with TestClient(app) as client:
+        response = client.get("/vcon/{}".format(test_vcon["uuid"]))
+        assert response.status_code == 200
+        print("response: {}".format(response))
 
-    # Delete the vcon
-    response = httpx.delete("http://localhost:8000/vcon/{}".format(test_vcon["uuid"]))
-    assert response.status_code == 204
+
+    # Delete the vcon using the test client
+    with TestClient(app) as client:
+        response = client.delete("/vcon/{}".format(test_vcon["uuid"]))
+        assert response.status_code == 204
+        print("response: {}".format(response))
 
     # Read the vcon back
-    response = httpx.get("http://localhost:8000/vcon/{}".format(test_vcon["uuid"]))
-    assert response.status_code == 404
+    with TestClient(app) as client:
+        response = client.get("/vcon/{}".format(test_vcon["uuid"]))
+        assert response.status_code == 404
+        print("response: {}".format(response))
 

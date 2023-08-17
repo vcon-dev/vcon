@@ -189,7 +189,7 @@ async def post_vcon(inbound_vcon: Vcon):
             type=type,
             vcon_json=vcon_json,
         )
-        return JSONResponse(content=inbound_vcon.dict())
+        return JSONResponse(content=inbound_vcon.dict(), status_code=201)
     else:
         try:
             r = redis_mgr.get_client()
@@ -210,7 +210,7 @@ async def post_vcon(inbound_vcon: Vcon):
             logger.info(traceback.format_exc())
             return None
         logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
-        return JSONResponse(content=dict_vcon)
+        return JSONResponse(content=dict_vcon, status_code=201)
 
 @app.delete("/vcon/{vcon_uuid}",
             status_code=204,

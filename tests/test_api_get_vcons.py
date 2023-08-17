@@ -1,8 +1,17 @@
+import os
+print("Working directory:", os.getcwd())
+import sys
+
+for path in sys.path:
+    print(path)
+
+
 from fastapi.testclient import TestClient
-from vcon_fixture import generate_mock_vcon
+from tests.vcon_fixture import generate_mock_vcon
+from server.conserver import conserver_app
 import pytest
-import conserver
-app = conserver.conserver_app
+
+app = conserver_app
 
 
 def post_vcon(vcon):

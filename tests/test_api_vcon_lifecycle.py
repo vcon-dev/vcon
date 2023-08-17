@@ -1,9 +1,6 @@
 from fastapi.testclient import TestClient
 from vcon_fixture import generate_mock_vcon
 import pytest
-import httpx
-
-
 import conserver
 app = conserver.conserver_app
 

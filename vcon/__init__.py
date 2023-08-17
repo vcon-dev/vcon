@@ -57,16 +57,12 @@ import uuid6
 import requests
 import vcon.utils
 import vcon.security
-import vcon.filter_plugins
 import jose.utils
 import jose.jws
 import jose.jwe
 
 _LAST_V8_TIMESTAMP = None
 
-for finder, module_name, is_package in pkgutil.iter_modules(vcon.filter_plugins.__path__, vcon.filter_plugins.__name__ + "."):
-  logger.info("plugin registration: {}".format(module_name))
-  importlib.import_module(module_name)
 
 def deprecated(reason : str):
   """
@@ -171,34 +167,6 @@ class VconDictList(VconAttribute):
     super().__init__(doc = doc)
     self._type_name = "DictList"
 
-class VconPluginMethodType():
-  """ Class defining descriptor used to instantiate methods for the named filter plugins """
-  def __init__(self, filter_name, vcon_instance):
-    self.__function_name__ = filter_name
-    self.__self__ = vcon_instance
-    if(not isinstance(vcon_instance, vcon.Vcon)):
-      AttributeError("vcon_instance should be a Vcon not {}".format(type(vcon_instance)))
-
-    #print("added func: {} for obj: {} type{}".format(filter_name, vcon_instance, type(vcon_instance)))
-
-  def __call__(self, *args, **kwargs):
-    obj = self.__self__
-    #print("__call__ args: {}".format(args))
-    #print("__call__ kwargs: {}".format(kwargs))
-    #print("calling filter for {} create: {} num dialogs: {}".format(self.__function_name__, obj.created_at, len(obj.dialog)))
-    return(vcon.Vcon.filter(obj, self.__function_name__, **kwargs))
-
-class VconPluginMethodProperty:
-  def __init__(self, plugin_name : str):
-    #print("VconPluginMethodProperty.__init__ {}".format(plugin_name))
-    self.plugin_name = plugin_name
-
-  def __get__(self, instance_object, class_type = None):
-    #print("__get__ on {}".format(self.plugin_name))
-    if(instance_object is None):
-      return(self)
-
-    return(VconPluginMethodType(self.plugin_name, instance_object))
 
 class Vcon():
   """
@@ -281,35 +249,6 @@ class Vcon():
     # Note: if you add new instance members/attributes, be sure to add its
     # name to instance_attibutes in Vcon.attribute_exists.
     # Register filter plugins as named instance methods
-    for plugin_name in vcon.filter_plugins.FilterPluginRegistry.get_names():
-      if(Vcon.attribute_exists(plugin_name) is not True):
-        setattr(vcon.Vcon, plugin_name, VconPluginMethodProperty(plugin_name))
-        logger.info("added Vcon.{}".format(plugin_name))
-      else:
-        existing_attr = getattr(vcon.Vcon, plugin_name)
-        if(issubclass(type(existing_attr), vcon.VconPluginMethodProperty)):
-          #print("Warning: Filter Plugin name: {} previsously added.".format(plugin_name))
-          pass
-        else:
-          logger.warning("Warning: Filter Plugin name: {} conflicts".format(plugin_name) +
-            " with existing instance or class attributes and is not directly callable." +
-            "  Use Vcon.filter method to invoke it." +
-            "  Better yet, change the name so that it does not conflict")
-
-    for plugin_type_name in vcon.filter_plugins.FilterPluginRegistry.get_types():
-      if(Vcon.attribute_exists(plugin_type_name) is not True):
-        setattr(vcon.Vcon, plugin_type_name, VconPluginMethodProperty(plugin_type_name))
-        logger.info("added Vcon.{}".format(plugin_type_name))
-      else:
-        existing_attr = getattr(vcon.Vcon, plugin_type_name)
-        if(issubclass(type(existing_attr), vcon.VconPluginMethodProperty)):
-          #print("Warning: Filter Plugin name: {} previsously added.".format(plugin_type_name))
-          pass
-        else:
-           logger.warning("Warning: Filter Plugin Type name: {} conflicts with existing".format(plugin_type_name) +
-           "instance or class attributes and is not directly callable." +
-           "  Use Vcon.filter method to invoke it." +
-           "  Better yet, change the name so that it does not conflict")
 
     self._state = VconStates.UNSIGNED
     self._jws_dict = None
@@ -1166,31 +1105,6 @@ class Vcon():
 
     self._vcon_dict[Vcon.SUBJECT] = subject
 
-  def filter(self, filter_name: str, **options) -> Vcon:
-    """
-    Run this Vcon through the named filter plugin.
-
-    See vcon.filter_plugins.FilterPluginRegistry for the set of registered plugins.
-
-    Parameters:
-      options (kwargs) - passed through to plugin.  The key words are documented by
-        the specified plugin.
-
-    Returns:
-      the filter modified Vcon
-    """
-    self._attempting_modify()
-
-    try:
-      plugin = vcon.filter_plugins.FilterPluginRegistry.get(filter_name)
-    except vcon.filter_plugins.PluginFilterNotRegistered as fp_error:
-      plugin = vcon.filter_plugins.FilterPluginRegistry.get_type_default_plugin(filter_name)
-
-    if(plugin is None):
-        raise Exception("Vcon.filter plugin: {} not found".format(filter_name))
-
-    return(plugin.filter(self, **options))
-
   def set_uuid(self, domain_name: str, replace: bool= False) -> str:
     """
     Generate a UUID for this vCon and set the parameter
@@ -1245,7 +1159,7 @@ class Vcon():
       # The only programatic way to do this is to instantiate a Vcon, but this seemed a bit 
       # heavy.  So for now just testing a manually maintained list of attributes and  blacklisted
       # token names.
-      instance_attributes = ['_jwe_dict', '_jws_dict', '_state', '_vcon_dict', 'vcon', "Vcon", "filter_plugins", "security", "utils", "cli"]
+      instance_attributes = ['_jwe_dict', '_jws_dict', '_state', '_vcon_dict', 'vcon', "Vcon", "security", "utils", "cli"]
       if(name in instance_attributes):
         exists = True
 

@@ -14,7 +14,7 @@ server/static/*.ogg
 server/.DS_Store
 **/dump.rdb
 **/*.ipynb
-
+**/tasks.csv
 
 
 .vscode

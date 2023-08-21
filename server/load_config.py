@@ -7,13 +7,13 @@ import yaml
 from lib.logging_utils import init_logger
 
 logger = init_logger(__name__)
-logger.info("Conserver starting up")
 
 # Load the environment
 config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")
 update_config_file = os.getenv("UPDATE_CONFIG_FILE")
 
 async def load_config():
+    logger.info("Loading config")
     try:
         with open(config_file, 'r') as file:
             config = yaml.safe_load(file)

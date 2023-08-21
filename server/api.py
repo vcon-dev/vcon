@@ -1,4 +1,3 @@
-import sys
 import asyncio
 from lib.logging_utils import init_logger
 from datetime import datetime
@@ -17,6 +16,9 @@ import enum
 import pyjq
 from typing import List
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.applications import FastAPI
+from main_loop import tick
+
 
 import redis_mgr
 from settings import CONSERVER_API_TOKEN
@@ -122,15 +124,24 @@ class Vcon(BaseModel):
     attachments: typing.List[Attachment] = []
 
 
-# Our local modules``
-sys.path.append("..")
-
 logger = init_logger(__name__)
-logger.info("Conserver starting up")
+logger.info("Api starting up")
 
 
 # Load FastAPI app
-app = FastAPI.conserver_app
+app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    logger.info("event startup")
+    redis_mgr.create_pool()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    logger.info("event shutdown")
+    await redis_mgr.shutdown_pool()
+
 
 
 app.add_middleware(
@@ -542,3 +553,9 @@ async def get_vcon_count(egress_list: str, status_code=200):
         logger.info("Error: {}".format(e))
         status_code = 500
     return status_code
+
+
+# We decorate this with the TICK path so that we can use external tools to trigger the tick
+@app.get("/tick")
+async def tick_proxy():
+    await tick()

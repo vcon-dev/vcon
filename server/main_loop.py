@@ -1,35 +1,40 @@
 import importlib
 from lib.logging_utils import init_logger
-from fastapi.applications import FastAPI
 import redis_mgr
 from redis_mgr import get_key
 from settings import TICK_INTERVAL
 from rocketry import Rocketry
 from rocketry.log import MinimalRecord
 from redbird.repos import CSVFileRepo
+from load_config import (
+    load_config,
+)
+import asyncio
+
 
 logger = init_logger(__name__)
 
-repo = CSVFileRepo(filename="tasks.csv", model=MinimalRecord)
 
-scheduler_app = Rocketry(execution="async", logger_repo=repo)
+async def main():
+    redis_mgr.create_pool()
+    await load_config()
+    repo = CSVFileRepo(filename="tasks.csv", model=MinimalRecord)
 
-if TICK_INTERVAL > 0:
-    tick_interval_str = f"every {TICK_INTERVAL} ms"
-    logger.info("tick_interval_str: %s", tick_interval_str)
+    scheduler_app = Rocketry(execution="async", logger_repo=repo)
 
-    @scheduler_app.task(tick_interval_str)
-    async def run_tick():
-        await tick()
-else:
-    logger.info("Rocktry ticking DISABLED!!!!!!!!!!!!!!!!!!!!!!")
+    if TICK_INTERVAL > 0:
+        tick_interval_str = f"every {TICK_INTERVAL} ms"
+        logger.info("tick_interval_str: %s", tick_interval_str)
 
-app = FastAPI.conserver_app
-app.scheduler = scheduler_app
+        @scheduler_app.task(tick_interval_str)
+        async def run_tick():
+            await tick()
+        rocketry_task = asyncio.create_task(scheduler_app.serve())
+        await rocketry_task
+    else:
+        logger.info("Rocktry ticking DISABLED!!!!!!!!!!!!!!!!!!!!!!")
 
 
-# We decorate this with the TICK path so that we can use external tools to trigger the tick
-@app.get("/tick")
 async def tick():
     logger.debug("Starting tick")
     r = await redis_mgr.get_client()
@@ -84,3 +89,7 @@ async def tick():
                             logger.error("Error saving vCon %s to storage %s: %s", vcon_id, storage_name, e)
     
         logger.debug("Finished processing chain %s", chain_name)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -21,6 +21,8 @@ if TICK_INTERVAL > 0:
     @scheduler_app.task(tick_interval_str)
     async def run_tick():
         await tick()
+else:
+    logger.info("Rocktry ticking DISABLED!!!!!!!!!!!!!!!!!!!!!!")
 
 app = FastAPI.conserver_app
 app.scheduler = scheduler_app

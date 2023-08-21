@@ -5,10 +5,23 @@ services:
     command: bash -c "rm tasks.csv ; python ./init.py"
     volumes:
       - .:/app
+    # ports:
+    #   - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+  api:
+    build: .
+    command: bash -c "rm tasks.csv ; python ./init.py"
+    volumes:
+      - .:/app
     ports:
       - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
     depends_on:
       - redis
+    environment:
+      - TICK_INTERVAL=0
     env_file:
       - .env
 

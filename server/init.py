@@ -24,7 +24,6 @@ async def main():
 
     server = Server(config=uvicorn.Config(
         app=conserver_app,
-        workers=1, 
         loop="asyncio",
         host=host_ip, 
         port=port_num, 

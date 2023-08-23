@@ -69,7 +69,7 @@ def test_party_tel(empty_vcon : vcon.Vcon):
 
   vCon = empty_vcon
   assert_vcon_array_size(vCon, VCON_PARTIES, 0)
-  party_index = vCon.set_party_tel_url(call_data['source'])
+  party_index = vCon.set_party_parameter('tel', call_data['source'])
   assert(party_index == 0)
   assert(vCon._vcon_dict[VCON_PARTIES][party_index]['tel'] == call_data['source'])
   assert_vcon_array_size(vCon, VCON_PARTIES, 1)
@@ -176,7 +176,7 @@ def test_add_inline_recording(two_party_tel_vcon : vcon.Vcon, empty_vcon : vcon.
 
   # Test real accessor
   # this method depreicated
-  decoded_body = vCon.decode_dialog_inline_recording(0)
+  decoded_body = vCon.decode_dialog_inline_body(0)
   assert(len(decoded_file) == len(decoded_body))
   assert(decoded_file == decoded_body)
 

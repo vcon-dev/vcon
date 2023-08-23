@@ -1,5 +1,4 @@
 import os
-import json
 import redis_mgr
 from redis_mgr import get_key, set_key
 import importlib
@@ -8,15 +7,20 @@ from lib.logging_utils import init_logger
 import time
 
 logger = init_logger(__name__)
-logger.debug("Loading the environment")
 
-update_config_file = os.getenv("UPDATE_CONFIG_FILE", None)
+config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")
+update_config_file = os.getenv("UPDATE_CONFIG_FILE")
 
-async def load_config(config, update_config_file=update_config_file):
-    # For this function, there are two approaches: to replace
-    # the configuration file, or to take this configuration file
-    # and overlay it. The overlay approach is the default
 
+async def load_config():
+    logger.info("Loading config")
+    try:
+        with open(config_file, 'r') as file:
+            config = yaml.safe_load(file)
+    except OSError:
+        logger.error(f"Cannot find config file {config_file}")
+        return 
+    
     # Get the redis client
     r = await redis_mgr.get_client()
 
@@ -31,7 +35,7 @@ async def load_config(config, update_config_file=update_config_file):
 
     # Set the links
     logger.debug("Configuring the links")
-    for link_name in config.get("links",[]):
+    for link_name in config.get("links", []):
         link = config['links'][link_name]
         await set_key(f"link:{link_name}", link)
         logger.debug(f"Added link {link_name}")

@@ -26,6 +26,7 @@ filelock==3.8.0
 frozenlist==1.3.1
 future==0.18.2
 greenlet==1.1.3
+gunicorn==21.2.0
 hsslms==0.1.2
 huggingface-hub==0.10.0
 humanize==4.4.0
@@ -110,4 +111,4 @@ torch==2.0.1
 tqdm==4.64.1
 transformers==4.22.2
 uuid6==2022.10.25
-uvicorn==0.12.3
+uvicorn==0.23.2

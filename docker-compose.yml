@@ -13,7 +13,7 @@ services:
       - .env
   api:
     build: .
-    command: bash -c "uvicorn api:app --host $HOST --port $PORT"
+    command: bash -c "gunicorn api:app -k uvicorn.workers.UvicornWorker -b $HOST:$PORT"
     volumes:
       - .:/app
     ports:

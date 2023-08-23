@@ -1,0 +1,18 @@
+{
+  "schema_version": "v0.1",
+  "name_for_model": "conserver",
+  "name_for_human": "Conserver ChatGPT Plugin",
+  "description_for_model": "Plugin for searching conversations between car buyers and agents to find answers to questions and retrieve relevant information. Use it whenever a user asks something about agents, customers and car stores.",
+  "description_for_human": "Search through your documents.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "http://localhost:8000/.well-known/openapi.yaml"
+  },
+  "logo_url": "http://localhost:8000/.well-known/logo.png",
+  "contact_email": "thomas.howe@strolid.com", 
+  "legal_info_url": "thomas.howe@strolid.com"
+}
+

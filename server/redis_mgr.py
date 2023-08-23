@@ -14,6 +14,7 @@ from redis.asyncio.client import Redis
 from settings import REDIS_URL
 
 
+
 logger = init_logger(__name__)
 
 REDIS_POOL = None
@@ -92,4 +93,9 @@ async def get_key(key):
 async def delete_key(key):
     r = get_client()
     result = await r.delete(key)
+    return result
+
+async def show_keys(pattern):
+    r = get_client()
+    result = await r.keys(pattern)
     return result

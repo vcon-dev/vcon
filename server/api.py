@@ -1,8 +1,15 @@
-import logging
-import sys
+from lib.logging_utils import init_logger
 from datetime import datetime
 from typing import Dict, List, Union
 from uuid import UUID
+from pydantic import BaseModel, Json, Field
+from fastapi_pagination import Page, add_pagination, paginate
+from fastapi.responses import JSONResponse
+from typing import List
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.applications import FastAPI
+from main_loop import tick
+
 import traceback
 
 import redis_mgr
@@ -17,13 +24,26 @@ from playhouse.postgres_ext import *
 from pydantic import BaseModel
 from settings import VCON_STORAGE, VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME
 
-# Our local modules``
-sys.path.append("..")
 logger = init_logger(__name__)
-logger.info("API starting up")
+logger.info("Api starting up")
+
 
 # Load FastAPI app
-app = FastAPI.conserver_app
+app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    logger.info("event startup")
+    redis_mgr.create_pool()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    logger.info("event shutdown")
+    await redis_mgr.shutdown_pool()
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -341,3 +361,9 @@ async def delete_config(status_code=204):
         logger.info("Error: {}".format(e))
         status_code = 500
     return status_code
+
+
+# We decorate this with the TICK path so that we can use external tools to trigger the tick
+@app.get("/tick")
+async def tick_proxy():
+    await tick()

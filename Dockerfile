@@ -18,6 +18,8 @@ RUN pip install -r requirements.txt --no-cache-dir
 
 ADD  . /app
 
+ENV PYTHONPATH "${PYTHONPATH}:/app/"
+
 ENTRYPOINT ["/app/wait_for_redis.sh"]
 
 CMD [ "python", "./conserver.py" ]

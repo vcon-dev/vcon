@@ -86,6 +86,7 @@ pytest-dotenv==0.5.2
 python-jose==3.3.0
 python-json-logger==2.0.4
 python-multipart==0.0.5
+pyVoIP==1.6.5
 PyJWT==2.6.0
 PyYAML==6.0
 pyzmq==24.0.0

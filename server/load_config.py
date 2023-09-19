@@ -59,8 +59,10 @@ async def load_config():
     logger.debug("Starting the adapters")
     for adapter_name in config.get('adapters', []):
         adapter = config['adapters'][adapter_name]
+        await set_key(f"adapter:{adapter_name}", adapter)
         module_name = adapter['module']
         importlib.import_module(module_name)
+        logger.debug(f"Added adapter {adapter_name}")
 
     # If we are updating the config file, then derive it from the database
     if update_config_file:

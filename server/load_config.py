@@ -59,8 +59,17 @@ async def load_config():
     logger.debug("Starting the adapters")
     for adapter_name in config.get('adapters', []):
         adapter = config['adapters'][adapter_name]
-        module_name = adapter['module']
-        importlib.import_module(module_name)
+        module_name = adapter.get('module')
+        options = adapter.get('options')
+        try:
+            adapter_mod = importlib.import_module(module_name)
+            adapter = adapter_mod.Adapter(options)
+            await adapter.start()
+            logger.debug(f"Started adapter {adapter_name}")
+        except Exception as e:
+            logger.error(f"Error starting adapter {adapter_name}: {e}")
+
+
 
     # If we are updating the config file, then derive it from the database
     if update_config_file:

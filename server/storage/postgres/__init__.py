@@ -8,6 +8,7 @@ from peewee import (
     UUIDField,
 )
 import json
+from datetime import datetime
 
 logger = init_logger(__name__)
 default_options = {"name": "postgres"}
@@ -25,12 +26,13 @@ async def save(
         vcon = await vcon_redis.get_vcon(vcon_uuid)
         # Connect to Postgres
         db = PostgresqlExtDatabase(
-            opts['database'], 
-            user=opts['user'], 
-            password=opts['password'], 
-            host=opts['host'], 
-            port=opts['port'])
-        
+            opts["database"],
+            user=opts["user"],
+            password=opts["password"],
+            host=opts["host"],
+            port=opts["port"],
+        )
+
         class BaseModel(Model):
             class Meta:
                 database = db
@@ -48,7 +50,11 @@ async def save(
         db.create_tables([Vcons], safe=True)
 
         try:
-            source = next(json.loads(a["body"])["source"] for a in vcon.attachments if a["type"] == "ingress_info")
+            source = next(
+                json.loads(a["body"])["source"]
+                for a in vcon.attachments
+                if a["type"] == "ingress_info"
+            )
         except Exception:
             source = None
 
@@ -57,7 +63,7 @@ async def save(
             "uuid": vcon.uuid,
             "vcon": vcon.vcon,
             "created_at": vcon.created_at,
-            "updated_at": vcon.created_at,
+            "updated_at": datetime.now(),
             "subject": vcon.subject,
             "vcon_json": json.loads(vcon.dumps()),
             "type": source,
@@ -70,6 +76,8 @@ async def save(
         logger.info(f"postgres storage plugin: inserted vCon: {vcon_uuid}")
 
     except Exception as e:
-        logger.error(f"postgres storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} ")
+        logger.error(
+            f"postgres storage plugin: failed to insert vCon: {vcon_uuid}, error: {e} "
+        )
     finally:
         db.close()

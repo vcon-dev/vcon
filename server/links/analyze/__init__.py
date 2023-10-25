@@ -1,19 +1,20 @@
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
 import openai
+import json
 
 logger = init_logger(__name__)
 
 default_options = {
-    "prompt": "Summarize this transcript in a few sentences, then indicate if they customer was frustrated or not, and if agent was helpful?",
+    "prompt": "Summarize this transcript in a few sentences.",
     "analysis_type": "summary",
-    "model": "gpt-4"
+    "model": "gpt-3.5-turbo-16k",
 }
 
 
 def get_analysys_for_type(vcon, index, analysis_type):
     for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == analysis_type:
+        if a["dialog"] == index and a["type"] == analysis_type:
             return a
     return None
 
@@ -22,12 +23,9 @@ def generate_analysis(transcript, prompt, model):
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt},
-        {"role": "assistant", "content": transcript}
+        {"role": "assistant", "content": transcript},
     ]
-    sentiment_result = openai.ChatCompletion.create(
-        model=model,
-        messages=messages
-    )
+    sentiment_result = openai.ChatCompletion.create(model=model, messages=messages)
     return sentiment_result["choices"][0]["message"]["content"]
 
 
@@ -49,20 +47,35 @@ async def run(
     openai.api_key = opts["OPENAI_API_KEY"]
 
     for index, dialog in enumerate(vCon.dialog):
-        transcript = get_analysys_for_type(vCon, index, 'transcript')
+        transcript = get_analysys_for_type(vCon, index, "transcript")
         if not transcript:
             logger.info("No transcript found for vCon: %s", vCon.uuid)
             continue
 
-        transcript_text = transcript['body']['transcript']
-        analysis = get_analysys_for_type(vCon , index, opts["analysis_type"])
-        # See if it already has summary
+        transcript_text = transcript["body"]["transcript"]
+        analysis = get_analysys_for_type(vCon, index, opts["analysis_type"])
+
+        # See if it already has the analysis
         if analysis:
-            logger.info("Dialog %s already summarized in vCon: %s", index, vCon.uuid)
+            logger.info(
+                "Dialog %s already has a %s in vCon: %s",
+                index,
+                opts["analysis_type"],
+                vCon.uuid,
+            )
             continue
+        opts.pop("OPENAI_API_KEY")
+        logger.info("Analysing dialog %s with options: %s", index, opts)
         analysis = generate_analysis(transcript_text, opts["prompt"], opts["model"])
+        vendor_schema = {}
+        vendor_schema["model"] = opts["model"]
+        vendor_schema["prompt"] = opts["prompt"]
         vCon.add_analysis_transcript(
-            index, analysis, "openai", analysis_type=opts["analysis_type"]
+            index,
+            analysis,
+            "openai",
+            json.dumps(vendor_schema),
+            analysis_type=opts["analysis_type"],
         )
     await vcon_redis.store_vcon(vCon)
 

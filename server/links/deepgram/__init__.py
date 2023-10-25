@@ -3,37 +3,34 @@ from lib.logging_utils import init_logger
 from deepgram import Deepgram
 import retry
 from server.lib.vcon_redis import VconRedis
+import json
 
 logger = init_logger(__name__)
 
-default_options = {
-    "minimum_duration": 60,
-    "DEEPGRAM_KEY": None
-}
+default_options = {"minimum_duration": 60, "DEEPGRAM_KEY": None}
 
 
 def get_transcription(vcon, index):
     for a in vcon.analysis:
-        if a["dialog"] == index and a['type'] == 'transcript':
+        if a["dialog"] == index and a["type"] == "transcript":
             return a
     return None
 
 
 @retry.retry(tries=3, delay=1, backoff=2)
-async def transcribe_dg(dg_client, dialog) -> Optional[dict]:
-    url = dialog['url']
-    source = {'url': url}
+async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
+    url = dialog["url"]
+    source = {"url": url}
 
-    options = {
-        "model": "nova",
-        "smart_format": True,
-    }
     try:
-        response = await dg_client.transcription.prerecorded(source, options)
-        alternatives = response['results']['channels'][0]['alternatives']
-        return alternatives[0]
+        response = await dg_client.transcription.prerecorded(source, opts)
+        alternatives = response["results"]["channels"][0]["alternatives"]
+        detected_language = response["results"]["channels"][0]["detected_language"]
+        transcript = alternatives[0]
+        transcript["detected_language"] = detected_language
+        return transcript
     except Exception:
-        logger.exception("Transaction failed: %s, %s", source, options)
+        logger.exception("Transaction failed: %s, %s", source, opts)
         return None
 
 
@@ -44,7 +41,7 @@ async def run(
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    
+
     logger.info("Starting deepgram plugin for vCon: %s", vcon_uuid)
     # Cannot create reids client in global context as redis clients get started on async
     # event loop which may go away.
@@ -54,13 +51,17 @@ async def run(
     for index, dialog in enumerate(vCon.dialog):
         if dialog["type"] != "recording":
             logger.info(
-                "deepgram plugin: skipping non-recording dialog %s in vCon: %s", index, vCon.uuid
+                "deepgram plugin: skipping non-recording dialog %s in vCon: %s",
+                index,
+                vCon.uuid,
             )
             continue
-        
+
         if not dialog["url"]:
             logger.info(
-                "deepgram plugin: skipping no URL dialog %s in vCon: %s", index, vCon.uuid
+                "deepgram plugin: skipping no URL dialog %s in vCon: %s",
+                index,
+                vCon.uuid,
             )
             continue
 
@@ -76,14 +77,20 @@ async def run(
             continue
 
         dg_client = Deepgram(opts["DEEPGRAM_KEY"])
-        result = await transcribe_dg(dg_client, dialog)
+        result = await transcribe_dg(dg_client, dialog, opts["api"])
         if not result:
             break
-    
-        logger.info("Transcribed vCon: %s", vCon.uuid)
 
+        logger.info("Transcribed vCon: %s", vCon.uuid)
+        opts.pop("DEEPGRAM_KEY")
+        vendor_schema = {}
+        vendor_schema["opts"] = opts
         vCon.add_analysis_transcript(
-            index, result, "deepgram", analysis_type="transcript"
+            index,
+            result,
+            "deepgram",
+            json.dumps(vendor_schema),
+            analysis_type="transcript",
         )
     await vcon_redis.store_vcon(vCon)
 
@@ -91,4 +98,3 @@ async def run(
     # If you want the vCon processing to stop (if you are filtering them out, for instance)
     # send None
     return vcon_uuid
-

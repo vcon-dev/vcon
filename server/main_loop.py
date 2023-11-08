@@ -29,6 +29,7 @@ async def main():
         @scheduler_app.task(tick_interval_str)
         async def run_tick():
             await tick()
+
         rocketry_task = asyncio.create_task(scheduler_app.serve())
         await rocketry_task
     else:
@@ -46,48 +47,63 @@ async def tick():
     # loop itself is more fragile than it needs to be.
     chain_names = await r.keys("chain:*")
     for chain_name in chain_names:
-        chain_name = chain_name.decode('utf-8')
+        chain_name = chain_name.decode("utf-8")
 
         logger.debug("Checking chain %s", chain_name)
         chain_details = await r.json().get(chain_name)
-        for ingress_list in chain_details['ingress_lists']:
+        for ingress_list in chain_details["ingress_lists"]:
             vcon_id = await r.lpop(ingress_list)
             if not vcon_id:
                 continue
+            llen = await r.llen(ingress_list)
+            logger.info(
+                "Ingress list %s has %s items left",
+                ingress_list,
+                llen,
+                extra={"llen": llen, "ingress_list": ingress_list},
+            )
 
-            vcon_id = vcon_id.decode('utf-8')
+            vcon_id = vcon_id.decode("utf-8")
             logger.debug("Processing vCon %s", vcon_id)
             # If there is a vCon to process, process it
-            for link_name in chain_details['links']:
+            for link_name in chain_details["links"]:
                 logger.debug("Processing link %s", link_name)
                 link = await get_key(f"link:{link_name}")
-                module_name = link['module']
+                module_name = link["module"]
 
                 module = importlib.import_module(module_name)
-                options = link.get('options')
+                options = link.get("options")
                 logger.debug("Running module %s with options %s", module_name, options)
                 result = await module.run(vcon_id, options)
                 if not result:
                     # This means that the module does not want to forward the vCon
-                    logger.debug("Module %s did not want to forward the vCon, no result returned. Ending chain", module_name)
+                    logger.debug(
+                        "Module %s did not want to forward the vCon, no result returned. Ending chain",
+                        module_name,
+                    )
                     continue
-                
+
                 # If the module wants to forward the vCon, check if it is the last link in the chain
-                if link_name == chain_details['links'][-1]:
+                if link_name == chain_details["links"][-1]:
                     # If it is, then we need to put it in the outbound queue
-                    for egress_list in chain_details['egress_lists']:
+                    for egress_list in chain_details["egress_lists"]:
                         await r.lpush(egress_list, vcon_id)
 
                     for storage_name in chain_details.get("storages", []):
                         try:
                             storage = await get_key(f"storage:{storage_name}")
-                            module_name = storage['module']
+                            module_name = storage["module"]
                             module = importlib.import_module(module_name)
-                            options = storage.get('options', module.default_options)
+                            options = storage.get("options", module.default_options)
                             result = await module.save(vcon_id, options)
                         except Exception as e:
-                            logger.error("Error saving vCon %s to storage %s: %s", vcon_id, storage_name, e)
-    
+                            logger.error(
+                                "Error saving vCon %s to storage %s: %s",
+                                vcon_id,
+                                storage_name,
+                                e,
+                            )
+
         logger.debug("Finished processing chain %s", chain_name)
 
 

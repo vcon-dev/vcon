@@ -37,7 +37,7 @@ async def main():
 
 
 async def tick():
-    logger.debug("Starting tick")
+    logger.info("Starting tick")
     r = await redis_mgr.get_client()
 
     # Get list of chains from redis

@@ -23,3 +23,5 @@ dump.rdb
 .data
 tmp
 docker-compose.override.yml
+secrets.toml
+config.toml

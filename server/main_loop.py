@@ -150,7 +150,7 @@ async def tick():
                 logger.info(
                     "Finished processing link %s for vCon: %s", link_name, vcon_id
                 )
-            vcon_processing_time = round(time.time() - vcon_started)
+            vcon_processing_time = round(time.time() - vcon_started, 3)
             logger.info(
                 "Finsihed processing vCon %s in %s seconds",
                 vcon_id,

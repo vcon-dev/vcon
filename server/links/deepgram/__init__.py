@@ -97,4 +97,5 @@ async def run(
     # Forward the vcon_uuid down the chain.
     # If you want the vCon processing to stop (if you are filtering them out, for instance)
     # send None
+    logger.info("Finished deepgram plugin for vCon: %s", vcon_uuid)
     return vcon_uuid

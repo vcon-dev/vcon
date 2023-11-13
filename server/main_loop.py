@@ -10,7 +10,14 @@ from load_config import (
     load_config,
 )
 import asyncio
+import logging
 
+import logging.config
+from settings import LOGGING_CONFIG_FILE
+
+logging.config.fileConfig(LOGGING_CONFIG_FILE)
+
+imported_modules = {}
 
 logger = init_logger(__name__)
 
@@ -23,7 +30,7 @@ async def main():
     scheduler_app = Rocketry(execution="async", logger_repo=repo)
 
     if TICK_INTERVAL > 0:
-        tick_interval_str = f"every {TICK_INTERVAL} ms"
+        tick_interval_str = f"every {TICK_INTERVAL}ms"
         logger.info("tick_interval_str: %s", tick_interval_str)
 
         @scheduler_app.task(tick_interval_str)
@@ -37,7 +44,7 @@ async def main():
 
 
 async def tick():
-    logger.info("Starting tick")
+    logger.debug("Starting tick")
     r = await redis_mgr.get_client()
 
     # Get list of chains from redis
@@ -64,22 +71,26 @@ async def tick():
             )
 
             vcon_id = vcon_id.decode("utf-8")
-            logger.debug("Processing vCon %s", vcon_id)
+            logger.info("Started processing vCon %s", vcon_id)
             # If there is a vCon to process, process it
             for link_name in chain_details["links"]:
-                logger.debug("Processing link %s", link_name)
+                logger.info(
+                    "Started processing link %s for vCon: %s", link_name, vcon_id
+                )
                 link = await get_key(f"link:{link_name}")
                 module_name = link["module"]
-
-                module = importlib.import_module(module_name)
+                if module_name not in imported_modules:
+                    imported_modules[module_name] = importlib.import_module(module_name)
+                module = imported_modules[module_name]
                 options = link.get("options")
-                logger.debug("Running module %s with options %s", module_name, options)
+                logger.info("Running module %s for vCon: %s", module_name, vcon_id)
                 result = await module.run(vcon_id, options)
                 if not result:
                     # This means that the module does not want to forward the vCon
-                    logger.debug(
-                        "Module %s did not want to forward the vCon, no result returned. Ending chain",
+                    logger.info(
+                        "Module %s did not want to forward the vCon %s, no result returned. Ending chain",
                         module_name,
+                        vcon_id,
                     )
                     continue
 
@@ -93,7 +104,13 @@ async def tick():
                         try:
                             storage = await get_key(f"storage:{storage_name}")
                             module_name = storage["module"]
-                            module = importlib.import_module(module_name)
+
+                            if module_name not in imported_modules:
+                                imported_modules[module_name] = importlib.import_module(
+                                    module_name
+                                )
+                            module = imported_modules[module_name]
+
                             options = storage.get("options", module.default_options)
                             result = await module.save(vcon_id, options)
                         except Exception as e:
@@ -103,7 +120,9 @@ async def tick():
                                 storage_name,
                                 e,
                             )
-
+                logger.info(
+                    "Finished processing link %s for vCon: %s", link_name, vcon_id
+                )
         logger.debug("Finished processing chain %s", chain_name)
 
 

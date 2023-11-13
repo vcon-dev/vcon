@@ -10,32 +10,10 @@ import typing
 import sys
 import os
 import logging
-import logging.config
-import pythonjsonlogger.jsonlogger
 
 __version__ = "0.2"
 
-def build_logger(name : str) -> logging.Logger:
-  logger = logging.getLogger(name)
-
-  log_config_filename = "./logging.conf"
-  if(os.path.isfile(log_config_filename)):
-    logging.config.fileConfig(log_config_filename)
-    #print("got logging config", file=sys.stderr)
-  else:
-    logger.setLevel(logging.DEBUG)
-
-    # Output to stdout WILL BREAK the Vcon CLI.
-    # MUST use stderr.
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
-    formatter = pythonjsonlogger.jsonlogger.JsonFormatter( "%(timestamp)s %(levelname)s %(message)s ", timestamp=True)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-  return(logger)
-
-logger = build_logger(__name__)
+logger = logging.getLogger(__name__)
 
 try:
   import simplejson as json

@@ -1,4 +1,5 @@
 import importlib
+import time
 from lib.logging_utils import init_logger
 import redis_mgr
 from redis_mgr import get_key
@@ -71,6 +72,7 @@ async def tick():
             )
 
             vcon_id = vcon_id.decode("utf-8")
+            vcon_started = time.time()
             logger.info("Started processing vCon %s", vcon_id)
             # If there is a vCon to process, process it
             for link_name in chain_details["links"]:
@@ -83,8 +85,17 @@ async def tick():
                     imported_modules[module_name] = importlib.import_module(module_name)
                 module = imported_modules[module_name]
                 options = link.get("options")
-                logger.info("Running module %s for vCon: %s", module_name, vcon_id)
+                logger.info("Running link module %s for vCon: %s", module_name, vcon_id)
+                started = time.time()
                 result = await module.run(vcon_id, options)
+                link_processing_time = round(time.time() - started, 3)
+                logger.info(
+                    "Finished link module %s for vCon: %s in %s seconds.",
+                    module_name,
+                    vcon_id,
+                    round(time.time() - started, 3),
+                    extra={"link_processing_time": link_processing_time},
+                )
                 if not result:
                     # This means that the module does not want to forward the vCon
                     logger.info(
@@ -112,7 +123,23 @@ async def tick():
                             module = imported_modules[module_name]
 
                             options = storage.get("options", module.default_options)
+                            logger.info(
+                                "Running storage module %s for vCon: %s",
+                                module_name,
+                                vcon_id,
+                            )
+                            started = time.time()
                             result = await module.save(vcon_id, options)
+                            storage_processing_time = round(time.time() - started, 3)
+                            logger.info(
+                                "Finished storage module %s for vCon: %s in %s seconds.",
+                                module_name,
+                                vcon_id,
+                                storage_processing_time,
+                                extra={
+                                    "storage_processing_time": storage_processing_time
+                                },
+                            )
                         except Exception as e:
                             logger.error(
                                 "Error saving vCon %s to storage %s: %s",
@@ -123,6 +150,13 @@ async def tick():
                 logger.info(
                     "Finished processing link %s for vCon: %s", link_name, vcon_id
                 )
+            vcon_processing_time = round(time.time() - vcon_started)
+            logger.info(
+                "Finsihed processing vCon %s in %s seconds",
+                vcon_id,
+                vcon_processing_time,
+                extra={"vcon_processing_time": vcon_processing_time},
+            )
         logger.debug("Finished processing chain %s", chain_name)
 
 

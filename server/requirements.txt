@@ -104,7 +104,7 @@ sox==1.4.1
 SQLAlchemy==1.4.41
 stable-ts==2.5.3
 stack-data==0.3.0
-sentry-sdk==1.14.0
+sentry-sdk==1.35.0
 tinycss2==1.2.1
 tokenizers==0.12.1
 torch==2.0.1

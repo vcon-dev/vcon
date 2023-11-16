@@ -15,7 +15,15 @@ import logging
 
 import logging.config
 from settings import LOGGING_CONFIG_FILE
+import sentry_sdk
+import os
 
+sentry_sdk.init(
+    os.environ.get("SENTRY_DSN"),
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    traces_sample_rate=1.0,
+)
 logging.config.fileConfig(LOGGING_CONFIG_FILE)
 
 imported_modules = {}

@@ -20,7 +20,7 @@ def init_connection():
 client = init_connection()
 
 # Add three tabs
-st.header("Recent vCons")
+st.header("Recent vCons")   
 
 # Limit to vCons that have a summary
 if st.checkbox("Show only vCons with summaries"):

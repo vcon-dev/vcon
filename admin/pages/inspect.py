@@ -1,8 +1,10 @@
 import streamlit as st
 import pymongo
+import openai
+import json
 
 # Title and page layout
-st.title("VCon Inspector")
+st.title("VCON INSPECTOR")
 
 # Function to initialize the MongoDB connection
 def get_mongo_client():
@@ -23,10 +25,27 @@ q = st.experimental_get_query_params()
 uuid = q.get('uuid', [''])[0]
 
 if uuid:
-    st.write(f"Inspecting vCon {uuid}")
+    st.write(f"INSPECTING VCON {uuid}")
     client = get_mongo_client()
     db = client[st.secrets["mongo_db"]["db"]]
     vcon = db[st.secrets["mongo_db"]["collection"]].find_one({'uuid': uuid})
+
+    # ADD A BUTTON FOR DOWNLOADING THE VCON as JSON
+    download = st.download_button(
+        label="DOWNLOAD VCON",
+        data=json.dumps(vcon),
+        file_name=f"{uuid}.json",
+        mime="application/json"
+    )
+
+    # ADD A BUTTON FOR ADDING THE UUID TO THE WORKBENCH
+    if st.button("ADD TO INPUTS"):
+        if 'vcon_uuids' not in st.session_state:
+            st.session_state.vcon_uuids = []
+        vcon_uuids = st.session_state.vcon_uuids
+        vcon_uuids.append(uuid)
+        st.session_state.vcon_uuids = vcon_uuids
+        st.success(f"ADDED {uuid} TO WORKBENCH.")
 
     if vcon:
         try:
@@ -51,26 +70,21 @@ if uuid:
             # Display content in respective tabs
             with tabs[1]:
                 if analysis:
-                    st.header("ANALYSIS")
                     st.json(analysis)
 
             with tabs[2]:
                 if dialog:
-                    st.header("DIALOG")
                     st.json(dialog)
 
             with tabs[3]:
                 if parties:
-                    st.header("PARTIES")
                     st.json(parties)
 
             with tabs[4]:
                 if attachments:
-                    st.header("ATTACHMENTS")
                     st.json(attachments)
 
             with tabs[0]:
-                st.header("COMPLETE VCON")
                 st.json(vcon)
 
         except KeyError:
@@ -78,7 +92,7 @@ if uuid:
     else:
         st.error(f"No vCon found with uuid: {uuid}")
 else:
-    st.write("Please enter a vCon ID to inspect")
-    uuid = st.text_input("Enter a vCon ID")
+    st.write("PLEASE ENTER A VCON ID TO INSPECT")
+    uuid = st.text_input("ENTER A VCON ID")
     if uuid:
         st.experimental_set_query_params(uuid=uuid)

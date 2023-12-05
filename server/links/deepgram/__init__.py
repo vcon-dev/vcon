@@ -31,7 +31,7 @@ async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
         return transcript
     except Exception:
         logger.exception("Transaction failed: %s, %s", source, opts)
-        return None
+        raise
 
 
 async def run(

@@ -26,6 +26,7 @@ sentry_sdk.init(
 )
 logging.config.fileConfig(LOGGING_CONFIG_FILE)
 
+
 imported_modules = {}
 
 logger = init_logger(__name__)
@@ -93,12 +94,18 @@ async def tick():
                     imported_modules[module_name] = importlib.import_module(module_name)
                 module = imported_modules[module_name]
                 options = link.get("options")
-                logger.info("Running link module %s for vCon: %s", module_name, vcon_id)
+                logger.info(
+                    "Running link %s module %s for vCon: %s",
+                    link_name,
+                    module_name,
+                    vcon_id,
+                )
                 started = time.time()
                 result = await module.run(vcon_id, options)
                 link_processing_time = round(time.time() - started, 3)
                 logger.info(
-                    "Finished link module %s for vCon: %s in %s seconds.",
+                    "Finished link %s module %s for vCon: %s in %s seconds.",
+                    link_name,
                     module_name,
                     vcon_id,
                     round(time.time() - started, 3),
@@ -132,7 +139,8 @@ async def tick():
 
                             options = storage.get("options", module.default_options)
                             logger.info(
-                                "Running storage module %s for vCon: %s",
+                                "Running storage %s module %s for vCon: %s",
+                                storage_name,
                                 module_name,
                                 vcon_id,
                             )
@@ -140,7 +148,8 @@ async def tick():
                             result = await module.save(vcon_id, options)
                             storage_processing_time = round(time.time() - started, 3)
                             logger.info(
-                                "Finished storage module %s for vCon: %s in %s seconds.",
+                                "Finished storage %s module %s for vCon: %s in %s seconds.",
+                                storage_name,
                                 module_name,
                                 vcon_id,
                                 storage_processing_time,

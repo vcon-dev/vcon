@@ -17,13 +17,12 @@ def get_transcription(vcon, index):
     return None
 
 
-@retry.retry(tries=3, delay=1, backoff=2)
+@retry.retry(tries=5, delay=10, backoff=3, logger=logger)
 async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
     url = dialog["url"]
     source = {"url": url}
-
+    response = await dg_client.transcription.prerecorded(source, opts)
     try:
-        response = await dg_client.transcription.prerecorded(source, opts)
         alternatives = response["results"]["channels"][0]["alternatives"]
         detected_language = response["results"]["channels"][0]["detected_language"]
         transcript = alternatives[0]
@@ -31,7 +30,7 @@ async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
         return transcript
     except Exception:
         logger.exception("Transaction failed: %s, %s", source, opts)
-        raise
+        return None
 
 
 async def run(

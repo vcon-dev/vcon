@@ -1,7 +1,11 @@
 from typing import Optional
 from lib.logging_utils import init_logger
 from deepgram import Deepgram
-import retry
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)  # for exponential backoff
 from server.lib.vcon_redis import VconRedis
 import json
 
@@ -17,7 +21,7 @@ def get_transcription(vcon, index):
     return None
 
 
-@retry.retry(tries=5, delay=10, backoff=3, logger=logger)
+@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
 async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
     url = dialog["url"]
     source = {"url": url}

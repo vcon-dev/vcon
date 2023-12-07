@@ -1,8 +1,16 @@
-from server.lib.vcon_redis import VconRedis
+from lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
+import logging
 import openai
 import json
-import retry
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+    after_log,
+)  # for exponential backoff
+from func_timeout import func_set_timeout, FunctionTimedOut
+
 
 logger = init_logger(__name__)
 
@@ -25,18 +33,34 @@ def get_analysys_for_type(vcon, index, analysis_type):
     return None
 
 
-@retry.retry(tries=5, delay=10, backoff=3, logger=logger)
+# separate function for timeouting
+@func_set_timeout(10)
+def chat_completion(model, messages, temperature):
+    sentiment_result = openai.ChatCompletion.create(
+        model=model, messages=messages, temperature=temperature
+    )
+    return sentiment_result["choices"][0]["message"]["content"]
+
+
+@retry(
+    wait=wait_random_exponential(min=1, max=60),
+    stop=stop_after_attempt(6),
+    after=after_log(logger, logging.WARNING),
+)
 def generate_analysis(transcript, prompt, model, temperature):
+    # logger.info(f"TRANSCRIPT: {transcript}")
+    # logger.info(f"PROMPT: {prompt}")
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt + "\n\n" + transcript},
     ]
     logger.info(f"messages: {messages}")
     logger.info(f"MODEL: {model}")
-    sentiment_result = openai.ChatCompletion.create(
-        model=model, messages=messages, temperature=temperature
-    )
-    return sentiment_result["choices"][0]["message"]["content"]
+    try:
+        return chat_completion(model, messages, temperature)
+    except FunctionTimedOut as e:
+        logger.warning("OpenAI api timed out: ", e)
+        raise Exception("Timed out")
 
 
 async def run(
@@ -63,9 +87,14 @@ async def run(
     for index, dialog in enumerate(vCon.dialog):
         source = get_analysys_for_type(vCon, index, source_type)
         if not source:
-            logger.info("No %s found for vCon: %s", source_type, vCon.uuid)
+            logger.warning("No %s found for vCon: %s", source_type, vCon.uuid)
             continue
         source_text = navigate_dict(source, text_location)
+        if not source_text:
+            logger.warning(
+                "No source_text found at %s for vCon: %s", text_location, vCon.uuid
+            )
+            continue
         analysis = get_analysys_for_type(vCon, index, opts["analysis_type"])
 
         # See if it already has the analysis

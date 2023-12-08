@@ -46,31 +46,18 @@ async def save(
             subject = TextField(null=True)
             vcon_json = BinaryJSONField(null=True)
             type = TextField()
-            # source = TextField()
-            agent = TextField()
-            dealer_id = TextField()
-            team_id = TextField()
 
         db.create_tables([Vcons], safe=True)
 
-        # try:
-        #     source = next(
-        #         json.loads(a["body"])["source"]
-        #         for a in vcon.attachments
-        #         if a["type"] == "ingress_info"
-        #     )
-        # except Exception:
-        #     source = None
+        try:
+            source = next(
+                json.loads(a["body"])["source"]
+                for a in vcon.attachments
+                if a["type"] == "ingress_info"
+            )
+        except Exception:
+            source = None
 
-        extra_fields_body = next(
-            json.loads(a["body"])
-            for a in vcon.attachments
-            if a["type"] == "extra_fields"
-        )
-        source = extra_fields_body["source"]
-        dealer_id = extra_fields_body.get("dealer_id")
-        agent = extra_fields_body.get("agent")
-        team_id = extra_fields_body.get("team_id")
         vcon_data = {
             "id": vcon.uuid,
             "uuid": vcon.uuid,
@@ -80,9 +67,6 @@ async def save(
             "subject": vcon.subject,
             "vcon_json": json.loads(vcon.dumps()),
             "type": source,
-            "dealer_id": dealer_id,
-            "agent": agent,
-            "team_id": team_id,
         }
         Vcons.insert(**vcon_data).on_conflict(
             conflict_target=(Vcons.id), update=vcon_data

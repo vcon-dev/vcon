@@ -69,7 +69,7 @@ async def tick():
         logger.debug("Checking chain %s", chain_name)
         chain_details = await r.json().get(chain_name)
         for ingress_list in chain_details["ingress_lists"]:
-            vcon_id = await r.lpop(ingress_list)
+            vcon_id = await r.rpop(ingress_list)
             if not vcon_id:
                 continue
             llen = await r.llen(ingress_list)

@@ -12,6 +12,7 @@ from load_config import (
 )
 import asyncio
 import logging
+from datetime import datetime
 
 import logging.config
 from settings import LOGGING_CONFIG_FILE
@@ -69,7 +70,10 @@ async def tick():
         logger.debug("Checking chain %s", chain_name)
         chain_details = await r.json().get(chain_name)
         for ingress_list in chain_details["ingress_lists"]:
+            # Get up to 10 vcons...
             vcon_id = await r.rpop(ingress_list)
+            # TODO Put it in to the `in_progress_list` so we can put it back if we don't process it
+            # [(vcon_uuid, timestamp), ...]
             if not vcon_id:
                 continue
             llen = await r.llen(ingress_list)
@@ -167,6 +171,7 @@ async def tick():
                 logger.info(
                     "Finished processing link %s for vCon: %s", link_name, vcon_id
                 )
+
             vcon_processing_time = round(time.time() - vcon_started, 3)
             logger.info(
                 "Finsihed processing vCon %s in %s seconds",
@@ -174,6 +179,23 @@ async def tick():
                 vcon_processing_time,
                 extra={"vcon_processing_time": vcon_processing_time},
             )
+            enqueued_time_bytes = await r.get(f"vcon_enqueued:{vcon_id}")
+            if enqueued_time_bytes is not None:
+                enqueued_time = enqueued_time_bytes.decode("utf-8")
+                processing_ended_time = datetime.now()
+                time_diff = processing_ended_time - datetime.strptime(
+                    enqueued_time, "%y/%m/%d, %H:%M:%S"
+                )
+                logger.info(
+                    "vcon %s took %s seconds to appear in call log",
+                    vcon_id,
+                    time_diff.seconds,
+                    extra={"seconds": time_diff.seconds},
+                )
+
+            # TODO Remove vcon from `in_progress_list` so we know it is done
+            # TODO Add new task which move vcon from `in_progress_list` to `ingress_list` if it is there for too long
+
         logger.debug("Finished processing chain %s", chain_name)
 
 

@@ -12,11 +12,14 @@ from lib.logging_utils import init_logger
 from load_config import load_config
 from main_loop import tick
 from peewee import CharField, Model
-from playhouse.postgres_ext import (BinaryJSONField, DateTimeField,
-                                    PostgresqlExtDatabase, UUIDField)
+from playhouse.postgres_ext import (
+    BinaryJSONField,
+    DateTimeField,
+    PostgresqlExtDatabase,
+    UUIDField,
+)
 from pydantic import BaseModel
-from settings import (VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME,
-                      VCON_STORAGE)
+from settings import VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME, VCON_STORAGE
 
 logger = init_logger(__name__)
 logger.info("Api starting up")
@@ -282,8 +285,13 @@ async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str):
         r = redis_mgr.get_client()
         for vcon_uuid in vcon_uuids:
             await r.lpush(ingress_list, vcon_uuid)
+            await r.set(
+                f"vcon_enqueued:{vcon_uuid}",
+                datetime.now().strftime("%y/%m/%d, %H:%M:%S"),
+            )
+            await r.expire(f"vcon_enqueued:{vcon_uuid}", 24 * 60 * 60)
     except Exception as e:
-        logger.info("Error: {}".format(e)) 
+        logger.info("Error: {}".format(e))
         raise HTTPException(status_code=500)
 
 

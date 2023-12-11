@@ -1,6 +1,5 @@
 import importlib
 import time
-from lib.logging_utils import init_logger
 import redis_mgr
 from redis_mgr import get_key
 from settings import TICK_INTERVAL
@@ -11,25 +10,15 @@ from load_config import (
     load_config,
 )
 import asyncio
-import logging
+from lib.logging_utils import init_logger
+from lib.metrics import init_metrics, stats_gauge, stats_count
+from lib.error_tracking import init_error_tracker
 
-import logging.config
-from settings import LOGGING_CONFIG_FILE
-import sentry_sdk
-import os
-
-sentry_sdk.init(
-    os.environ.get("SENTRY_DSN"),
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    traces_sample_rate=1.0,
-)
-logging.config.fileConfig(LOGGING_CONFIG_FILE)
-
+init_error_tracker()
+init_metrics()
+logger = init_logger(__name__)
 
 imported_modules = {}
-
-logger = init_logger(__name__)
 
 
 async def main():
@@ -174,6 +163,8 @@ async def tick():
                 vcon_processing_time,
                 extra={"vcon_processing_time": vcon_processing_time},
             )
+            stats_gauge("strolid.conserver.vcon_processing_time", vcon_processing_time)
+            stats_count("strolid.conserver.count_vcons_processed")
         logger.debug("Finished processing chain %s", chain_name)
 
 

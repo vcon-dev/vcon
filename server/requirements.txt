@@ -8,6 +8,7 @@ certifi==2022.6.15
 cffi==1.15.1
 charset-normalizer==2.1.0
 cryptography==37.0.4
+datadog==0.47.0
 decorator==5.1.1
 deepgram-sdk==0.3.0
 defusedxml==0.7.1

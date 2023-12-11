@@ -9,8 +9,6 @@ from tenacity import (
     wait_random_exponential,
     after_log,
 )  # for exponential backoff
-from func_timeout import func_set_timeout, FunctionTimedOut
-
 
 logger = init_logger(__name__)
 
@@ -33,15 +31,6 @@ def get_analysys_for_type(vcon, index, analysis_type):
     return None
 
 
-# separate function for timeouting
-@func_set_timeout(10)
-def chat_completion(model, messages, temperature):
-    sentiment_result = openai.ChatCompletion.create(
-        model=model, messages=messages, temperature=temperature
-    )
-    return sentiment_result["choices"][0]["message"]["content"]
-
-
 @retry(
     wait=wait_random_exponential(min=1, max=60),
     stop=stop_after_attempt(6),
@@ -54,13 +43,13 @@ def generate_analysis(transcript, prompt, model, temperature):
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt + "\n\n" + transcript},
     ]
-    logger.info(f"messages: {messages}")
-    logger.info(f"MODEL: {model}")
-    try:
-        return chat_completion(model, messages, temperature)
-    except FunctionTimedOut as e:
-        logger.warning("OpenAI api timed out: ", e)
-        raise Exception("Timed out")
+    # logger.info(f"messages: {messages}")
+    # logger.info(f"MODEL: {model}")
+
+    sentiment_result = openai.ChatCompletion.create(
+        model=model, messages=messages, temperature=temperature
+    )
+    return sentiment_result["choices"][0]["message"]["content"]
 
 
 async def run(
@@ -80,6 +69,7 @@ async def run(
 
     openai.api_key = opts["OPENAI_API_KEY"]
     openai.max_retries = 0
+    openai.timeout = 120.0
 
     source_type = navigate_dict(opts, "source.analysis_type")
     text_location = navigate_dict(opts, "source.text_location")

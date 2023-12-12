@@ -85,9 +85,11 @@ async def run(
             break
 
         logger.info("Transcribed vCon: %s", vCon.uuid)
-        opts.pop("DEEPGRAM_KEY")
+
         vendor_schema = {}
-        vendor_schema["opts"] = opts
+        # Remove credentials from vendor_schema
+        vendor_schema["opts"] = {k: v for k, v in opts.items() if k != "DEEPGRAM_KEY"}
+
         vCon.add_analysis_transcript(
             index,
             result,

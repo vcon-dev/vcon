@@ -96,8 +96,12 @@ async def run(
                 vCon.uuid,
             )
             continue
-        opts.pop("OPENAI_API_KEY")
-        logger.info("Analysing dialog %s with options: %s", index, opts)
+
+        logger.info(
+            "Analysing dialog %s with options: %s",
+            index,
+            {k: v for k, v in opts.items() if k != "OPENAI_API_KEY"},
+        )
         analysis = generate_analysis(
             transcript=source_text,
             prompt=opts["prompt"],

@@ -163,8 +163,10 @@ async def tick():
                 vcon_processing_time,
                 extra={"vcon_processing_time": vcon_processing_time},
             )
-            stats_gauge("strolid.conserver.vcon_processing_time", vcon_processing_time)
-            stats_count("strolid.conserver.count_vcons_processed")
+            stats_gauge(
+                "conserver.main_loop.vcon_processing_time", vcon_processing_time
+            )
+            stats_count("conserver.main_loop.count_vcons_processed")
         logger.debug("Finished processing chain %s", chain_name)
 
 

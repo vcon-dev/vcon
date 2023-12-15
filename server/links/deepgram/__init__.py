@@ -1,14 +1,22 @@
 from typing import Optional
 from lib.logging_utils import init_logger
+import logging
 from deepgram import Deepgram
 from tenacity import (
     retry,
     stop_after_attempt,
-    wait_random_exponential,
+    wait_exponential,
+    RetryError,
+    before_sleep_log,
 )  # for exponential backoff
 from server.lib.vcon_redis import VconRedis
 import json
+from lib.error_tracking import init_error_tracker
+from lib.metrics import init_metrics, stats_gauge, stats_count
+import time
 
+init_error_tracker()
+init_metrics()
 logger = init_logger(__name__)
 
 default_options = {"minimum_duration": 60, "DEEPGRAM_KEY": None}
@@ -21,20 +29,21 @@ def get_transcription(vcon, index):
     return None
 
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+@retry(
+    wait=wait_exponential(multiplier=2, min=1, max=65),
+    stop=stop_after_attempt(6),
+    before_sleep=before_sleep_log(logger, logging.INFO),
+)
 async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
     url = dialog["url"]
     source = {"url": url}
     response = await dg_client.transcription.prerecorded(source, opts)
-    try:
-        alternatives = response["results"]["channels"][0]["alternatives"]
-        detected_language = response["results"]["channels"][0]["detected_language"]
-        transcript = alternatives[0]
-        transcript["detected_language"] = detected_language
-        return transcript
-    except Exception:
-        logger.exception("Transaction failed: %s, %s", source, opts)
-        return None
+
+    alternatives = response["results"]["channels"][0]["alternatives"]
+    detected_language = response["results"]["channels"][0]["detected_language"]
+    transcript = alternatives[0]
+    transcript["detected_language"] = detected_language
+    return transcript
 
 
 async def run(
@@ -80,8 +89,33 @@ async def run(
             continue
 
         dg_client = Deepgram(opts["DEEPGRAM_KEY"])
-        result = await transcribe_dg(dg_client, dialog, opts["api"])
+        try:
+            start = time.time()
+            result = await transcribe_dg(dg_client, dialog, opts["api"])
+            stats_gauge(
+                "conserver.link.deepgram.transcription_time", time.time() - start
+            )
+        except (RetryError, Exception) as e:
+            logger.exception(
+                "Failed to transcribe vCon %s after multiple retries: %s", vcon_uuid, e
+            )
+            stats_count("conserver.link.deepgram.transcription_failures")
+            break
+
         if not result:
+            logger.warning("No transcription generated for vCon %s", vcon_uuid)
+            stats_count("conserver.link.deepgram.transcription_failures")
+            break
+
+        # send the confidence to datadog for monitoring purposes (we can graph it) and alerting
+        stats_gauge("conserver.link.deepgram.confidence", result["confidence"])
+
+        # If the confidence is too low, don't store the transcript since it probably garbage
+        if result["confidence"] < 0.5:
+            logger.warning(
+                "Low confidence result for vCon %s: %s", vcon_uuid, result["confidence"]
+            )
+            stats_count("conserver.link.deepgram.transcription_failures")
             break
 
         logger.info("Transcribed vCon: %s", vCon.uuid)

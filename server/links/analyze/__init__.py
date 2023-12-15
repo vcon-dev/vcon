@@ -6,9 +6,14 @@ import json
 from tenacity import (
     retry,
     stop_after_attempt,
-    wait_random_exponential,
-    after_log,
+    wait_exponential,
+    before_sleep_log,
+    RetryError,
 )  # for exponential backoff
+from lib.metrics import init_metrics, stats_gauge, stats_count
+import time
+
+init_metrics()
 
 logger = init_logger(__name__)
 
@@ -32,9 +37,9 @@ def get_analysys_for_type(vcon, index, analysis_type):
 
 
 @retry(
-    wait=wait_random_exponential(min=1, max=60),
+    wait=wait_exponential(multiplier=2, min=1, max=65),
     stop=stop_after_attempt(6),
-    after=after_log(logger, logging.WARNING),
+    before_sleep=before_sleep_log(logger, logging.INFO),
 )
 def generate_analysis(transcript, prompt, model, temperature):
     # logger.info(f"TRANSCRIPT: {transcript}")
@@ -61,7 +66,6 @@ async def run(
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    propogate_to_next_link = True
     # Cannot create redis client in global context as it will wait on async event
     # loop which may go away.
     vcon_redis = VconRedis()
@@ -102,12 +106,27 @@ async def run(
             index,
             {k: v for k, v in opts.items() if k != "OPENAI_API_KEY"},
         )
-        analysis = generate_analysis(
-            transcript=source_text,
-            prompt=opts["prompt"],
-            model=opts["model"],
-            temperature=opts["temperature"],
-        )
+        try:
+            start = time.time()
+            analysis = generate_analysis(
+                transcript=source_text,
+                prompt=opts["prompt"],
+                model=opts["model"],
+                temperature=opts["temperature"],
+            )
+            stats_gauge(
+                "conserver.link.openai.analysis_time",
+                time.time() - start,
+                tags=[link_name],
+            )
+        except (RetryError, Exception) as e:
+            logger.exception(
+                "Failed to generate analysis for vCon %s after multiple retries: %s",
+                vcon_uuid,
+                e,
+            )
+            stats_count("conserver.link.openai.analysis_failures", tags=[link_name])
+            break
         vendor_schema = {}
         vendor_schema["model"] = opts["model"]
         vendor_schema["prompt"] = opts["prompt"]
@@ -119,9 +138,9 @@ async def run(
             analysis_type=opts["analysis_type"],
         )
     await vcon_redis.store_vcon(vCon)
+    logger.info(f"Finished analyze - {link_name} plugin for: {vcon_uuid}")
 
-    if propogate_to_next_link:
-        return vcon_uuid
+    return vcon_uuid
 
 
 def navigate_dict(dictionary, path):

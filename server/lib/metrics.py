@@ -18,11 +18,11 @@ def init_metrics():
         stats.start()  # Creates a worker thread used to submit metrics.
 
 
-def stats_gauge(metric_name, value):
+def stats_gauge(metric_name, value, tags=None):
     if DD_API_KEY:
-        stats.gauge(metric_name, value)
+        stats.gauge(metric_name, value, tags=tags)
 
 
-def stats_count(metric_name, value=1):
+def stats_count(metric_name, value=1, tags=None):
     if DD_API_KEY:
-        stats.increment(metric_name, value)
+        stats.increment(metric_name, value, tags=tags)

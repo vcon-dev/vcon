@@ -5,7 +5,6 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 
 def init_sentry():
-    print("Initializing Sentry")
     sentry_sdk.init(
         dsn=os.environ["SENTRY_DSN"],
         environment=os.environ["ENV"],

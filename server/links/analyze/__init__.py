@@ -117,7 +117,7 @@ async def run(
             stats_gauge(
                 "conserver.link.openai.analysis_time",
                 time.time() - start,
-                tags=[link_name],
+                tags=[f"analysis_type:{opts['analysis_type']}"],
             )
         except (RetryError, Exception) as e:
             logger.exception(
@@ -125,7 +125,10 @@ async def run(
                 vcon_uuid,
                 e,
             )
-            stats_count("conserver.link.openai.analysis_failures", tags=[link_name])
+            stats_count(
+                "conserver.link.openai.analysis_failures",
+                tags=[f"analysis_type:{opts['analysis_type']}"],
+            )
             break
         vendor_schema = {}
         vendor_schema["model"] = opts["model"]
@@ -136,6 +139,9 @@ async def run(
             "openai",
             json.dumps(vendor_schema),
             analysis_type=opts["analysis_type"],
+        )
+        logger.info(
+            f"Finished analyze - {opts['analysis_type']} plugin for: {vcon_uuid}"
         )
     await vcon_redis.store_vcon(vCon)
     logger.info(f"Finished analyze - {link_name} plugin for: {vcon_uuid}")

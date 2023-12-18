@@ -120,7 +120,7 @@ async def run(
                 tags=[f"analysis_type:{opts['analysis_type']}"],
             )
         except (RetryError, Exception) as e:
-            logger.exception(
+            logger.error(
                 "Failed to generate analysis for vCon %s after multiple retries: %s",
                 vcon_uuid,
                 e,

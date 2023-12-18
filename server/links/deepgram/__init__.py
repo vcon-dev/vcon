@@ -96,7 +96,7 @@ async def run(
                 "conserver.link.deepgram.transcription_time", time.time() - start
             )
         except (RetryError, Exception) as e:
-            logger.exception(
+            logger.error(
                 "Failed to transcribe vCon %s after multiple retries: %s", vcon_uuid, e
             )
             stats_count("conserver.link.deepgram.transcription_failures")

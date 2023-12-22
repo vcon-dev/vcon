@@ -3,3 +3,4 @@ static
 config.json
 config.yml
 tasks.csv
+logging_dev.conf

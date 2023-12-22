@@ -90,7 +90,7 @@ async def tick():
                     vcon_id,
                 )
                 started = time.time()
-                result = await module.run(vcon_id, options)
+                result = await module.run(vcon_id, link_name, options)
                 link_processing_time = round(time.time() - started, 3)
                 logger.info(
                     "Finished link %s module %s for vCon: %s in %s seconds.",

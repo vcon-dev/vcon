@@ -48,6 +48,7 @@ async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
 
 async def run(
     vcon_uuid,
+    link_name,
     opts=default_options,
 ):
     merged_opts = default_options.copy()

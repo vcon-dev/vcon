@@ -29,7 +29,8 @@ default_options = {
 options = {}
 
 
-async def start(opts=default_options):
+async def run(vcon_uuid, link_name, opts=default_options):
+    raise NotImplementedError
     logger.info("Starting the redaction plugin")
 
     try:
@@ -95,4 +96,3 @@ async def start(opts=default_options):
         logger.debug("transcription Cancelled")
 
     logger.info("transcription stopped")
-

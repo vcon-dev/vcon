@@ -1,21 +1,18 @@
 from server.lib.vcon_redis import VconRedis
 from lib.logging_utils import init_logger
-from server.lib.vcon_redis import VconRedis
-from stable_whisper import load_model
 
 
 logger = init_logger(__name__)
 
 default_options = {
     "name": "transcription",
-    "transcribe_options":  {
-        "model_size": "base", 
-        "output_options": ["vendor"]
-    }
+    "transcribe_options": {"model_size": "base", "output_options": ["vendor"]},
 }
+
 
 async def run(
     vcon_uuid,
+    link_name,
     opts=default_options,
 ):
     logger.debug("Starting transcribe::run")
@@ -39,7 +36,3 @@ async def run(
     # If you want the vCon processing to stop (if you are filtering them, for instance)
     # send None
     return vcon_uuid
-
-
-
-

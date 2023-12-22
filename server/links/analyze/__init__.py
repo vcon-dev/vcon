@@ -12,6 +12,7 @@ from tenacity import (
 )  # for exponential backoff
 from lib.metrics import init_metrics, stats_gauge, stats_count
 import time
+from lib.links.filters import is_included
 
 init_metrics()
 
@@ -59,10 +60,11 @@ def generate_analysis(transcript, prompt, model, temperature):
 
 async def run(
     vcon_uuid,
+    link_name,
     opts=default_options,
 ):
-    link_name = __name__.split(".")[-1]
-    logger.info(f"Starting {link_name} plugin for: {vcon_uuid}")
+    module_name = __name__.split(".")[-1]
+    logger.info(f"Starting {module_name}: {link_name} plugin for: {vcon_uuid}")
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
@@ -70,6 +72,10 @@ async def run(
     # loop which may go away.
     vcon_redis = VconRedis()
     vCon = await vcon_redis.get_vcon(vcon_uuid)
+
+    if not is_included(opts, vCon):
+        logger.info(f"Skipping {link_name} vCon {vcon_uuid} due to filters")
+        return vcon_uuid
 
     openai.api_key = opts["OPENAI_API_KEY"]
     openai.max_retries = 0
@@ -140,11 +146,8 @@ async def run(
             json.dumps(vendor_schema),
             analysis_type=opts["analysis_type"],
         )
-        logger.info(
-            f"Finished analyze - {opts['analysis_type']} plugin for: {vcon_uuid}"
-        )
     await vcon_redis.store_vcon(vCon)
-    logger.info(f"Finished analyze - {link_name} plugin for: {vcon_uuid}")
+    logger.info(f"Finished analyze - {module_name}:{link_name} plugin for: {vcon_uuid}")
 
     return vcon_uuid
 

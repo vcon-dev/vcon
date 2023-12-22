@@ -9,6 +9,7 @@ certifi
 cffi
 charset-normalizer
 DataProfiler
+datadog
 decorator
 deepgram-sdk
 defusedxml

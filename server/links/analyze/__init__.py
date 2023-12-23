@@ -12,7 +12,7 @@ from tenacity import (
 )  # for exponential backoff
 from lib.metrics import init_metrics, stats_gauge, stats_count
 import time
-from lib.links.filters import is_included
+from lib.links.filters import is_included, randomly_execute_with_sampling
 
 init_metrics()
 
@@ -22,6 +22,7 @@ default_options = {
     "prompt": "Summarize this transcript in a few sentences.",
     "analysis_type": "summary",
     "model": "gpt-3.5-turbo-16k",
+    "sampling_rate": 1,
     "temperature": 0,
     "source": {
         "analysis_type": "transcript",
@@ -75,6 +76,10 @@ async def run(
 
     if not is_included(opts, vCon):
         logger.info(f"Skipping {link_name} vCon {vcon_uuid} due to filters")
+        return vcon_uuid
+
+    if not randomly_execute_with_sampling(opts):
+        logger.info(f"Skipping {link_name} vCon {vcon_uuid} due to sampling")
         return vcon_uuid
 
     openai.api_key = opts["OPENAI_API_KEY"]

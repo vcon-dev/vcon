@@ -1,4 +1,5 @@
 import json
+import random
 from lib.logging_utils import init_logger
 
 logger = init_logger(__name__)
@@ -27,3 +28,12 @@ def is_included(options, _vcon):
     except Exception as e:
         logger.error(f"Error checking inclusion: {e}")
     return False
+
+
+def randomly_execute_with_sampling(options):
+    if options.get("sampling_rate"):
+        if random.random() < options["sampling_rate"]:
+            return True
+        else:
+            return False
+    return True

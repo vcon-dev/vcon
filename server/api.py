@@ -4,7 +4,6 @@ from typing import Dict, List, Union
 from uuid import UUID
 
 import redis_mgr
-import tqdm
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,7 +18,7 @@ from playhouse.postgres_ext import (
     UUIDField,
 )
 from pydantic import BaseModel
-from settings import VCON_SORTED_FORCE_RESET, VCON_SORTED_SET_NAME, VCON_STORAGE
+from settings import VCON_SORTED_SET_NAME, VCON_STORAGE
 
 logger = init_logger(__name__)
 logger.info("Api starting up")
@@ -90,25 +89,6 @@ async def startup_event():
         # Use a sorted set, with the created_at field as the score, so that we can
         # sort the results by date.  Convert the created_at field to a unix timestamp
         logger.info("Using redis database")
-        sorted_set = VCON_SORTED_SET_NAME
-
-        # On startup, iterate over all the vCon keys in the database, and add them to the sorted set
-        # This is a one-time operation, so we can do it synchronously
-        # CHeck to see if we need to reset the sorted set
-        r = redis_mgr.get_client()
-        if VCON_SORTED_FORCE_RESET == "true" or await r.zcard(sorted_set) == 0:
-            logger.info("Resetting the sorted set")
-            # Delete the sorted set
-            await r.delete(sorted_set)
-            vcon_keys = await r.keys("vcon:*")
-
-            logger.info("Adding {} vcons to the sorted set".format(len(vcon_keys)))
-            for vcon_key in tqdm.tqdm(vcon_keys):
-                vcon = await r.json().get(vcon_key)
-                # Convert the ISO string to a unix timestamp
-                created_at = datetime.fromisoformat(vcon["created_at"])
-                timestamp = int(created_at.timestamp())
-                await add_vcon_to_set(vcon_key, timestamp)
 
 
 @app.on_event("shutdown")

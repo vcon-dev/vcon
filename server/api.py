@@ -1,6 +1,6 @@
 import traceback
 from datetime import datetime
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 from uuid import UUID
 
 import redis_mgr
@@ -41,15 +41,15 @@ class Vcon(BaseModel):
     vcon: str
     uuid: UUID
     created_at: Union[int, str, datetime]
-    subject: str = None
-    redacted: dict = None
-    appended: dict = None
+    subject: Optional[str] = None
+    redacted: dict = {}
+    appended: Optional[dict] = None
     group: List[Dict] = []
     parties: List[Dict] = []
     dialog: List[Dict] = []
     analysis: List[Dict] = []
     attachments: List[Dict] = []
-    meta: dict = None
+    meta: dict = {}
 
 
 if VCON_STORAGE:

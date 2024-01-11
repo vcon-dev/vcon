@@ -11,7 +11,7 @@ def init_sentry():
         integrations=[
             LoggingIntegration(
                 level=logging.INFO,  # Capture info and above as breadcrumbs
-                event_level=logging.WARNING,
+                event_level=logging.ERROR,
             )
         ],
         traces_sample_rate=0,  # adjust the sample rate in production as needed

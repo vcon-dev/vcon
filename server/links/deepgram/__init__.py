@@ -30,7 +30,9 @@ def get_transcription(vcon, index):
 
 
 @retry(
-    wait=wait_exponential(multiplier=2, min=1, max=65),
+    wait=wait_exponential(
+        multiplier=2, min=1, max=65
+    ),  # Will wait 1 then 2 then 4 then ....32 seconds.  All the retries together will take less than 65 seconds.
     stop=stop_after_attempt(6),
     before_sleep=before_sleep_log(logger, logging.INFO),
 )

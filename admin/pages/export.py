@@ -8,7 +8,8 @@ import redis
 # Uses st.cache_resource to only run once.
 @st.cache_resource
 def init_connection():
-    return pymongo.MongoClient(**st.secrets["mongo_host"])
+    url = st.secrets["mongo_db"]["url"]
+    return pymongo.MongoClient(url)
 
 client = init_connection()
 # Title of the app
@@ -48,7 +49,7 @@ st.divider()
 "***EXPORT TO REDIS***"
 
 # Get the URL for the Redis instance
-redis_url = st.text_input("ENTER THE REDIS URL", value="redis://localhost:6379", key="redis_url_export")
+redis_url = st.text_input("ENTER THE REDIS URL", value="redis://redis:6379", key="redis_url_export")
 if redis_url:
     if st.button("EXPORT VCONS", key="export_redis"):
         # Connect to Redis

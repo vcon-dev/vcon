@@ -4,14 +4,12 @@ import json
 import redis
 import boto3
 
-# Enable large files
-st.set_option('deprecation.showfileUploaderEncoding', False)
-
 # Initialize connection.
 # Uses st.cache_resource to only run once.
 @st.cache_resource
 def init_connection():
-    return pymongo.MongoClient(**st.secrets["mongo_host"])
+    url = st.secrets["mongo_db"]["url"]
+    return pymongo.MongoClient(url)
 
 client = init_connection()
 
@@ -24,7 +22,7 @@ with upload_tab:
     "**UPLOAD A SINGLE VCON FILE**"
 
     # Allow the user to upload a single JSON file
-    uploaded_file = st.file_uploader("UPLOAD", type="json, vcon")
+    uploaded_file = st.file_uploader("UPLOAD", type=["json", "vcon"])
     if uploaded_file is not None:
         if st.button("UPLOAD AND INSERT"):
             db = client[st.secrets["mongo_db"]['db']]

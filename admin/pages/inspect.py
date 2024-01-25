@@ -8,7 +8,8 @@ st.title("VCON INSPECTOR")
 
 # Function to initialize the MongoDB connection
 def get_mongo_client():
-    return pymongo.MongoClient(**st.secrets["mongo_host"])
+    url = st.secrets["mongo_db"]["url"]
+    return pymongo.MongoClient(url)
 
 # Functin to return the summary of a vCon if it's available
 def get_vcon_summary(vcon):
@@ -21,8 +22,8 @@ def get_vcon_summary(vcon):
 
     
 # Get the query parameter (uuid) from the URL
-q = st.experimental_get_query_params()
-uuid = q.get('uuid', [''])[0]
+uuids = st.query_params.get_all("uuid")
+uuid = uuids[0] if uuids else None
 
 if uuid:
     st.write(f"INSPECTING VCON {uuid}")

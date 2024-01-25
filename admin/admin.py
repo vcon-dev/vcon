@@ -15,7 +15,8 @@ This is the admin portal for the system. It allows you to view the current confi
 # Uses st.cache_resource to only run once.
 @st.cache_resource
 def init_connection():
-    return pymongo.MongoClient(**st.secrets["mongo_host"])
+    url = st.secrets["mongo_db"]["url"]
+    return pymongo.MongoClient(url)
 
 client = init_connection()
 

@@ -14,7 +14,8 @@ st.title("VCON WORKBENCH")
 
 # Function to initialize the MongoDB connection
 def get_mongo_client():
-    return pymongo.MongoClient(**st.secrets["mongo_host"])
+    url = st.secrets["mongo_db"]["url"]
+    return pymongo.MongoClient(url)
 
 # Functin to return the summary of a vCon if it's available
 def get_vcon_summary(vcon):

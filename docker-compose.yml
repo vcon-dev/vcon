@@ -9,6 +9,7 @@ services:
     #   - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
     depends_on:
       - redis
+      - mongo
     env_file:
       - .env
   api:
@@ -20,13 +21,14 @@ services:
       - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
     depends_on:
       - redis
+      - mongo
     env_file:
       - .env
-
   redis:
     image: "redis/redis-stack:latest"
     ports:
       - "${REDIS_EXTERNAL_PORT:-8001}:8001"
+      - "6379:6379"
     environment:
       REDIS_ARGS: --save 20 1
     mem_limit: 1gb # <===== IMPORTANT!!!! We're overriding this in the docker-compose.override.yml file
@@ -38,37 +40,32 @@ services:
       timeout: 10s
       retries: 5
 
-  # mongo:
-  #   image: mongo
-  #   restart: always
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: root
-  #     MONGO_INITDB_ROOT_PASSWORD: example
-  #   profiles:
-  #     - dev
-
-  # mongo-express:
-  #   image: mongo-express
-  #   restart: always
-  #   ports:
-  #     - 8081:8081
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: root
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: example
-  #     ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-  #   profiles:
-  #     - dev
-
-  jupyter:
-    build: .
-    command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
-    volumes:
-      - .:/app
+  mongo:
+    image: mongo
     ports:
-      - "9999:9999"
+      - 27017:27017
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  conserver-admin:
+    image: conserver-admin
+    ports:
+      - 8501:8501
     depends_on:
       - redis
-    env_file:
-      - .env
-    profiles:
-      - dev
+      - mongo
+    restart: always
+
+  # jupyter:
+  #   build: .
+  #   command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "9999:9999"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env

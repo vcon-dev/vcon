@@ -23,9 +23,9 @@ dump.rdb
 .data
 tmp
 docker-compose.override.yml
-
 admin/.streamlit/secrets.toml
 admin/.streamlit/config.toml
 admin/.streamlit/*.pem
 admin/.streamlit/*.pkl
 admin/.streamlit/*.csv
+

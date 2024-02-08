@@ -2,6 +2,15 @@ import streamlit as st
 import pymongo
 import openai
 import json
+import sys
+import os
+
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import manage_session_state
+# Check to make sure the user is logged in
+manage_session_state()
+
 
 # Title and page layout
 st.title("VCON INSPECTOR")

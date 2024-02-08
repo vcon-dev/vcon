@@ -3,6 +3,16 @@ import pymongo
 import json
 import redis
 import boto3
+import sys
+import os
+
+
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import manage_session_state
+# Check to make sure the user is logged in
+manage_session_state()
+
 
 # Initialize connection.
 # Uses st.cache_resource to only run once.

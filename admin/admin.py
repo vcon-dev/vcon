@@ -1,10 +1,3 @@
-import streamlit as st
-import redis
-import pandas as pd
-import pymongo
-import json
-import os
-
 """
 
 ## Admin Portal
@@ -12,6 +5,18 @@ import os
 This is the admin portal for the system. It allows you to view the current configuration, and to make changes to it.
 
 """
+
+import streamlit as st
+import redis
+import pandas as pd
+import pymongo
+import json
+import os
+
+from common import manage_session_state
+# Check to make sure the user is logged in
+manage_session_state()
+
 # Initialize connection.
 # Uses st.cache_resource to only run once.
 @st.cache_resource
@@ -21,41 +26,13 @@ def init_connection():
 
 client = init_connection()
 
-# Print the current directory to markdown
-st.markdown(f"Current directory: {os.getcwd()}")
-
-# Print the contents of the directory to markdown
-st.markdown(f"Contents of the directory: {os.listdir()}")
-
-
-
 # Current directory in the container is /app
 # Check if the file exists
 if os.path.isfile("custom_info.md"):
     # Open the file and read its contents
     with open("custom_info.md", "r") as file:
         contents = file.read()
-else:
-    contents = "No custom information available."
-
-# Display the contents in the Streamlit app
-st.markdown(contents)
-
-
-
-col1, col2 = st.columns(2)
-with col1:
-    st.header("Current Configuration")
-    st.write("The current configuration of the system is displayed below.")
-    st.write("To make changes, click on the 'Edit Configuration' button.")
-    if st.button("Edit Configuration"):
-        st.write("You clicked the button!")
-with col2:
-    st.header("System Status")
-    st.write("The current status of the system is displayed below.")
-    st.write("To make changes, click on the 'Edit Status' button.")
-    if st.button("Edit Status"):
-        st.write("You clicked the button!")
+    st.markdown(contents)
 
 # Add three tabs
 st.header("Recent vCons")   

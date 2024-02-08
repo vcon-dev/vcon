@@ -1,10 +1,22 @@
 import streamlit as st
 import pymongo
 import json
+import sys
+import os
+
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import manage_session_state
+# Check to make sure the user is logged in
+manage_session_state()
+
 
 # This code is for v1 of the openai package: pypi.org/project/openai
 from openai import OpenAI
-OPENAI_API_KEY="sk-xxxxxxxxxxx"
+import json
+
+# Get the OPENAI_API_KEY from the secrets
+OPENAI_API_KEY=st.secrets["openai"]["OPENAI_API_KEY"]
 open_ai_client = OpenAI(
     api_key=OPENAI_API_KEY
 )
@@ -162,13 +174,13 @@ with results_tab:
             mongo_client = get_mongo_client()
             db = mongo_client[st.secrets["mongo_db"]["db"]]
             vcon = db[st.secrets["mongo_db"]["collection"]].find_one({'uuid': vcon_uuid})
-            match input_type:
-                case "complete":
-                    content = json.dumps(vcon)
-                case "summary":
+            content = ""
+            if input_type == "complete":
+                content = json.dumps(vcon)
+            if input_type == "summary":
                     content = get_vcon_summary(vcon)
-                case "transcript":
-                    content = get_vcon_transcript(vcon)
+            if input_type == "transcript":
+                content = get_vcon_transcript(vcon)
 
             # Call open AI to complete the prompt
             st.subheader(f"RESULTS FOR VCON {vcon_uuid}")

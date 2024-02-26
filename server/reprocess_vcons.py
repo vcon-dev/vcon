@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 
 
-THRESHOLD_START_DAYS = 5  # Will be deleted if it's older than that
+THRESHOLD_START_DAYS = 5  # Will be skipped if it's older than that
 THRESHOLD_END_DAYS = 1
 REPROCESSED_VCONS_LIMIT = 1
 

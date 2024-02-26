@@ -106,7 +106,7 @@ async def run(vcon_id, link_name, opts=default_options):
         summary = get_summary(vcon, a["dialog"])
         abstract = summary["body"]
 
-        if team_name:
+        if team_name and team_name != "strolid":
             channel_name = f"team-{team_name}-alerts"
             abstract = abstract + f" #{dealer_name}"
             post_blocks_to_channel(opts["token"], channel_name, abstract, url, opts)

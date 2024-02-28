@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "vcon-server"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.12.2"
+gunicorn = "^21.2.0"
+datadog = "^0.48.0"
+deepgram-sdk = "^3.1.4"
+uvicorn = "0.23.2"
+redis = "4.6.0"
+fastapi = "0.110.0"
+python-json-logger = "2.0.4"
+pyyaml = "^6.0.1"
+peewee = "3.15.3"
+sentry-sdk = "1.35.0"
+pydantic = "^2.6.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

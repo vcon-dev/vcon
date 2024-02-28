@@ -1,0 +1,77 @@
+version: "3.3"
+services:
+  conserver:
+    build:
+      dockerfile: ./docker/Dockerfile
+      context: .
+    command: "python ./server/main.py"
+    # command: tail -f /dev/null
+    volumes:
+      - .:/app
+    # ports:
+    #   - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
+    depends_on:
+      - redis
+      # - mongo
+    env_file:
+      - .env
+  api:
+    build:
+      dockerfile: ./docker/Dockerfile
+      context: .
+    # command: poetry run gunicorn server.api:app -k uvicorn.workers.UvicornWorker -b $HOST:$PORT
+    command: /bin/bash -c "poetry run gunicorn server.api:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "${CONSERVER_EXTERNAL_PORT:-8000}:8000"
+    depends_on:
+      - redis
+      # - mongo
+    env_file:
+      - .env
+  redis:
+    image: "redis/redis-stack:latest"
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-8001}:8001"
+      # - "6379:6379"
+    environment:
+      REDIS_ARGS: --save 20 1
+    mem_limit: 1gb # <===== IMPORTANT!!!! We're overriding this in the docker-compose.override.yml file
+    volumes:
+       - ./.data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # mongo:
+  #   image: mongo
+  #   ports:
+  #     - 27017:27017
+  #   restart: always
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+
+  # conserver-admin:
+  #   image: conserver-admin
+  #   ports:
+  #     - 8501:8501
+  #   depends_on:
+  #     - redis
+  #     - mongo
+  #   restart: always
+
+  # jupyter:
+  #   build: .
+  #   command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "9999:9999"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env

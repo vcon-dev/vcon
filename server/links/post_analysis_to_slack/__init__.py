@@ -18,7 +18,7 @@ def get_team(vcon):
     team_name = None
     for a in vcon.attachments:
         if a["type"] == "strolid_dealer":
-            t_obj = json.loads(a["body"])
+            t_obj = a["body"]
             team = t_obj.get("team", None)
             if team:
                 team_name = team["name"]
@@ -30,7 +30,7 @@ def get_dealer(vcon):
     dealer = None
     for a in vcon.attachments:
         if a["type"] == "strolid_dealer":
-            d_obj = json.loads(a["body"])
+            d_obj = a["body"]
             dealer = d_obj.get("name", None)
     return dealer
 
@@ -73,7 +73,7 @@ def post_blocks_to_channel(token, channel_name, abstract, url, opts):
         logger.error(f"An error occurred posting to {channel_name}: {e}")
 
 
-async def run(vcon_id, link_name, opts=default_options):
+def run(vcon_id, link_name, opts=default_options):
     module_name = __name__.split(".")[-1]
     logger.info(f"Starting {module_name} plugin for: {vcon_id}")
     merged_opts = default_options.copy()
@@ -81,10 +81,8 @@ async def run(vcon_id, link_name, opts=default_options):
     opts = merged_opts
     propogate_to_next_link = True
 
-    # Cannot create redis client in global context as it will wait on async event
-    # loop which may go away.
     vcon_redis = VconRedis()
-    vcon = await vcon_redis.get_vcon(vcon_id)
+    vcon = vcon_redis.get_vcon(vcon_id)
 
     for a in vcon.analysis:
         # we still need to run this check give the following scenario:
@@ -116,7 +114,7 @@ async def run(vcon_id, link_name, opts=default_options):
         )
         a["was_posted_to_slack"] = True
 
-    await vcon_redis.store_vcon(vcon)
+    vcon_redis.store_vcon(vcon)
 
     if propogate_to_next_link:
         return vcon_id  #

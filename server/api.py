@@ -6,6 +6,7 @@ from typing import Dict, List, Union, Optional
 from uuid import UUID
 
 import redis_mgr
+from redis_mgr import redis_async
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -71,31 +72,7 @@ if VCON_STORAGE:
 
 
 async def add_vcon_to_set(vcon_uuid: UUID, timestamp: int):
-    r = redis_mgr.get_client()
-    await r.zadd(VCON_SORTED_SET_NAME, {vcon_uuid: timestamp})
-
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("FASTAPI startup event")
-    redis_mgr.create_pool()
-    if VCON_STORAGE:
-        # Use peewee to connect to the database and create the table if
-        # we are supporting an external database
-        # This is how we manage the expiration of keys in REDIS
-        # We use a postgres database to store the vcon data
-        logger.info("Using external database {}".format(VCON_STORAGE))
-    else:
-        # Use redis to store the vcon data
-        # Use a sorted set, with the created_at field as the score, so that we can
-        # sort the results by date.  Convert the created_at field to a unix timestamp
-        logger.info("Using redis database")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    logger.info("event shutdown")
-    await redis_mgr.shutdown_pool()
+    await redis_async.zadd(VCON_SORTED_SET_NAME, {vcon_uuid: timestamp})
 
 
 # These are the vCon data models
@@ -136,16 +113,17 @@ async def get_vcons(
         if until:
             until_timestamp = int(until.timestamp())
         offset = (page - 1) * size
-        vcon_uuids = await r.zrevrangebyscore(
+        vcon_uuids = await redis_async.zrevrangebyscore(
             VCON_SORTED_SET_NAME,
             until_timestamp,
             since_timestamp,
             start=offset,
             num=size,
         )
+        logger.info("Returning vcon_uuids: {}".format(vcon_uuids))
 
         # Convert the vcon_uuids to strings and strip the vcon: prefix
-        vcon_uuids = [vcon.decode("utf-8").split(":")[1] for vcon in vcon_uuids]
+        vcon_uuids = [vcon.split(":")[1] for vcon in vcon_uuids]
         return vcon_uuids
 
 
@@ -169,7 +147,7 @@ async def get_vcon(vcon_uuid: UUID):
     # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
     try:
         r = redis_mgr.get_client()
-        vcon = await r.json().get(f"vcon:{str(vcon_uuid)}")
+        vcon = await redis_async.json().get(f"vcon:{str(vcon_uuid)}")
     except Exception:
         logger.info(traceback.format_exc())
         return None
@@ -212,7 +190,6 @@ async def post_vcon(inbound_vcon: Vcon):
         return JSONResponse(content=inbound_vcon.dict(), status_code=201)
     else:
         try:
-            r = redis_mgr.get_client()
             dict_vcon = inbound_vcon.dict()
             dict_vcon["uuid"] = str(inbound_vcon.uuid)
             key = f"vcon:{str(dict_vcon['uuid'])}"
@@ -223,7 +200,7 @@ async def post_vcon(inbound_vcon: Vcon):
             logger.debug(
                 "Posting vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon))
             )
-            await r.json().set(key, "$", dict_vcon)
+            await redis_async.json().set(key, "$", dict_vcon)
             # Add the vcon to the sorted set
             logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
             await add_vcon_to_set(key, timestamp)
@@ -245,8 +222,7 @@ async def post_vcon(inbound_vcon: Vcon):
 async def delete_vcon(vcon_uuid: UUID):
     # FIX: support the VCON_STORAGE case
     try:
-        r = redis_mgr.get_client()
-        await r.json().delete(f"vcon:{str(vcon_uuid)}")
+        await redis_async.json().delete(f"vcon:{str(vcon_uuid)}")
     except Exception:
         # Print all of the details of the exception
         logger.info(traceback.format_exc())
@@ -264,9 +240,17 @@ async def delete_vcon(vcon_uuid: UUID):
 )
 async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str):
     try:
-        r = redis_mgr.get_client()
         for vcon_id in vcon_uuids:
-            await r.rpush(GLOBAL_INGRESS, json.dumps({"vcon_id": vcon_id, "chain_name": ingress_list, "received_at": time.time()}))
+            await redis_async.rpush(
+                GLOBAL_INGRESS,
+                json.dumps(
+                    {
+                        "vcon_id": vcon_id,
+                        "chain_name": ingress_list,
+                        "received_at": time.time(),
+                    }
+                ),
+            )
     except Exception as e:
         logger.info("Error: {}".format(e))
         raise HTTPException(status_code=500)
@@ -282,10 +266,9 @@ async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str):
 )
 async def get_vcon_egress(egress_list: str, limit=1):
     try:
-        r = redis_mgr.get_client()
         vcon_uuids = []
         for i in range(limit):
-            vcon_uuid = await r.rpop(egress_list)
+            vcon_uuid = await redis_async.rpop(egress_list)
             if vcon_uuid:
                 vcon_uuids.append(vcon_uuid)
         return JSONResponse(content=vcon_uuids)
@@ -305,8 +288,7 @@ async def get_vcon_egress(egress_list: str, limit=1):
 )
 async def get_vcon_count(egress_list: str):
     try:
-        r = redis_mgr.get_client()
-        count = await r.llen(egress_list)
+        count = await redis_async.llen(egress_list)
         return JSONResponse(content=count)
 
     except Exception as e:
@@ -323,8 +305,7 @@ async def get_vcon_count(egress_list: str):
 )
 async def get_config():
     try:
-        r = redis_mgr.get_client()
-        config = await r.json().get("config")
+        config = await redis_async.json().get("config")
         return JSONResponse(content=config)
 
     except Exception as e:
@@ -343,7 +324,7 @@ async def get_config():
 )
 async def post_config(config: Dict, update_file_name=None):
     try:
-        await load_config(config)
+        load_config(config)
     except Exception as e:
         logger.info("Error: {}".format(e))
         raise HTTPException(status_code=500)
@@ -359,20 +340,19 @@ async def post_config(config: Dict, update_file_name=None):
 )
 async def delete_config():
     try:
-        r = redis_mgr.get_client()
-        await r.delete("config")
+        await redis_async.delete("config")
         # Delete the links
-        links = await r.keys("link:*")
+        links = await redis_async.keys("link:*")
         for link in links:
-            await r.delete(link)
+            await redis_async.delete(link)
         # Delete the storages
-        storages = await r.keys("storage:*")
+        storages = await redis_async.keys("storage:*")
         for storage in storages:
-            await r.delete(storage)
+            await redis_async.delete(storage)
         # Delete the chains
-        chains = await r.keys("chain:*")
+        chains = await redis_async.keys("chain:*")
         for chain in chains:
-            await r.delete(chain)
+            await redis_async.delete(chain)
 
     except Exception as e:
         logger.info("Error: {}".format(e))

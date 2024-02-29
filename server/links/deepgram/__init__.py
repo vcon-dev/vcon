@@ -1,7 +1,7 @@
 from typing import Optional
 from lib.logging_utils import init_logger
 import logging
-from deepgram import Deepgram
+from deepgram import DeepgramClient, PrerecordedOptions
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -36,10 +36,12 @@ def get_transcription(vcon, index):
     stop=stop_after_attempt(6),
     before_sleep=before_sleep_log(logger, logging.INFO),
 )
-async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
+def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
     url = dialog["url"]
     source = {"url": url}
-    response = await dg_client.transcription.prerecorded(source, opts)
+    options = PrerecordedOptions(**opts)
+    url_response = dg_client.listen.prerecorded.v("1").transcribe_url(source, options)
+    response = json.loads(url_response.to_json())
 
     alternatives = response["results"]["channels"][0]["alternatives"]
     detected_language = response["results"]["channels"][0]["detected_language"]
@@ -48,7 +50,7 @@ async def transcribe_dg(dg_client, dialog, opts) -> Optional[dict]:
     return transcript
 
 
-async def run(
+def run(
     vcon_uuid,
     link_name,
     opts=default_options,
@@ -58,10 +60,9 @@ async def run(
     opts = merged_opts
 
     logger.info("Starting deepgram plugin for vCon: %s", vcon_uuid)
-    # Cannot create reids client in global context as redis clients get started on async
-    # event loop which may go away.
+
     vcon_redis = VconRedis()
-    vCon = await vcon_redis.get_vcon(vcon_uuid)
+    vCon = vcon_redis.get_vcon(vcon_uuid)
 
     for index, dialog in enumerate(vCon.dialog):
         if dialog["type"] != "recording":
@@ -91,10 +92,10 @@ async def run(
             logger.info("Dialog %s already transcribed on vCon: %s", index, vCon.uuid)
             continue
 
-        dg_client = Deepgram(opts["DEEPGRAM_KEY"])
+        dg_client = DeepgramClient(opts["DEEPGRAM_KEY"])
         try:
             start = time.time()
-            result = await transcribe_dg(dg_client, dialog, opts["api"])
+            result = transcribe_dg(dg_client, dialog, opts["api"])
             stats_gauge(
                 "conserver.link.deepgram.transcription_time", time.time() - start
             )
@@ -127,14 +128,16 @@ async def run(
         # Remove credentials from vendor_schema
         vendor_schema["opts"] = {k: v for k, v in opts.items() if k != "DEEPGRAM_KEY"}
 
-        vCon.add_analysis_transcript(
+        vCon.add_analysis(
+            "transcript",
             index,
-            result,
             "deepgram",
-            json.dumps(vendor_schema),
-            analysis_type="transcript",
+            result,
+            {
+                "vendor_schema": json.dumps(vendor_schema),
+            },
         )
-    await vcon_redis.store_vcon(vCon)
+    vcon_redis.store_vcon(vCon)
 
     # Forward the vcon_uuid down the chain.
     # If you want the vCon processing to stop (if you are filtering them out, for instance)

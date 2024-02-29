@@ -14,11 +14,12 @@ RUN pip install --upgrade pip
 WORKDIR /app
 
 # TODO Update to use Poetry
-ADD  . /app
+ADD  pyproject.toml /app
+ADD  poetry.lock /app
 RUN pip install poetry==1.8.0
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-root
-
+ADD  . /app
 
 ENV PYTHONPATH "${PYTHONPATH}:/app/:/app/server/"
 

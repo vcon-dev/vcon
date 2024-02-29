@@ -29,7 +29,7 @@ default_options = {
 options = {}
 
 
-async def run(vcon_uuid, link_name, opts=default_options):
+def run(vcon_uuid, link_name, opts=default_options):
     raise NotImplementedError
     logger.info("Starting the redaction plugin")
 

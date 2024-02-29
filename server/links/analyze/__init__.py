@@ -59,7 +59,7 @@ def generate_analysis(transcript, prompt, model, temperature):
     return sentiment_result["choices"][0]["message"]["content"]
 
 
-async def run(
+def run(
     vcon_uuid,
     link_name,
     opts=default_options,
@@ -69,10 +69,9 @@ async def run(
     merged_opts = default_options.copy()
     merged_opts.update(opts)
     opts = merged_opts
-    # Cannot create redis client in global context as it will wait on async event
-    # loop which may go away.
+
     vcon_redis = VconRedis()
-    vCon = await vcon_redis.get_vcon(vcon_uuid)
+    vCon = vcon_redis.get_vcon(vcon_uuid)
 
     if not is_included(opts, vCon):
         logger.info(f"Skipping {link_name} vCon {vcon_uuid} due to filters")
@@ -144,14 +143,16 @@ async def run(
         vendor_schema = {}
         vendor_schema["model"] = opts["model"]
         vendor_schema["prompt"] = opts["prompt"]
-        vCon.add_analysis_transcript(
+        vCon.add_analysis(
+            opts["analysis_type"],
             index,
-            analysis,
             "openai",
-            json.dumps(vendor_schema),
-            analysis_type=opts["analysis_type"],
+            analysis,
+            {
+                "vendor_schema": json.dumps(vendor_schema),
+            },
         )
-    await vcon_redis.store_vcon(vCon)
+    vcon_redis.store_vcon(vCon)
     logger.info(f"Finished analyze - {module_name}:{link_name} plugin for: {vcon_uuid}")
 
     return vcon_uuid

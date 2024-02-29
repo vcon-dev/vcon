@@ -12,16 +12,15 @@ default_options = {
 }
 
 
-async def run(
+def run(
     vcon_uuid,
     link_name,
     opts=default_options,
 ):
     logger.debug("Starting script::run")
-    # Cannot create redis client in global context as it will wait on async
-    # event loop which may go away.
+
     vcon_redis = VconRedis()
-    vCon = await vcon_redis.get_vcon(vcon_uuid)
+    vCon = vcon_redis.get_vcon(vcon_uuid)
 
     # Find the transcript, if it exists.
     for analysis in vCon.analysis:
@@ -52,7 +51,7 @@ async def run(
             analysis["dialog"], "script", script, "openai", opts["prompt"]
         )
 
-    await vcon_redis.store_vcon(vCon)
+    vcon_redis.store_vcon(vCon)
 
     # Return the vcon_uuid down the chain.
     # If you want the vCon processing to stop (if you are filtering them, for instance)

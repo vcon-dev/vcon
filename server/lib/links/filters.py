@@ -17,13 +17,14 @@ def is_included(options, _vcon):
 
     try:
         for element in getattr(_vcon, section):
+            body_as_string = json.dumps(element["body"]) if element["encoding"] == "json" else element["body"]
             if not element["type"] == type:
                 continue
             if type == "tags":
-                tags = json.loads(element["body"])
+                tags = element["body"]
                 if includes in tags:
                     return True
-            elif includes in element["body"]:
+            elif includes in body_as_string:
                 return True
     except Exception as e:
         logger.error(f"Error checking inclusion: {e}")

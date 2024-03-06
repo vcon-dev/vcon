@@ -11,7 +11,5 @@ static
 !static/styles.css
 config.json
 config.yml
-logging_dev.conf
 
-server/logging.conf
 .data

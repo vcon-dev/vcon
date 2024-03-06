@@ -7,17 +7,12 @@ import redis_mgr
 from lib.logging_utils import init_logger
 from lib.metrics import init_metrics, stats_gauge, stats_count
 from lib.error_tracking import init_error_tracker
-import json
-from pydantic import BaseModel
 import signal
 from typing import List, TypedDict, Optional
-import os
 import yaml
-
+import settings
 
 shutdown_requested = False
-
-config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")
 
 
 class ChainConfig(TypedDict):
@@ -33,17 +28,17 @@ class ChainConfig(TypedDict):
 IngressChainMap = dict[str, ChainConfig]
 
 
-config = dict | None
+config: dict | None = None
 
 
 def load_config():
     logger.info("Loading config")
     try:
-        with open(config_file, 'r') as file:
+        with open(settings.CONSERVER_CONFIG_FILE, 'r') as file:
             global config
             config = yaml.safe_load(file)
     except OSError:
-        logger.error(f"Cannot find config file {config_file}")
+        logger.error(f"Cannot find config file {settings.CONSERVER_CONFIG_FILE}")
         return 
 
 
@@ -66,16 +61,13 @@ imported_modules = {}
 r = redis_mgr.get_client()
 
 
-class VconChainRequest(BaseModel):
-    chain_name: str
+class VconChainRequest:
     vcon_id: str
-    chain_details: Optional[dict] = None
+    chain_details: ChainConfig
 
-    @classmethod
-    def validate_and_construct(cls, vcon_chain_request_str):
-        _vcon_chain_request = cls.model_validate_json(vcon_chain_request_str)
-        _vcon_chain_request.chain_details = r.json().get(f"chain:{_vcon_chain_request.chain_name}")
-        return _vcon_chain_request
+    def __init__(self, chain_details: ChainConfig, vcon_id: str):
+        self.vcon_id = vcon_id
+        self.chain_details = chain_details
 
     def process(self):
         vcon_started = time.time()
@@ -100,20 +92,19 @@ class VconChainRequest(BaseModel):
     def _wrap_up(self):
         # If the module wants to forward the vCon, check if it is the last link in the chain
         # If it is, then we need to put it in the outbound queue
-        for egress_chain_name in self.chain_details.get("egress_chains", []):
-            data = {"vcon_id": self.vcon_id, "chain_name": egress_chain_name}
-            data_str = json.dumps(data)
-            r.lpush(GLOBAL_INGRESS, data_str)
+        for egress_list in self.chain_details.get("egress_lists", []):
+            r.lpush(egress_list, self.vcon_id)
 
         for storage_name in self.chain_details.get("storages", []):
             self._process_storage(storage_name)
 
-        logger.info("Finished wrap_up of chain %s for vCon: %s", self.chain_name, self.vcon_id)
+        logger.info("Finished wrap_up of chain %s for vCon: %s", self.chain_details['name'], self.vcon_id)
 
     def _process_storage(self, storage_name):
         try:
             storage_key = f"storage:{storage_name}"
             storage = r.json().get(storage_key)
+            storage = config["storages"][storage_name]
             module_name = storage["module"]
 
             if module_name not in imported_modules:
@@ -138,9 +129,7 @@ class VconChainRequest(BaseModel):
 
     def _process_link(self, link_name):
         logger.info("Started processing link %s for vCon: %s", link_name, self.vcon_id)
-        link_key = f"link:{link_name}"
-        link = r.json().get(link_key)
-        #link = json.loads(link_str)
+        link = config["links"][link_name]
 
         module_name = link["module"]
         if module_name not in imported_modules:
@@ -178,7 +167,6 @@ def get_ingress_chain_map() -> IngressChainMap:
     return ingress_details
 
 
-
 def main():
     load_config()
     ingress_chain_map = get_ingress_chain_map()
@@ -190,15 +178,15 @@ def main():
                 break
             continue
 
-        queue_name, vcon_chain_request_str = popped_item
+        ingress_list, vcon_id = popped_item
         if shutdown_requested:  # we got something from the queue but we're shutting down
-            r.lpush(queue_name, vcon_chain_request_str)  # push it back into the queue so we don't lose it
+            r.lpush(ingress_list, vcon_id)  # push it back into the queue so we don't lose it
             break
 
-        log_llen(queue_name)
-        vcon_chain_request = VconChainRequest.validate_and_construct(vcon_chain_request_str)
+        log_llen(ingress_list)
+        chain_details = ingress_chain_map[ingress_list]
+        vcon_chain_request = VconChainRequest(chain_details, vcon_id)
         vcon_chain_request.process()
-
 
 
 # Let's defer this.  See https://trello.com/c/NXDio6D8/1249-refactor-conserver-benchmark-logs

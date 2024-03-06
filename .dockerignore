@@ -28,3 +28,4 @@ examples
 htmlcov
 test-reports
 venv
+config.yml

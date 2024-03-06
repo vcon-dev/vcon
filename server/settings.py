@@ -19,3 +19,5 @@ WEVIATE_API_KEY = os.getenv('WEVIATE_API_KEY')
 VCON_SORTED_FORCE_RESET = os.getenv("VCON_SORTED_FORCE_RESET", "true")
 VCON_SORTED_SET_NAME = os.getenv("VCON_SORTED_SET_NAME", "vcons")
 GLOBAL_INGRESS = "ingress_gather"
+
+CONSERVER_CONFIG_FILE = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")

@@ -1,19 +1,50 @@
 import importlib
 import time
 import redis_mgr
-from server.load_config import (
-    load_config,
-)
+# from server.load_config import (
+#     load_config,
+# )
 from lib.logging_utils import init_logger
 from lib.metrics import init_metrics, stats_gauge, stats_count
 from lib.error_tracking import init_error_tracker
 import json
-from settings import GLOBAL_INGRESS
 from pydantic import BaseModel
 import signal
-from typing import Optional
+from typing import List, TypedDict, Optional
+import os
+import yaml
+
 
 shutdown_requested = False
+
+config_file = os.getenv("CONSERVER_CONFIG_FILE", "./example_config.yml")
+
+
+class ChainConfig(TypedDict):
+    name: str
+    links: Optional[List[str]]
+    storages: Optional[List[str]]
+    ingress_lists: List[str]
+    egress_lists: Optional[List[str]]
+    enabled: int
+    timeout: Optional[int]
+
+
+IngressChainMap = dict[str, ChainConfig]
+
+
+config = dict | None
+
+
+def load_config():
+    logger.info("Loading config")
+    try:
+        with open(config_file, 'r') as file:
+            global config
+            config = yaml.safe_load(file)
+    except OSError:
+        logger.error(f"Cannot find config file {config_file}")
+        return 
 
 
 def signal_handler(signum, frame):
@@ -136,22 +167,38 @@ class VconChainRequest(BaseModel):
         return should_continue_chain
 
 
+def get_ingress_chain_map() -> IngressChainMap:
+    chains = config.get("chains", {})
+    ingress_details = {}
+    chain_name: str
+    chain_config: dict
+    for chain_name, chain_config in chains.items():
+        for ingress_list in chain_config.get("ingress_lists", []):
+            ingress_details[ingress_list] = {"name": chain_name, **chain_config}
+    return ingress_details
+
+
+
 def main():
     load_config()
+    ingress_chain_map = get_ingress_chain_map()
+    all_ingress_lists = list(ingress_chain_map.keys())
     while not shutdown_requested:
-        poped_item = r.blpop(GLOBAL_INGRESS, timeout=15)
-        if shutdown_requested:
-            if poped_item:
-                r.lpush(GLOBAL_INGRESS, poped_item[1])  # push it back into the list since we're shutting down
-            break
-        if not poped_item:  # it was a timeout
+        popped_item = r.blpop(all_ingress_lists, timeout=15)
+        if not popped_item:
+            if shutdown_requested:
+                break
             continue
-        log_llen()
-        vcon_chain_request_str = poped_item[1]
-        print(f"Type of vcon_chain_request_str: {type(vcon_chain_request_str)}")
-        print(f"Processing vcon_chain_request_str: {vcon_chain_request_str}")
+
+        queue_name, vcon_chain_request_str = popped_item
+        if shutdown_requested:  # we got something from the queue but we're shutting down
+            r.lpush(queue_name, vcon_chain_request_str)  # push it back into the queue so we don't lose it
+            break
+
+        log_llen(queue_name)
         vcon_chain_request = VconChainRequest.validate_and_construct(vcon_chain_request_str)
         vcon_chain_request.process()
+
 
 
 # Let's defer this.  See https://trello.com/c/NXDio6D8/1249-refactor-conserver-benchmark-logs
@@ -171,13 +218,13 @@ def main():
 #     return wrapper
 
 
-def log_llen():
-    llen = r.llen(GLOBAL_INGRESS)
+def log_llen(list_name: str):
+    llen = r.llen(list_name)
     logger.info(
         "Ingress list %s has %s items left",
-        GLOBAL_INGRESS,
+        list_name,
         llen,
-        extra={"llen": llen, "ingress_list": GLOBAL_INGRESS},
+        extra={"llen": llen, "ingress_list": list_name},
     )
 
 

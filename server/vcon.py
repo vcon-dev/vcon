@@ -1,3 +1,4 @@
+import copy
 import json
 from typing import Optional, Union
 import hashlib
@@ -121,39 +122,84 @@ class Vcon:
     def add_dialog(self, dialog: dict):
         self.vcon_dict["dialog"].append(dialog)
 
-    def to_json(self):
-        tmp_vcon_dict = json.loads(json.dumps(self.vcon_dict))
+    def to_json(self) -> str:
+        tmp_vcon_dict = copy.copy(self.vcon_dict)
         for attachment in tmp_vcon_dict["attachments"]:
             # assume json if encoding is not present
-            if attachment.get("encoding", None) in ["json", None]:
+            if attachment.get("encoding") in ["json", None]:
                 attachment["body"] = json.dumps(attachment["body"])
         return json.dumps(tmp_vcon_dict)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return json.loads(self.to_json())  # convert from internal dict format to vcon format
 
-    def dumps(self):
+    def dumps(self) -> str:
         return self.to_json()
 
     @property
-    def parties(self):
-        return self.vcon_dict["parties"]
+    def parties(self) -> list:
+        return self.vcon_dict.get("parties", [])
 
     @property
-    def dialog(self):
-        return self.vcon_dict["dialog"]
+    def dialog(self) -> list:
+        return self.vcon_dict.get("dialog", [])
 
     @property
-    def attachments(self):
-        return self.vcon_dict["attachments"]
+    def attachments(self) -> list:
+        return self.vcon_dict.get("attachments", [])
 
     @property
     def analysis(self):
-        return self.vcon_dict["analysis"]
+        return self.vcon_dict.get("analysis", [])
 
     @property
-    def uuid(self):
+    def uuid(self) -> str:
+        """
+        The [UUID] for the vCon is used to refer to it when privacy or
+        security may not allow for inclusion or URL reference to a vCon.  The
+        UUID MUST be globally unique.
+        """
         return self.vcon_dict["uuid"]
+
+    @property
+    def vcon(self) -> str:
+        """
+        The the value of vcon parameter contains the syntactic version of the JSON format used in the vCon.
+        """
+        return self.vcon_dict["vcon"]
+
+    @property
+    def subject(self) -> Optional[str]:
+        return self.vcon_dict.get("subject")
+
+    @property
+    def created_at(self):
+        """"
+        The created_at parameter provides the creation time of this vcon,
+        which MUST be present, and should not changed once the vcon object is
+        created.
+        """
+        return self.vcon_dict.get("created_at")
+
+    @property
+    def updated_at(self):
+        return self.vcon_dict.get("updated_at")
+
+    @property
+    def redacted(self):
+        return self.vcon_dict.get("redacted")
+
+    @property
+    def appended(self):
+        return self.vcon_dict.get("appended")
+
+    @property
+    def group(self):
+        return self.vcon_dict.get("group", [])
+
+    @property
+    def meta(self):
+        return self.vcon_dict.get("meta", {})
 
     @staticmethod
     def uuid8_domain_name(domain_name: str) -> str:

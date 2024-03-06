@@ -14,16 +14,14 @@ logger = init_logger(__name__)
 default_options = {"name": "postgres"}
 
 
-async def save(
+def save(
     vcon_uuid,
     opts=default_options,
 ):
     logger.info("Starting the Postgres storage for vCon: %s", vcon_uuid)
     try:
-        # cannot have redis clients in the global context as they get
-        # created on an async event loop which may go away.
         vcon_redis = VconRedis()
-        vcon = await vcon_redis.get_vcon(vcon_uuid)
+        vcon = vcon_redis.get_vcon(vcon_uuid)
         # Connect to Postgres
         db = PostgresqlExtDatabase(
             opts["database"],
@@ -65,7 +63,7 @@ async def save(
             "created_at": vcon.created_at,
             "updated_at": datetime.now(),
             "subject": vcon.subject,
-            "vcon_json": json.loads(vcon.dumps()),
+            "vcon_json": vcon.to_dict(),
             "type": source,
         }
         Vcons.insert(**vcon_data).on_conflict(

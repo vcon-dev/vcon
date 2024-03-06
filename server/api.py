@@ -172,7 +172,7 @@ async def post_vcon(inbound_vcon: Vcon):
         # Create a new vcon in the database
         # Use peewee
         id = inbound_vcon.uuid
-        vcon_json = inbound_vcon.json()
+        vcon_json = inbound_vcon.model_dump_json()
         uuid = inbound_vcon.uuid
         created_at = inbound_vcon.created_at
         updated_at = inbound_vcon.updated_at or inbound_vcon.created_at
@@ -242,14 +242,8 @@ async def post_vcon_ingress(vcon_uuids: List[str], ingress_list: str):
     try:
         for vcon_id in vcon_uuids:
             await redis_async.rpush(
-                GLOBAL_INGRESS,
-                json.dumps(
-                    {
-                        "vcon_id": vcon_id,
-                        "chain_name": ingress_list,
-                        "received_at": time.time(),
-                    }
-                ),
+                ingress_list,
+                vcon_id,
             )
     except Exception as e:
         logger.info("Error: {}".format(e))

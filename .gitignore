@@ -14,3 +14,4 @@ config.yml
 logging_dev.conf
 
 server/logging.conf
+.data

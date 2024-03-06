@@ -9,16 +9,14 @@ logger = init_logger(__name__)
 default_options = {}
 
 
-async def save(
+def save(
     vcon_uuid,
     opts=default_options,
 ):
     logger.info("Starting the S3 storage for vCon: %s", vcon_uuid)
     try:
-        # Cannot create redis client in global context as it can get blocked on async
-        # event loop which may go away.
         vcon_redis = VconRedis()
-        vcon = await vcon_redis.get_vcon(vcon_uuid)
+        vcon = vcon_redis.get_vcon(vcon_uuid)
         s3 = boto3.client(
             "s3",
             aws_access_key_id=opts["aws_access_key_id"],

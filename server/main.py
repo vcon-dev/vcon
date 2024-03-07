@@ -10,6 +10,7 @@ from lib.error_tracking import init_error_tracker
 import signal
 from typing import List, TypedDict, Optional
 import yaml
+from dlq_utils import get_ingress_list_dlq_name
 import settings
 
 shutdown_requested = False
@@ -43,7 +44,7 @@ def load_config():
 
 
 def signal_handler(signum, frame):
-    print('SIGTERM received, initiating graceful shutdown...')
+    logger.info('SIGTERM received, initiating graceful shutdown...')
     # Set a global flag to stop the loop or exit the blocking call safely
     global shutdown_requested
     shutdown_requested = True
@@ -186,7 +187,11 @@ def main():
         log_llen(ingress_list)
         chain_details = ingress_chain_map[ingress_list]
         vcon_chain_request = VconChainRequest(chain_details, vcon_id)
-        vcon_chain_request.process()
+        try:
+            vcon_chain_request.process()
+        except Exception as e:
+            logger.error("Error processing vCon %s: %s. Moving it to the Dead Letter Queue.", vcon_id, e)
+            r.lpush(get_ingress_list_dlq_name(ingress_list), vcon_id)
 
 
 # Let's defer this.  See https://trello.com/c/NXDio6D8/1249-refactor-conserver-benchmark-logs

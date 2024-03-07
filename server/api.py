@@ -1,5 +1,3 @@
-import json
-import time
 import traceback
 from datetime import datetime
 from typing import Dict, List, Union, Optional
@@ -20,7 +18,8 @@ from playhouse.postgres_ext import (
     UUIDField,
 )
 from pydantic import BaseModel
-from settings import VCON_SORTED_SET_NAME, VCON_STORAGE, GLOBAL_INGRESS
+from dlq_utils import get_ingress_list_dlq_name
+from settings import VCON_SORTED_SET_NAME, VCON_STORAGE
 
 logger = init_logger(__name__)
 logger.info("Api starting up")
@@ -351,3 +350,21 @@ async def delete_config():
     except Exception as e:
         logger.info("Error: {}".format(e))
         raise HTTPException(status_code=500)
+
+
+# Reprocess Dead Letter Queue
+@app.post(
+    "/dql/reprocess",
+    status_code=200,
+    summary="Reprocess the dead letter queue",
+    description="Move the dead letter queue vcons back to the ingress chain",
+    tags=["chain"],
+)
+async def post_dlq_reprocess(ingress_list: str):
+    # Get all items from redis list and move them back to the ingress list
+    dlq_name = get_ingress_list_dlq_name(ingress_list)
+    counter = 0
+    while item := await redis_async.rpop(dlq_name):
+        await redis_async.rpush(ingress_list, item)
+        counter += 1
+    return JSONResponse(content=counter)

@@ -7,7 +7,6 @@ default_options = {
     "tags": ["iron", "maiden"],
 }
 
-
 def run(
     vcon_uuid,
     link_name,
@@ -17,7 +16,7 @@ def run(
 
     vcon_redis = VconRedis()
     vCon = vcon_redis.get_vcon(vcon_uuid)
-    vCon.add_analysis(0, "tags", opts["tags"])
+    vCon.add_analysis(0, "tags", opts["tags"])  # TODO fix and test that link (first argument is type now)
     vcon_redis.store_vcon(vCon)
 
     # Return the vcon_uuid down the chain.

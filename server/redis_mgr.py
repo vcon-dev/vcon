@@ -17,7 +17,6 @@ from settings import REDIS_URL
 
 logger = init_logger(__name__)
 
-redis_async = RedisAsync.from_url(REDIS_URL, decode_responses=True)
 redis = Redis.from_url(REDIS_URL, decode_responses=True)
 
 
@@ -41,5 +40,9 @@ def delete_key(key):
 
 
 def show_keys(pattern):
-    result = r.keys(pattern)
+    result = redis.keys(pattern)
     return result
+
+
+async def get_async_client():
+    return await RedisAsync.from_url(REDIS_URL, decode_responses=True)

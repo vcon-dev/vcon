@@ -1,7 +1,10 @@
 from fastapi.testclient import TestClient
 from vcon_fixture import generate_mock_vcon
 import pytest
-import server.api as api
+import api
+from datetime import datetime
+
+since_str = datetime.now().isoformat()
 
 
 def post_vcon(vcon):
@@ -50,7 +53,7 @@ def test_get_vcons():
     # Read the vcons back using the test client, deleting them as we go
     with TestClient(api.app) as client:
         # Get the list of vCons from the server
-        response = client.get("/vcon")
+        response = client.get(f"/vcon?since={since_str}")
         assert response.status_code == 200
         print("response: {}".format(response))
 

@@ -4,8 +4,8 @@ from typing import Dict, List, Union, Optional
 from uuid import UUID
 
 import redis_mgr
-from redis_mgr import redis_async
 from fastapi import FastAPI, HTTPException
+from fastapi.routing import Lifespan
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from lib.logging_utils import init_logger
@@ -27,6 +27,22 @@ logger.info("Api starting up")
 
 # Load FastAPI app
 app = FastAPI()
+redis_async = None
+
+
+async def on_startup():
+    global redis_async
+    redis_async = await redis_mgr.get_async_client()
+
+
+async def on_shutdown():
+    await redis_async.close()
+
+
+app.router.add_event_handler("startup", on_startup)
+app.router.add_event_handler("shutdown", on_shutdown)
+
+
 
 
 app.add_middleware(
@@ -50,7 +66,7 @@ class Vcon(BaseModel):
     dialog: List[Dict] = []
     analysis: List[Dict] = []
     attachments: List[Dict] = []
-    meta: dict = {}
+    meta: Optional[dict] = {}
 
 
 if VCON_STORAGE:
@@ -89,41 +105,28 @@ async def add_vcon_to_set(vcon_uuid: UUID, timestamp: int):
 async def get_vcons(
     page: int = 1, size: int = 50, since: datetime = None, until: datetime = None
 ):
-    if VCON_STORAGE:
-        offset = (page - 1) * size
-        query = VConPeeWee.select()
-        if since:
-            query = query.where(VConPeeWee.created_at > since)
-        if until:
-            query = query.where(VConPeeWee.created_at < until)
-        query = query.order_by(VConPeeWee.created_at.desc()).offset(offset).limit(size)
-        r = [str(vcon.uuid) for vcon in query]
-        return r
+    # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
+    until_timestamp = "+inf"
+    since_timestamp = "-inf"
 
-    else:
-        # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
-        r = redis_mgr.get_client()
-        until_timestamp = "+inf"
-        since_timestamp = "-inf"
+    # We can either use the page and offset, or the since and until parameters
+    if since:
+        since_timestamp = int(since.timestamp())
+    if until:
+        until_timestamp = int(until.timestamp())
+    offset = (page - 1) * size
+    vcon_uuids = await redis_async.zrevrangebyscore(
+        VCON_SORTED_SET_NAME,
+        until_timestamp,
+        since_timestamp,
+        start=offset,
+        num=size,
+    )
+    logger.info("Returning vcon_uuids: {}".format(vcon_uuids))
 
-        # We can either use the page and offset, or the since and until parameters
-        if since:
-            since_timestamp = int(since.timestamp())
-        if until:
-            until_timestamp = int(until.timestamp())
-        offset = (page - 1) * size
-        vcon_uuids = await redis_async.zrevrangebyscore(
-            VCON_SORTED_SET_NAME,
-            until_timestamp,
-            since_timestamp,
-            start=offset,
-            num=size,
-        )
-        logger.info("Returning vcon_uuids: {}".format(vcon_uuids))
-
-        # Convert the vcon_uuids to strings and strip the vcon: prefix
-        vcon_uuids = [vcon.split(":")[1] for vcon in vcon_uuids]
-        return vcon_uuids
+    # Convert the vcon_uuids to strings and strip the vcon: prefix
+    vcon_uuids = [vcon.split(":")[1] for vcon in vcon_uuids]
+    return vcon_uuids
 
 
 @app.get(
@@ -134,29 +137,10 @@ async def get_vcons(
     tags=["vcon"],
 )
 async def get_vcon(vcon_uuid: UUID):
-    if VCON_STORAGE:
-        q = VConPeeWee.select().where(VConPeeWee.uuid == vcon_uuid)
-        r = q.get()
-        # If we didn't find the vcon, return a 404, otherwise return the vcon
-        if r is None:
-            return JSONResponse(status_code=404)
-        else:
-            return JSONResponse(content=r.vcon_json)
-
-    # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
-    try:
-        r = redis_mgr.get_client()
-        vcon = await redis_async.json().get(f"vcon:{str(vcon_uuid)}")
-    except Exception:
-        logger.info(traceback.format_exc())
-        return None
-    logger.debug(
-        "Returning whole vcon for {} found: {}".format(vcon_uuid, vcon is not None)
-    )
-    if vcon is None:
-        return JSONResponse(content=None, status_code=404)
-    else:
-        return JSONResponse(content=vcon)
+    vcon = await redis_async.json().get(f"vcon:{str(vcon_uuid)}")
+    
+    status_code = 200 if vcon else 404
+    return JSONResponse(content=vcon, status_code=status_code)
 
 
 @app.post(
@@ -167,48 +151,27 @@ async def get_vcon(vcon_uuid: UUID):
     tags=["vcon"],
 )
 async def post_vcon(inbound_vcon: Vcon):
-    if VCON_STORAGE:
-        # Create a new vcon in the database
-        # Use peewee
-        id = inbound_vcon.uuid
-        vcon_json = inbound_vcon.model_dump_json()
-        uuid = inbound_vcon.uuid
-        created_at = inbound_vcon.created_at
-        updated_at = inbound_vcon.updated_at or inbound_vcon.created_at
-        subject = inbound_vcon.subject
-        type = inbound_vcon.type
-        VConPeeWee.create(
-            id=id,
-            uuid=uuid,
-            created_at=created_at,
-            updated_at=updated_at,
-            subject=subject,
-            type=type,
-            vcon_json=vcon_json,
-        )
-        return JSONResponse(content=inbound_vcon.dict(), status_code=201)
-    else:
-        try:
-            dict_vcon = inbound_vcon.dict()
-            dict_vcon["uuid"] = str(inbound_vcon.uuid)
-            key = f"vcon:{str(dict_vcon['uuid'])}"
-            created_at = datetime.fromisoformat(dict_vcon["created_at"])
-            timestamp = int(created_at.timestamp())
+    try:
+        dict_vcon = inbound_vcon.model_dump()
+        dict_vcon["uuid"] = str(inbound_vcon.uuid)
+        key = f"vcon:{str(dict_vcon['uuid'])}"
+        created_at = datetime.fromisoformat(dict_vcon["created_at"])
+        timestamp = int(created_at.timestamp())
 
-            # Store the vcon in redis
-            logger.debug(
-                "Posting vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon))
-            )
-            await redis_async.json().set(key, "$", dict_vcon)
-            # Add the vcon to the sorted set
-            logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
-            await add_vcon_to_set(key, timestamp)
-        except Exception:
-            # Print all of the details of the exception
-            logger.info(traceback.format_exc())
-            return None
-        logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
-        return JSONResponse(content=dict_vcon, status_code=201)
+        # Store the vcon in redis
+        logger.debug(
+            "Posting vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon))
+        )
+        await redis_async.json().set(key, "$", dict_vcon)
+        # Add the vcon to the sorted set
+        logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
+        await add_vcon_to_set(key, timestamp)
+    except Exception:
+        # Print all of the details of the exception
+        logger.info(traceback.format_exc())
+        return None
+    logger.debug("Posted vcon  {} len {}".format(inbound_vcon.uuid, len(dict_vcon)))
+    return JSONResponse(content=dict_vcon, status_code=201)
 
 
 @app.delete(

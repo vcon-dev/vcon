@@ -4,7 +4,7 @@ from typing import Optional, Union
 import hashlib
 import time
 import uuid6
-from datetime import datetime
+from datetime import datetime, UTC
 from pydash import get as _get
 
 
@@ -31,7 +31,7 @@ class Vcon:
         vcon_dict = {
             "uuid": cls.uuid8_domain_name("strolid.com"),
             "vcon": "0.0.1",
-            "created_at": datetime.utcnow().isoformat()[:-3] + "+00:00",
+            "created_at": datetime.now(UTC).isoformat()[:-3] + "+00:00",
             "redacted": {},
             "group": [],
             "parties": [],
@@ -73,7 +73,7 @@ class Vcon:
             (a for a in self.vcon_dict["attachments"] if a["type"] == type), None
         )
 
-    def add_attachment(self, body: Union[dict, list, str], type, encoding="json"):
+    def add_attachment(self, body: Union[dict, list, str], type: str, encoding="json"):
         if isinstance(body, str) and encoding == "json":
             body = json.loads(body)
 
@@ -84,7 +84,7 @@ class Vcon:
         }
         self.vcon_dict["attachments"].append(attachment)
 
-    def find_analysis_by_type(self, type):
+    def find_analysis_by_type(self, type):  # TODO fix to search for specific dialog id if it's passed
         return next((a for a in self.vcon_dict["analysis"] if a["type"] == type), None)
 
     def add_analysis(self, type: str, dialog: Union[list, int], vendor: str, body: Union[dict, list, str], encoding="json", extra={}):

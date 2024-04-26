@@ -1,9 +1,4 @@
 ---
-environment:
-  HOSTNAME: https://localhost:8000
-  STITCHER_DATABASE_URL: ''
-  SLACK_TOKEN: ''
-  OPENAI_API_KEY: ''
 links:
   transcribe:
     module: links.transcribe
@@ -73,6 +68,3 @@ chains:
     egress_lists:
     - test_output
     enabled: 1
-adapters:
-  chatgpt:
-    module: adapters.chatgpt

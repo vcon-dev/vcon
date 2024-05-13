@@ -457,6 +457,44 @@ trio = ["trio (>=0.23)"]
 wmi = ["wmi (>=1.5.1)"]
 
 [[package]]
+name = "elastic-transport"
+version = "8.13.0"
+description = "Transport classes and utilities shared among Python Elastic client libraries"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "elastic-transport-8.13.0.tar.gz", hash = "sha256:2410ec1ff51221e8b3a01c0afa9f0d0498e1386a269283801f5c12f98e42dc45"},
+    {file = "elastic_transport-8.13.0-py3-none-any.whl", hash = "sha256:aec890afdddd057762b27ff3553b0be8fa4673ec1a4fd922dfbd00325874bb3d"},
+]
+
+[package.dependencies]
+certifi = "*"
+urllib3 = ">=1.26.2,<3"
+
+[package.extras]
+develop = ["aiohttp", "furo", "httpx", "mock", "opentelemetry-api", "opentelemetry-sdk", "orjson", "pytest", "pytest-asyncio", "pytest-cov", "pytest-httpserver", "pytest-mock", "requests", "respx", "sphinx (>2)", "sphinx-autodoc-typehints", "trustme"]
+
+[[package]]
+name = "elasticsearch"
+version = "8.13.1"
+description = "Python client for Elasticsearch"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "elasticsearch-8.13.1-py3-none-any.whl", hash = "sha256:ba2b3f8b30a7a81beae690f1cede52fbcfd29baf3ef5bb028d4fa86972feebd8"},
+    {file = "elasticsearch-8.13.1.tar.gz", hash = "sha256:1594d2d1293672db62525bc4688d86cdaf118db0f901808db28dc90ad19b81e1"},
+]
+
+[package.dependencies]
+elastic-transport = ">=8.13,<9"
+
+[package.extras]
+async = ["aiohttp (>=3,<4)"]
+orjson = ["orjson (>=3)"]
+requests = ["requests (>=2.4.0,<3.0.0)"]
+vectorstore-mmr = ["numpy (>=1)", "simsimd (>=3)"]
+
+[[package]]
 name = "faker"
 version = "24.1.0"
 description = "Faker is a Python package that generates fake data for you."
@@ -1815,4 +1853,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.12.2"
-content-hash = "429ccb60e9dd022e094c1c60f1f0ccb61988652534625aa9f4200a4ef219ae5b"
+content-hash = "faf578b3c739ff8c8bf3f74289106447de50e4f8a79194bb48a9d47d0f1abcb4"

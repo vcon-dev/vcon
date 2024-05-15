@@ -1,0 +1,116 @@
+{
+    "uuid": "1ba06c0c-97ea-439f-8691-717ef86e4f3e",
+    "created_at": "2024-03-16T15:35:16.334466",
+    "updated_at": "2024-03-16T15:35:16.334466",
+    "dialog": [
+        {
+            "alg": "SHA-512",
+            "url": "https://fakevcons.s3.amazonaws.com/2024/03/16/1ba06c0c-97ea-439f-8691-717ef86e4f3e.mp3?AWSAccessKeyId=AKIA2ELNPGOAXBNEXI6Z&Signature=bORY3h2NEEJfCihuL7oVA0dgI%2FY%3D&Expires=1710570916",
+            "meta": {
+                "direction": "in",
+                "disposition": "ANSWERED"
+            },
+            "type": "recording",
+            "start": "2024-03-16T15:35:16.334358",
+            "parties": [
+                1,
+                0
+            ],
+            "duration": 65.088,
+            "filename": "1ba06c0c-97ea-439f-8691-717ef86e4f3e.mp3",
+            "mimetype": "audio/mp3",
+            "signature": "7KCqShN7J4d970dKolWT-GX2emVwrx6WFHItMFSOQrFAkI0UrpjmRpoHKJC3NxSErrbKBdWtd8TfELGDX69Xkw"
+        }
+    ],
+    "parties": [
+        {
+            "tel": "+13239920996",
+            "meta": {
+                "role": "agent"
+            },
+            "name": "Michael Henderson",
+            "mailto": "michael.henderson@musicstore.com"
+        },
+        {
+            "tel": "+16656535292",
+            "meta": {
+                "role": "customer"
+            },
+            "name": "Martha Lee",
+            "email": "martha.lee@gmail.com"
+        }
+    ],
+    "attachments": [
+        {
+            "type": "generation_info", "encoding":"none",
+            "body": {
+                "agent_name": "Michael Henderson",
+                "customer_name": "Martha Lee",
+                "business": "Music Store",
+                "problem": "data management",
+                "emotion": "surprised",
+                "prompt": "\nGenerate a fake conversation between a customer and an agent.  \nThe agent should introduce themselves, their company and give the customer their name. The agent should ask for the customer's name.\nAs part of the conversation, have the agent ask for two pieces of personal information.  \nSpell out numbers. For example, 1000 should be said as one zero zero zero, not one thousand.\nThe conversation should be at least 10 lines long and be complete. At the end\nof the conversation, the agent should thank the customer for their time and end the conversation.\nReturn the conversation formatted like the following example:\n\n{'conversation': \n    [\n    {'speaker': 'Agent', 'message': 'xxxxx'}, \n    {'speaker': 'Customer', 'message': \"xxxxx.\"}, \n    {'speaker': 'Agent', 'message': \"xxxxxx\"}\n    ] \n}\n",
+                "created_on": "2024-03-16T15:35:16.334448",
+                "model": "gpt-4-0125-preview"
+            }
+        }
+    ],
+    "analysis": [
+        {
+            "type": "transcript",
+            "dialog": 0,
+            "vendor": "openai",
+            "encoding": "none",
+            "body": [
+                {
+                    "speaker": "Agent",
+                    "message": "Hello! My name is Michael Henderson, and I'm with Rhythm & Notes Music Store. May I have your name, please?"
+                },
+                {
+                    "speaker": "Customer",
+                    "message": "Oh, hi! Yes, my name is Martha Lee."
+                },
+                {
+                    "speaker": "Agent",
+                    "message": "Thank you, Martha! How can I assist you today?"
+                },
+                {
+                    "speaker": "Customer",
+                    "message": "Well, I've encountered an issue. It seems like some of my purchase history is missing from my online account. I'm quite surprised; I thought these things were automated."
+                },
+                {
+                    "speaker": "Agent",
+                    "message": "I understand how that can be surprising, Martha. To better assist you, may I have two pieces of personal information: your email address and the last four digits of your phone number?"
+                },
+                {
+                    "speaker": "Customer",
+                    "message": "Sure. My email is martha.lee@example.com, and the last four digits are one two three four."
+                },
+                {
+                    "speaker": "Agent",
+                    "message": "Thank you for providing that, Martha. It will help us identify the issue with your account. I will look into this problem right away."
+                },
+                {
+                    "speaker": "Customer",
+                    "message": "Thank you, Michael. I appreciate your help."
+                },
+                {
+                    "speaker": "Agent",
+                    "message": "It's my pleasure, Martha. We\u2019ll make sure to update you as soon as we've fixed the issue. Is there anything else I can help you with today?"
+                },
+                {
+                    "speaker": "Customer",
+                    "message": "No, that will be all for now. Thank you."
+                },
+                {
+                    "speaker": "Agent",
+                    "message": "You're welcome, Martha! Thank you for your time and for contacting Rhythm & Notes Music Store. Have a great day!"
+                }
+            ],
+            "vendor_schema": {
+                "model": "gpt-4-0125-preview",
+                "prompt": "\nGenerate a fake conversation between a customer and an agent.  \nThe agent should introduce themselves, their company and give the customer their name. The agent should ask for the customer's name.\nAs part of the conversation, have the agent ask for two pieces of personal information.  \nSpell out numbers. For example, 1000 should be said as one zero zero zero, not one thousand.\nThe conversation should be at least 10 lines long and be complete. At the end\nof the conversation, the agent should thank the customer for their time and end the conversation.\nReturn the conversation formatted like the following example:\n\n{'conversation': \n    [\n    {'speaker': 'Agent', 'message': 'xxxxx'}, \n    {'speaker': 'Customer', 'message': \"xxxxx.\"}, \n    {'speaker': 'Agent', 'message': \"xxxxxx\"}\n    ] \n}\n"
+            }
+        }
+    ]
+}

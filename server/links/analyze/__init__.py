@@ -144,11 +144,12 @@ def run(
         vendor_schema["model"] = opts["model"]
         vendor_schema["prompt"] = opts["prompt"]
         vCon.add_analysis(
-            opts["analysis_type"],
-            index,
-            "openai",
-            analysis,
-            {
+            type=opts["analysis_type"],
+            dialog=index,
+            vendor="openai",
+            body=analysis,
+            encoding="json",
+            extra={
                 "vendor_schema": json.dumps(vendor_schema),
             },
         )

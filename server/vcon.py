@@ -73,7 +73,7 @@ class Vcon:
             (a for a in self.vcon_dict["attachments"] if a["type"] == type), None
         )
 
-    def add_attachment(self, body: Union[dict, list, str], type: str, encoding="json"):
+    def add_attachment(self, *, body: Union[dict, list, str], type: str, encoding="json"):
         if isinstance(body, str) and encoding == "json":
             body = json.loads(body)
 
@@ -87,7 +87,7 @@ class Vcon:
     def find_analysis_by_type(self, type):  # TODO fix to search for specific dialog id if it's passed
         return next((a for a in self.vcon_dict["analysis"] if a["type"] == type), None)
 
-    def add_analysis(self, type: str, dialog: Union[list, int], vendor: str, body: Union[dict, list, str], encoding="json", extra={}):
+    def add_analysis(self, *, type: str, dialog: Union[list, int], vendor: str, body: Union[dict, list, str], encoding="json", extra={}):
         if isinstance(body, str) and encoding == "json":
             body = json.loads(body)
         analysis = {

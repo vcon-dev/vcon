@@ -129,11 +129,11 @@ def run(
         vendor_schema["opts"] = {k: v for k, v in opts.items() if k != "DEEPGRAM_KEY"}
 
         vCon.add_analysis(
-            "transcript",
-            index,
-            "deepgram",
-            result,
-            {
+            type="transcript",
+            dialog=index,
+            vendor="deepgram",
+            body=result,
+            extra={
                 "vendor_schema": json.dumps(vendor_schema),
             },
         )

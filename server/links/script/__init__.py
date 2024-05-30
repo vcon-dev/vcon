@@ -48,7 +48,7 @@ def run(
             script = transcript
         # TODO: Add new mime type for script (text/plain)
         vCon.add_analysis(
-            analysis["dialog"], "script", script, "openai", opts["prompt"]
+            dialog=dialog_index, type="script", body=script, vendor="openai", extra=opts["prompt"]
         )
 
     vcon_redis.store_vcon(vCon)

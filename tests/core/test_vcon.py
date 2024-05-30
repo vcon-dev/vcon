@@ -41,14 +41,14 @@ def test_tags():
 
 def test_add_attachment():
     vcon = Vcon.build_new()
-    vcon.add_attachment({"key": "value"}, "test_type")
+    vcon.add_attachment(body={"key": "value"}, type="test_type")
     attachment = vcon.find_attachment_by_type("test_type")
     assert attachment["body"] == {"key": "value"}
 
 
 def test_add_analysis():
     vcon = Vcon.build_new()
-    vcon.add_analysis("test_type", [1, 2], "test_vendor", {"key": "value"})
+    vcon.add_analysis(type="test_type", dialog=[1, 2], vendor="test_vendor", body={"key": "value"})
     analysis = vcon.find_analysis_by_type("test_type")
     assert analysis["body"] == {"key": "value"}
     assert analysis["dialog"] == [1, 2]
@@ -87,14 +87,14 @@ def test_get_tag():
 
 def test_find_attachment_by_type():
     vcon = Vcon.build_new()
-    vcon.add_attachment({"key": "value"}, "test_type")
+    vcon.add_attachment(body={"key": "value"}, type="test_type")
     assert vcon.find_attachment_by_type("test_type") == {"type": "test_type", "body": {"key": "value"}, "encoding": "json"}
     assert vcon.find_attachment_by_type("nonexistent_type") is None
 
 
 def test_find_analysis_by_type():
     vcon = Vcon.build_new()
-    vcon.add_analysis("test_type", [1, 2], "test_vendor", {"key": "value"})
+    vcon.add_analysis(type="test_type", dialog=[1, 2], vendor="test_vendor", body={"key": "value"})
     assert vcon.find_analysis_by_type("test_type") == {"type": "test_type", "dialog": [1, 2], "vendor": "test_vendor", "body": {"key": "value"}, "encoding": "json"}
     assert vcon.find_analysis_by_type("nonexistent_type") is None
 

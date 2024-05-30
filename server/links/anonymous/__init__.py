@@ -37,7 +37,7 @@ def run(
 
             anonymous = summarize_result["choices"][0]["text"]
             vCon.add_analysis(
-                analysis["dialog"], "anonymous", anonymous, "openai", opts["prompt"]
+                dialog=analysis["dialog"], type="anonymous", body=anonymous, vendor="openai", extra=opts["prompt"]
             )
 
     vcon_redis.store_vcon(vCon)

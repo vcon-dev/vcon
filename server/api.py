@@ -331,3 +331,30 @@ async def post_dlq_reprocess(ingress_list: str):
         await redis_async.rpush(ingress_list, item)
         counter += 1
     return JSONResponse(content=counter)
+
+@app.get(
+    "/index_vcons",
+    status_code=200,
+    summary="Forces a reset of the vcon search list",
+    description="Forces a reset of the vcon search list, returns the number of vCons indexed.",
+    tags=["config"],
+)
+async def index_vcons():
+    try:
+        # Get all of the vcon keys, and add them to the sorted set
+        vcon_keys = await redis_async.keys("vcon:*")
+        for key in vcon_keys:
+            print(key)
+            vcon = await redis_async.json().get(key)
+            print(vcon)
+            created_at = datetime.fromisoformat(vcon["created_at"])
+            timestamp = int(created_at.timestamp())
+            await add_vcon_to_set(key, timestamp)
+        
+        # Return the number of vcons indexed
+        return JSONResponse(content=len(vcon_keys))
+            
+    except Exception as e:
+        logger.info("Error: {}".format(e))
+        raise HTTPException(status_code=500)
+

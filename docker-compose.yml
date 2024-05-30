@@ -1,4 +1,8 @@
 version: "3.3"
+networks:
+  conserver:
+    external: true
+
 services:
   conserver:
     build:
@@ -16,6 +20,9 @@ services:
     env_file:
       - .env
     stop_grace_period: 60s
+    networks:
+      - conserver
+
   api:
     build:
       dockerfile: ./docker/Dockerfile
@@ -31,6 +38,9 @@ services:
       # - mongo
     env_file:
       - .env
+    networks:
+      - conserver
+
   redis:
     image: "redis/redis-stack:latest"
     ports:
@@ -46,33 +56,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # mongo:
-  #   image: mongo
-  #   ports:
-  #     - 27017:27017
-  #   restart: always
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: root
-  #     MONGO_INITDB_ROOT_PASSWORD: example
-
-  # conserver-admin:
-  #   image: conserver-admin
-  #   ports:
-  #     - 8501:8501
-  #   depends_on:
-  #     - redis
-  #     - mongo
-  #   restart: always
-
-  # jupyter:
-  #   build: .
-  #   command: jupyter notebook --ip=0.0.0.0 --port=9999 --no-browser --allow-root
-  #   volumes:
-  #     - .:/app
-  #   ports:
-  #     - "9999:9999"
-  #   depends_on:
-  #     - redis
-  #   env_file:
-  #     - .env
+    networks:
+      - conserver
+    

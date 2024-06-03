@@ -190,7 +190,7 @@ def main():
         try:
             vcon_chain_request.process()
         except Exception as e:
-            logger.error("Error processing vCon %s: %s. Moving it to the Dead Letter Queue.", vcon_id, e)
+            logger.error("Error processing vCon %s: %s. Moving it to the Dead Letter Queue.", vcon_id, e, exc_info=True)
             r.lpush(get_ingress_list_dlq_name(ingress_list), vcon_id)
 
 

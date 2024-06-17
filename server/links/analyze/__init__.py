@@ -43,7 +43,7 @@ def get_analysys_for_type(vcon, index, analysis_type):
     stop=stop_after_attempt(6),
     before_sleep=before_sleep_log(logger, logging.INFO),
 )
-def generate_analysis(transcript, prompt, model, temperature):
+def generate_analysis(transcript, prompt, model, temperature) -> str:
     # logger.info(f"TRANSCRIPT: {transcript}")
     # logger.info(f"PROMPT: {prompt}")
     messages = [
@@ -148,7 +148,7 @@ def run(
             dialog=index,
             vendor="openai",
             body=analysis,
-            encoding="json",
+            encoding="text",
             extra={
                 "vendor_schema": json.dumps(vendor_schema),
             },

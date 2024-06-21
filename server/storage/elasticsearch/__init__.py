@@ -52,11 +52,16 @@ def save(
             if tenant_id:
                 party["tenant_id"] = tenant_id
             party["vcon_id"] = vcon_dict["uuid"]
-            es.index(
-                index=index_name,
-                id=f"{vcon_dict['uuid']}_{ind}",
-                document=party,
-            )
+            try:
+                es.index(
+                    index=index_name,
+                    id=f"{vcon_dict['uuid']}_{ind}",
+                    document=party,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Elasticsearch storage plugin: failed to insert party: {party}, error: {e} ", exc_info=True
+                )
 
         # Index the attachments, separated by 'type' - id=f"{vcon_uuid}_{attachment_index}"
         for ind, attachment in enumerate(vcon_dict["attachments"]):
@@ -67,11 +72,16 @@ def save(
             if tenant_id:
                 attachment["tenant_id"] = tenant_id
             attachment["vcon_id"] = vcon_dict["uuid"]
-            es.index(
-                index=index_name,
-                id=f"{vcon_dict['uuid']}_{ind}",
-                document=attachment,
-            )
+            try:
+                es.index(
+                    index=index_name,
+                    id=f"{vcon_dict['uuid']}_{ind}",
+                    document=attachment,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Elasticsearch storage plugin: failed to insert attachment: {attachment}, error: {e} ", exc_info=True
+                )
 
         # Index the analysis, separated by 'type' - id=f"{vcon_uuid}_{analysis_index}"
         for ind, analysis in enumerate(vcon_dict["analysis"]):
@@ -83,11 +93,16 @@ def save(
             if tenant_id:
                 analysis["tenant_id"] = tenant_id
             analysis["vcon_id"] = vcon_dict["uuid"]
-            es.index(
-                index=index_name,
-                id=f"{vcon_dict['uuid']}_{ind}",
-                document=analysis,
-            )
+            try:
+                es.index(
+                    index=index_name,
+                    id=f"{vcon_dict['uuid']}_{ind}",
+                    document=analysis,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Elasticsearch storage plugin: failed to insert analysis: {analysis}, error: {e} ", exc_info=True
+                )
 
         # Index the dialog - id=f"{vcon_uuid}_{dialog_index}"
         # TODO: Consider separate indexes for different dialog 'types'
@@ -95,12 +110,17 @@ def save(
             if tenant_id:
                 dialog["tenant_id"] = tenant_id
             dialog["vcon_id"] = vcon_dict["uuid"]
-            es.index(
-                index="vcon_dialog",
-                id=f"{vcon_dict['uuid']}_{ind}",
-                document=dialog,
-            )
-
+            try:
+                es.index(
+                    index="vcon_dialog",
+                    id=f"{vcon_dict['uuid']}_{ind}",
+                    document=dialog,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Elasticsearch storage plugin: failed to insert dialog: {dialog}, error: {e} ", exc_info=True
+                )
+                
         logger.info("Finished the Elasticsearch storage for vCon: %s", vcon_uuid)
     except Exception as e:
         logger.error(

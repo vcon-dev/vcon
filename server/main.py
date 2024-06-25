@@ -9,9 +9,9 @@ from lib.metrics import init_metrics, stats_gauge, stats_count
 from lib.error_tracking import init_error_tracker
 import signal
 from typing import List, TypedDict, Optional
-import yaml
 from dlq_utils import get_ingress_list_dlq_name
-import settings
+from config import get_config
+from storage.base import Storage
 
 shutdown_requested = False
 
@@ -30,17 +30,6 @@ IngressChainMap = dict[str, ChainConfig]
 
 
 config: dict | None = None
-
-
-def load_config():
-    logger.info("Loading config")
-    try:
-        with open(settings.CONSERVER_CONFIG_FILE, 'r') as file:
-            global config
-            config = yaml.safe_load(file)
-    except OSError:
-        logger.error(f"Cannot find config file {settings.CONSERVER_CONFIG_FILE}")
-        return 
 
 
 def signal_handler(signum, frame):
@@ -103,28 +92,7 @@ class VconChainRequest:
 
     def _process_storage(self, storage_name):
         try:
-            storage_key = f"storage:{storage_name}"
-            storage = r.json().get(storage_key)
-            storage = config["storages"][storage_name]
-            module_name = storage["module"]
-
-            if module_name not in imported_modules:
-                imported_modules[module_name] = importlib.import_module(module_name)
-            module = imported_modules[module_name]
-
-            options = storage.get("options", module.default_options)
-            logger.info("Running storage %s module %s for vCon: %s", storage_name, module_name, self.vcon_id)
-            started = time.time()
-            module.save(self.vcon_id, options)
-            storage_processing_time = round(time.time() - started, 3)
-            logger.info(
-                "Finished storage %s module %s for vCon: %s in %s seconds.",
-                storage_name,
-                module_name,
-                self.vcon_id,
-                storage_processing_time,
-                extra={"storage_processing_time": storage_processing_time},
-            )
+            Storage(storage_name).save(self.vcon_id)
         except Exception as e:
             logger.error("Error saving vCon %s to storage %s: %s", self.vcon_id, storage_name, e)
 
@@ -169,7 +137,8 @@ def get_ingress_chain_map() -> IngressChainMap:
 
 
 def main():
-    load_config()
+    global config
+    config = get_config()
     ingress_chain_map = get_ingress_chain_map()
     all_ingress_lists = list(ingress_chain_map.keys())
     while not shutdown_requested:

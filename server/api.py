@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from lib.logging_utils import init_logger
 from load_config import load_config
+from config import Configuration
+from storage.base import Storage
 from peewee import CharField, Model
 from playhouse.postgres_ext import (
     BinaryJSONField,
@@ -138,9 +140,14 @@ async def get_vcons(
 )
 async def get_vcon(vcon_uuid: UUID):
     vcon = await redis_async.json().get(f"vcon:{str(vcon_uuid)}")
-    
-    status_code = 200 if vcon else 404
-    return JSONResponse(content=vcon, status_code=status_code)
+    if not vcon:
+        # Fallback to the storages if the vcon is not found in redis
+        for storage_name in Configuration.get_storages():
+            vcon = Storage(storage_name=storage_name).get(vcon_uuid)
+            if vcon:
+                break
+
+    return JSONResponse(content=vcon, status_code=200 if vcon else 404)
 
 
 @app.post(

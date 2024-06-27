@@ -90,7 +90,7 @@ def generate_mock_vcon():
                 "body": fake.text(),
                 "type": "strolid_dealer",
                 "party": None,
-                "encoding": "text",
+                "encoding": "none",
                 "filename": None,
                 "mimetype": None,
                 "signature": None,

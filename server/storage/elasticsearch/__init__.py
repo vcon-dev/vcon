@@ -3,6 +3,7 @@ from server.lib.vcon_redis import VconRedis
 import logging
 from elasticsearch import Elasticsearch
 import json
+import os
 
 
 logger = init_logger(__name__)
@@ -36,10 +37,20 @@ def save(
     opts=default_options,
 ):
     try:
-        es = Elasticsearch(
-            cloud_id=opts["cloud_id"],
-            api_key=opts["api_key"],
-        )
+        if opts.get("cloud_id", None) or opts.get("api_key", None):
+            es = Elasticsearch(
+                cloud_id=opts["cloud_id"],
+                api_key=opts["api_key"],
+            )
+        else:                
+            url = opts["url"]
+            username = opts["username"]
+            password = opts["password"]
+            ca_certs = opts.get("ca_certs", None)
+            if ca_certs and os.path.exists(ca_certs):
+                es = Elasticsearch(url, basic_auth=(username, password), ca_certs=ca_certs)
+            else:
+                es = Elasticsearch(url, basic_auth=(username, password), verify_certs=False)
         vcon_redis = VconRedis()
         vcon = vcon_redis.get_vcon(vcon_uuid)
         vcon_dict = vcon.to_dict()
@@ -70,7 +81,10 @@ def save(
         # Index the attachments, separated by 'type' - id=f"{vcon_uuid}_{attachment_index}"
         for ind, attachment in enumerate(vcon_dict["attachments"]):
             type = attachment.get("type")  # TODO this might be "purpose" in some of the attachments!!
-            if attachment["encoding"] == "json":  # TODO may be we need handle different encodings
+            # Lower case the type
+            type = type.lower()
+            encoding = attachment.get("encoding", "none")
+            if encoding == "json":  # TODO may be we need handle different encodings
                 attachment["body"] = json.loads(attachment["body"])
             do_vcon_parts_indexing(
                 es=es,

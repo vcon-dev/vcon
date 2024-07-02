@@ -324,11 +324,11 @@ async def delete_config():
 
 # Reprocess Dead Letter Queue
 @app.post(
-    "/dql/reprocess",
+    "/dlq/reprocess",
     status_code=200,
     summary="Reprocess the dead letter queue",
     description="Move the dead letter queue vcons back to the ingress chain",
-    tags=["chain"],
+    tags=["dlq"],
 )
 async def post_dlq_reprocess(ingress_list: str):
     # Get all items from redis list and move them back to the ingress list
@@ -338,6 +338,21 @@ async def post_dlq_reprocess(ingress_list: str):
         await redis_async.rpush(ingress_list, item)
         counter += 1
     return JSONResponse(content=counter)
+
+
+@app.get(
+    "/dlq",
+    status_code=200,
+    summary="Get Vcons list from the dead letter queue",
+    description="Get Vcons list from the dead letter queue, returns array of vcons.",
+    tags=["dlq"],
+)
+async def get_dlq_vcons(ingress_list: str):
+    """ Get all the vcons from the dead letter queue """
+    dlq_name = get_ingress_list_dlq_name(ingress_list)
+    vcons = await redis_async.lrange(dlq_name, 0, -1)
+    return JSONResponse(content=vcons)
+
 
 @app.get(
     "/index_vcons",

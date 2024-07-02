@@ -134,7 +134,7 @@ def run(
             vendor="deepgram",
             body=result,
             extra={
-                "vendor_schema": json.dumps(vendor_schema),
+                "vendor_schema": vendor_schema,
             },
         )
     vcon_redis.store_vcon(vCon)

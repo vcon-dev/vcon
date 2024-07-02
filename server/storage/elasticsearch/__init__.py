@@ -53,7 +53,7 @@ def save(
 
         tenant_attachment = vcon.find_attachment_by_type("tenant")
         if tenant_attachment:
-            tenant = json.loads(tenant_attachment["body"])
+            tenant = tenant_attachment["body"]
             common_attributes["tenant_id"] = tenant["id"]
 
         # Index the parties, separated by 'role' - id=f"{vcon_uuid}_{party_index}"
@@ -69,27 +69,27 @@ def save(
 
         # Index the attachments, separated by 'type' - id=f"{vcon_uuid}_{attachment_index}"
         for ind, attachment in enumerate(vcon_dict["attachments"]):
-            type = attachment.get("type")  # TODO this might be "purpose" in some of the attachments!!
+            attachment_type = attachment.get("type")  # TODO this might be "purpose" in some of the attachments!!
             if attachment["encoding"] == "json":  # TODO may be we need handle different encodings
                 attachment["body"] = json.loads(attachment["body"])
             do_vcon_parts_indexing(
                 es=es,
                 part=attachment, 
-                index_name=f"vcon_attachments_{type}", 
+                index_name=f"vcon_attachments_{attachment_type}", 
                 id=f"{vcon_dict['uuid']}_{ind}", 
                 common_attributes=common_attributes
             )
 
         # Index the analysis, separated by 'type' - id=f"{vcon_uuid}_{analysis_index}"
         for ind, analysis in enumerate(vcon_dict["analysis"]):
-            type = analysis.get("type")
+            analysis_type = analysis.get("type")
             if analysis["encoding"] == "json":  # TODO may be we need handle different encodings
                 if isinstance(analysis["body"], str):
                     analysis["body"] = json.loads(analysis["body"])
             do_vcon_parts_indexing(
                 es=es,
                 part=analysis, 
-                index_name=f"vcon_analysis_{type}", 
+                index_name=f"vcon_analysis_{analysis_type}", 
                 id=f"{vcon_dict['uuid']}_{ind}", 
                 common_attributes=common_attributes
             )

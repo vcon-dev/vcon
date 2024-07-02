@@ -57,7 +57,7 @@ class Vcon:
             tags_attachment = {
                 "type": "tags",
                 "body": [],
-                "encoding": "json",
+                "encoding": "none",
             }
             self.vcon_dict["attachments"].append(tags_attachment)
         tags_attachment["body"].append(f"{tag_name}:{tag_value}")
@@ -144,10 +144,6 @@ class Vcon:
 
     def to_json(self) -> str:
         tmp_vcon_dict = copy.copy(self.vcon_dict)
-        for attachment in tmp_vcon_dict["attachments"]:
-            # assume json if encoding is not present
-            if attachment.get("encoding") in ["json", None]:
-                attachment["body"] = json.dumps(attachment["body"])
         return json.dumps(tmp_vcon_dict)
 
     def to_dict(self) -> dict:

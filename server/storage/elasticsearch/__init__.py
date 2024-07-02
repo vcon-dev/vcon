@@ -53,7 +53,10 @@ def save(
 
         tenant_attachment = vcon.find_attachment_by_type("tenant")
         if tenant_attachment:
-            tenant = tenant_attachment["body"]
+            if tenant_attachment["encoding"] == "json":
+                tenant = json.loads(tenant_attachment["body"])
+            else:
+                tenant = tenant_attachment["body"]
             common_attributes["tenant_id"] = tenant["id"]
 
         # Index the parties, separated by 'role' - id=f"{vcon_uuid}_{party_index}"

@@ -83,9 +83,7 @@ def save(
 
         # Index the attachments, separated by 'type' - id=f"{vcon_uuid}_{attachment_index}"
         for ind, attachment in enumerate(vcon_dict["attachments"]):
-            attachment_type = attachment.get("type")  # TODO this might be "purpose" in some of the attachments!!
-            # Lower case the type
-            attachment_type = type.lower()
+            attachment_type = attachment.get("type").lower()  # TODO this might be "purpose" in some of the attachments!!
             encoding = attachment.get("encoding", "none")
             if encoding == "json":  # TODO may be we need handle different encodings
                 attachment["body"] = json.loads(attachment["body"])

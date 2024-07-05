@@ -16,7 +16,8 @@ def run(
 
     vcon_redis = VconRedis()
     vCon = vcon_redis.get_vcon(vcon_uuid)
-    vCon.add_analysis(0, "tags", opts["tags"])  # TODO fix and test that link (first argument is type now)
+    for tag in opts.get("tags", []):
+        vCon.add_tag(tag_name=tag, tag_value=tag)
     vcon_redis.store_vcon(vCon)
 
     # Return the vcon_uuid down the chain.

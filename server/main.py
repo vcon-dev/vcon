@@ -137,6 +137,7 @@ def get_ingress_chain_map() -> IngressChainMap:
 
 
 def main():
+    logger.info("Starting main loop")
     global config
     config = get_config()
     ingress_chain_map = get_ingress_chain_map()

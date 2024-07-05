@@ -47,14 +47,13 @@ def save(
 
         db.create_tables([Vcons], safe=True)
 
-        try:
-            source = next(
-                json.loads(a["body"])["source"]
-                for a in vcon.attachments
-                if a["type"] == "ingress_info"
-            )
-        except Exception:
-            source = None
+        source = None
+        for a in vcon.attachments:
+            if a["type"] == "ingress_info":
+                if a['encoding'] == 'json':
+                    source = json.loads(a["body"])["source"]
+                else: 
+                    source = a["body"]["source"]
 
         vcon_data = {
             "id": vcon.uuid,

@@ -4,7 +4,7 @@ from typing import Dict, List, Union, Optional
 from uuid import UUID
 
 import redis_mgr
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.routing import Lifespan
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -104,7 +104,7 @@ async def add_vcon_to_set(vcon_uuid: UUID, timestamp: int):
     ),
     tags=["vcon"],
 )
-async def get_vcons(
+async def get_vcons_uuids(
     page: int = 1, size: int = 50, since: datetime = None, until: datetime = None
 ):
     # Redis is storing the vCons. Use the vcons sorted set to get the vCon UUIDs
@@ -148,6 +148,30 @@ async def get_vcon(vcon_uuid: UUID):
                 break
 
     return JSONResponse(content=vcon, status_code=200 if vcon else 404)
+
+
+@app.get(
+    "/vcons",
+    response_model=Vcon,
+    summary="Gets vCons by UUIDs",
+    description="Get multiple vCons by UUIDs",
+    tags=["vcon"],
+)
+async def get_vcons(vcon_uuids: List[UUID] = Query(None)):
+    keys = [f"vcon:{vcon_uuid}" for vcon_uuid in vcon_uuids]
+    vcons = await redis_async.json().mget(keys=keys, path=".")
+
+    results = []
+    for vcon_uuid, vcon in zip(vcon_uuids, vcons):
+        if not vcon:
+            # Fallback to the storages if the vcon is not found in redis
+            for storage_name in Configuration.get_storages():
+                vcon = Storage(storage_name=storage_name).get(vcon_uuid)
+                if vcon:
+                    break
+        results.append(vcon)
+
+    return JSONResponse(content=results, status_code=200)
 
 
 @app.post(

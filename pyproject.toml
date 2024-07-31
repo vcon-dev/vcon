@@ -28,6 +28,8 @@ openai = "1.30.4"
 psycopg2-binary = "^2.9.9"
 pymongo = "^4.6.2"
 elasticsearch = "^8.13.1"
+pycose= "^1.0.1"
+ecdsa= "^0.18.0"
 
 
 [tool.poetry.group.dev.dependencies]

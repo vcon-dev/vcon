@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>oEmbed Example</title>
+</head>
+<body>
+    <div id="oembed-content">Loading embedded content...</div>
+
+    <script src="embed.js"></script>
+</body>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+
+    // The oEmbed endpoint for the content provider
+    const oembedEndpoint = `${proxyUrl}https://strolidsearch.streamlit.app/?embed_options=show_toolbar,dark_theme,show_footer,show_colored_line`;
+
+    fetch(oembedEndpoint)
+        .then(response => response.json())
+        .then(data => {
+            // Assuming the response contains an 'html' field with the embed code
+            document.getElementById('oembed-content').innerHTML = data.html;
+        })
+        .catch(error => {
+            console.error('Failed to fetch oEmbed content:', error);
+            document.getElementById('oembed-content').innerHTML = 'Failed to load embedded content.';
+        });
+    });
+</script>
+</html>

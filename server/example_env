@@ -1,5 +1,0 @@
-#!/usr/bin/sh
-export OPENAI_API_KEY="xxxxxxxxxxxxx"
-export ENV=dev
-export HOSTNAME=http://192.168.0.100:8000
-export REDIS_URL=redis://172.17.0.4:6379

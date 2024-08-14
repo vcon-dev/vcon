@@ -22,6 +22,11 @@ from playhouse.postgres_ext import (
 from pydantic import BaseModel
 from dlq_utils import get_ingress_list_dlq_name
 from settings import VCON_SORTED_SET_NAME, VCON_STORAGE
+from fastapi import FastAPI, Query, HTTPException
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel
+
 
 logger = init_logger(__name__)
 logger.info("Api starting up")
@@ -40,13 +45,8 @@ async def on_startup():
 async def on_shutdown():
     await redis_async.close()
 
-
 app.router.add_event_handler("startup", on_startup)
 app.router.add_event_handler("shutdown", on_shutdown)
-
-
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,7 +54,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class Vcon(BaseModel):
     vcon: str
@@ -173,6 +172,109 @@ async def get_vcons(vcon_uuids: List[UUID] = Query(None)):
 
     return JSONResponse(content=results, status_code=200)
 
+class SearchResult(BaseModel):
+    uuid: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+    subject: Optional[str]
+    parties: List[dict]
+
+@app.get(
+    "/vcons/search",
+    response_model=List[SearchResult],
+    summary="Search vCons based on various parameters",
+    description="Search for vCons using personal identifiers and metadata.",
+    tags=["vcon"],
+)
+async def search_vcons(
+    tel: Optional[str] = Query(None, description="Phone number to search for"),
+    mailto: Optional[str] = Query(None, description="Email address to search for"),
+    name: Optional[str] = Query(None, description="Name of the party to search for"),
+):
+    try:
+        # Check if tel, mailto, and name are all None
+        if tel is None and mailto is None and name is None:
+            raise HTTPException(status_code=400, detail="At least one search parameter must be provided")
+        
+        # Debug logging 
+        print("tel: {}".format(tel))
+        print("mailto: {}".format(mailto))
+        print("name: {}".format(name))
+        
+        # Each of the search parameters has a corresponding Redis key that
+        # contains the set of vCon UUIDs that match the search parameter
+        keys = []
+        if tel:
+            # Look into REDIS for keys that match the phone number and take the 
+            # uuids from those keys
+            tel_key = f"tel:{tel}"
+            # Get the members of this set, and add them to the keys list
+            uuids = await redis_async.smembers(tel_key)
+            print("Found {} uuids for tel: {}".format(len(uuids), tel))
+            print("uuids: {}".format(uuids))
+            
+            # Add the uuids to the keys list, with each uuid prefixed with "vcon:"
+            for uuid in uuids:
+                keys.append(f"vcon:{uuid}")
+                print("Adding key: {}".format(f"vcon:{uuid}"))
+                
+        if mailto:
+            # Look into REDIS for keys that match the email and take the 
+            # uuids from those keys
+            mailto_key = f"mailto:{mailto}"
+            # Get the members of this set, and add them to the keys list
+            uuids = await redis_async.smembers(mailto_key)
+            print("Found {} uuids for mailto: {}".format(len(uuids), mailto))
+            print("uuids: {}".format(uuids))
+            
+            # Add the uuids to the keys list, with each uuid prefixed with "vcon:"
+            for uuid in uuids:
+                keys.append(f"vcon:{uuid}")
+                print("Adding key: {}".format(f"vcon:{uuid}"))
+                            
+        if name:
+            # Look into REDIS for keys that match the name and take the 
+            # uuids from those keys
+            name_key = f"name:{name}"
+            # Get the members of this set, and add them to the keys list
+            uuids = await redis_async.smembers(name_key)
+            print("Found {} uuids for name: {}".format(len(uuids), name))
+            print("uuids: {}".format(uuids))
+            print(type(uuids))
+            print(uuids)
+            for uuid in uuids:
+                keys.append(f"vcon:{uuid}")
+                print("Adding key: {}".format(f"vcon:{uuid}"))
+                
+            
+        # Get the results for each key
+        print("keys: {}".format(keys))
+        print(type(keys))
+        print(keys)
+        
+
+        results = await redis_async.json().mget(keys=keys, path=".")
+        
+        print("results: {}".format(results))
+        print(type(results))
+        
+        # Each key 
+        # Process and return the results
+        return [
+            SearchResult(
+                uuid=result['uuid'],
+                created_at=result['created_at'],
+                updated_at=result.get('updated_at'),
+                subject=result.get('subject'),
+                parties=result['parties']
+            )
+            for result in results
+        ]
+
+    except Exception as e:
+        logger.error(f"Error in search_vcons: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred during the search")
+
 
 @app.post(
     "/vcon",
@@ -183,6 +285,7 @@ async def get_vcons(vcon_uuids: List[UUID] = Query(None)):
 )
 async def post_vcon(inbound_vcon: Vcon):
     try:
+        print(type(inbound_vcon))
         dict_vcon = inbound_vcon.model_dump()
         dict_vcon["uuid"] = str(inbound_vcon.uuid)
         key = f"vcon:{str(dict_vcon['uuid'])}"
@@ -197,6 +300,11 @@ async def post_vcon(inbound_vcon: Vcon):
         # Add the vcon to the sorted set
         logger.debug("Adding vcon {} to sorted set".format(inbound_vcon.uuid))
         await add_vcon_to_set(key, timestamp)
+        
+        # Index the parties 
+        logger.debug("Adding vcon {} to parties sets".format(inbound_vcon.uuid))
+        await index_vcon(inbound_vcon.uuid)
+        
     except Exception:
         # Print all of the details of the exception
         logger.info(traceback.format_exc())
@@ -378,6 +486,29 @@ async def get_dlq_vcons(ingress_list: str):
     return JSONResponse(content=vcons)
 
 
+async def index_vcon(uuid):
+    key = "vcon:"+uuid
+    vcon = await redis_async.json().get(key)
+    created_at = datetime.fromisoformat(vcon["created_at"])
+    timestamp = int(created_at.timestamp())
+    vcon_uuid = vcon["uuid"]
+    await add_vcon_to_set(key, timestamp)
+
+    # We would also like to search vCons by the tel number in each dialog.
+    for party in vcon["parties"]:
+        if party.get('tel', None):
+            tel = party["tel"]
+            tel_key = f"tel:{tel}"
+            await redis_async.sadd(tel_key, vcon_uuid)
+        if party.get('mailto', None):
+            mailto = party["mailto"]
+            mailto_key = f"mailto:{mailto}"
+            await redis_async.sadd(mailto_key,  vcon_uuid)
+        if party.get('name', None):
+            name = party["name"]
+            name_key = f"name:{name}"
+            await redis_async.sadd(name_key, vcon_uuid)
+            
 @app.get(
     "/index_vcons",
     status_code=200,
@@ -390,12 +521,10 @@ async def index_vcons():
         # Get all of the vcon keys, and add them to the sorted set
         vcon_keys = await redis_async.keys("vcon:*")
         for key in vcon_keys:
-            print(key)
-            vcon = await redis_async.json().get(key)
-            print(vcon)
-            created_at = datetime.fromisoformat(vcon["created_at"])
-            timestamp = int(created_at.timestamp())
-            await add_vcon_to_set(key, timestamp)
+            uuid = key.split(":")[1]
+            await index_vcon(uuid)
+                
+        # Get all of the vcon keys, and add them to the sorted set
         
         # Return the number of vcons indexed
         return JSONResponse(content=len(vcon_keys))
@@ -403,4 +532,5 @@ async def index_vcons():
     except Exception as e:
         logger.info("Error: {}".format(e))
         raise HTTPException(status_code=500)
+
 

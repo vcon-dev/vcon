@@ -195,12 +195,7 @@ async def search_vcons(
         # Check if tel, mailto, and name are all None
         if tel is None and mailto is None and name is None:
             raise HTTPException(status_code=400, detail="At least one search parameter must be provided")
-        
-        # Debug logging 
-        print("tel: {}".format(tel))
-        print("mailto: {}".format(mailto))
-        print("name: {}".format(name))
-        
+                
         # Each of the search parameters has a corresponding Redis key that
         # contains the set of vCon UUIDs that match the search parameter
         keys = []
@@ -210,13 +205,9 @@ async def search_vcons(
             tel_key = f"tel:{tel}"
             # Get the members of this set, and add them to the keys list
             uuids = await redis_async.smembers(tel_key)
-            print("Found {} uuids for tel: {}".format(len(uuids), tel))
-            print("uuids: {}".format(uuids))
-            
             # Add the uuids to the keys list, with each uuid prefixed with "vcon:"
             for uuid in uuids:
                 keys.append(f"vcon:{uuid}")
-                print("Adding key: {}".format(f"vcon:{uuid}"))
                 
         if mailto:
             # Look into REDIS for keys that match the email and take the 
@@ -224,13 +215,10 @@ async def search_vcons(
             mailto_key = f"mailto:{mailto}"
             # Get the members of this set, and add them to the keys list
             uuids = await redis_async.smembers(mailto_key)
-            print("Found {} uuids for mailto: {}".format(len(uuids), mailto))
-            print("uuids: {}".format(uuids))
             
             # Add the uuids to the keys list, with each uuid prefixed with "vcon:"
             for uuid in uuids:
                 keys.append(f"vcon:{uuid}")
-                print("Adding key: {}".format(f"vcon:{uuid}"))
                             
         if name:
             # Look into REDIS for keys that match the name and take the 
@@ -238,25 +226,10 @@ async def search_vcons(
             name_key = f"name:{name}"
             # Get the members of this set, and add them to the keys list
             uuids = await redis_async.smembers(name_key)
-            print("Found {} uuids for name: {}".format(len(uuids), name))
-            print("uuids: {}".format(uuids))
-            print(type(uuids))
-            print(uuids)
             for uuid in uuids:
                 keys.append(f"vcon:{uuid}")
-                print("Adding key: {}".format(f"vcon:{uuid}"))
-                
-            
-        # Get the results for each key
-        print("keys: {}".format(keys))
-        print(type(keys))
-        print(keys)
-        
-
         results = await redis_async.json().mget(keys=keys, path=".")
         
-        print("results: {}".format(results))
-        print(type(results))
         
         # Each key 
         # Process and return the results

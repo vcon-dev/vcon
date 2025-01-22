@@ -1,12 +1,14 @@
 [submodule "vcon-server"]
 	path = vcon-server
 	url = https://github.com/vcon-dev/vcon-server
+	branch = main
 [submodule "vcon-right-to-know"]
 	path = vcon-right-to-know
 	url = https://github.com/vcon-dev/vcon-right-to-know
 [submodule "vcon-admin"]
 	path = vcon-admin
 	url = https://github.com/vcon-dev/vcon-admin
+	branch = main
 [submodule "vcon-faker"]
 	path = vcon-faker
 	url = https://github.com/vcon-dev/vcon_faker

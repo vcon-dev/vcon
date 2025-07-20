@@ -1,0 +1,78 @@
+name: Update Submodules
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    # Allow manual triggering
+
+jobs:
+  update-submodules:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+    
+    - name: Update submodules to latest
+      run: |
+        git submodule update --remote --recursive
+        
+    - name: Check if there are changes
+      id: check-changes
+      run: |
+        if [[ -n "$(git status --porcelain)" ]]; then
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "Changes detected in submodules"
+          git status --porcelain
+        else
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        fi
+    
+    - name: Create Pull Request
+      if: steps.check-changes.outputs.has_changes == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update submodules to latest versions'
+        title: '🤖 Auto-update submodules'
+        body: |
+          ## 🤖 Automated Submodule Updates
+          
+          This PR updates all submodules to their latest versions.
+          
+          ### Updated Submodules:
+          - vcon-server
+          - vcon-right-to-know  
+          - vcon-admin
+          - vcon-faker
+          - conversation-gpt
+          - fake-vcons
+          
+          ### Changes:
+          <details>
+          <summary>Click to see changes</summary>
+          
+          ```
+          $(git status --porcelain)
+          ```
+          
+          </details>
+          
+          ---
+          *This PR was automatically created by the [Update Submodules](/.github/workflows/update-submodules.yml) workflow.*
+        branch: auto-update-submodules
+        delete-branch: true
+        labels: |
+          automated
+          submodule-update 

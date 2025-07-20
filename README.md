@@ -12,6 +12,7 @@ The Vcon library consists of two primary components:
 
   + [Presentations, Whitepapers and Tutorials](#presentations-whitepapers-and-tutorials)
   + [vCon Library Quick Start for Python](https://github.com/vcon-dev/vcon/wiki/Library-Quick-Start)
+  + [Managing Submodules](#managing-submodules)
   + [Testing the Vcon Package](#testing-the-vcon-package)
   + [Testing the conserver](#testing-the-conserver)
 
@@ -30,6 +31,62 @@ Read the [IETF draft proposal](https://datatracker.ietf.org/doc/html/draft-petri
 Read the [white paper](https://docs.google.com/document/d/1TV8j29knVoOJcZvMHVFDaan0OVfraH_-nrS5gW4-DEA/edit?usp=sharing)
 
 See the [key note proposal for vCons](https://blog.tadsummit.com/2021/12/08/strolid-keynote-vcons/).
+
+
+## Managing Submodules
+
+This repository serves as a parent repository that tracks multiple vcon-dev projects as submodules. The submodules are automatically updated to ensure you have the latest versions of all vcon projects.
+
+### Current Submodules
+
+- **vcon-server**: Main vCon server implementation
+- **vcon-right-to-know**: Right-to-know compliance tools
+- **vcon-admin**: Administrative tools for vCon management
+- **vcon-faker**: Tools for generating fake vCon data
+- **conversation-gpt**: GPT integration for conversations
+- **fake-vcons**: Sample vCon data for testing
+
+### Automated Updates
+
+A GitHub Action automatically checks for updates in all submodules every Monday at 9 AM UTC. When updates are available, it creates a pull request with the changes for your review.
+
+**Manual Updates**: You can also update submodules manually using the provided script:
+
+```bash
+./tools/update-submodules.sh
+```
+
+**Manual Git Commands**: If you prefer to use git commands directly:
+
+```bash
+# Update all submodules to latest versions
+git submodule update --remote --recursive
+
+# Commit the updates
+git add .
+git commit -m "chore: update submodules to latest versions"
+git push
+```
+
+### Working with Submodules
+
+**Initial Setup**: If you're cloning this repository for the first time:
+
+```bash
+git clone --recursive https://github.com/vcon-dev/vcon.git
+```
+
+**Existing Clone**: If you already have the repository cloned:
+
+```bash
+git submodule update --init --recursive
+```
+
+**Updating a Specific Submodule**: To update just one submodule:
+
+```bash
+git submodule update --remote <submodule-name>
+```
 
 
 ## Testing the Vcon Package

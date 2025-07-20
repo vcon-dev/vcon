@@ -1,9 +1,0 @@
-[flake8]
-exclude =
-   ./venv/
-   ./vcon/
-   __pycache__
-
-max-line-length = 130
-ignore = E203,W503
-select = F,E

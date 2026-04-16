@@ -16,7 +16,7 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 | Submodule | Description |
 |-----------|-------------|
 | [vcon-lib](vcon-lib/) | Python vCon library — reference implementation, vCon 0.4.0 spec |
-| [vcon-js](vcon-js/) | TypeScript/JavaScript vCon library — core-02 spec |
+| [vcon-js](vcon-js/) | TypeScript/JavaScript vCon library — vCon core-02 spec |
 | [pydantic-vcon](pydantic-vcon/) | Pydantic v2 models for vCon |
 
 ### Server & Infrastructure
@@ -49,12 +49,13 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 | [whisper](whisper/) | OpenAI Whisper integration for vCon transcription |
 | [TTS](TTS/) | Text-to-speech integration |
 | [speechmatics-link](speechmatics-link/) | Speechmatics transcription adapter |
+| [vcon-eleven-labs-adapter](vcon-eleven-labs-adapter/) | ElevenLabs TTS adapter |
 | [vcon-mac-wtf](vcon-mac-wtf/) | macOS World Transcription Format client |
 | [wtf-server](wtf-server/) | WTF (World Transcription Format) server |
 | [wtf-transcript-converter](wtf-transcript-converter/) | Converter between WTF and other transcript formats |
 | [conversational_search](conversational_search/) | Semantic search over vCon data |
 | [langchain](langchain/) | LangChain integration for vCon |
-| [conversation_gpt](conversation_gpt/) | ChatGPT over vCon data via Elasticsearch |
+| [conversation-gpt](conversation-gpt/) | ChatGPT over vCon data via Elasticsearch |
 
 ### Developer Tools & Utilities
 
@@ -74,11 +75,17 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 | [vcon-zip](vcon-zip/) | vCon zip/bundle utilities |
 | [tadhack-2025](tadhack-2025/) | TADHack 2025 hackathon projects |
 
+### Privacy & Compliance
+
+| Submodule | Description |
+|-----------|-------------|
+| [vcon-right-to-know](vcon-right-to-know/) | GDPR right-to-access and right-to-forget demo |
+
 ### Data & Testing
 
 | Submodule | Description |
 |-----------|-------------|
-| [vcon_faker](vcon-faker/) | Synthetic vCon generator using OpenAI |
+| [vcon-faker](vcon-faker/) | Synthetic vCon generator using OpenAI |
 | [fake-vcons](fake-vcons/) | Sample/synthetic vCon files for testing |
 | [ietf-meeting-vcons](ietf-meeting-vcons/) | vCons from IETF meeting recordings |
 | [vcon-the-hacks](vcon-the-hacks/) | Hackathon and experimental vCon projects |
@@ -110,10 +117,8 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 
 | Submodule | Description |
 |-----------|-------------|
-| [homebrew-vcon](homebrew-vcon/) | Homebrew formula for vCon tools |
-| [homebrew-tap](homebrew-tap/) | Homebrew tap repository |
-| [vcon-eleven-labs-adapter](vcon-eleven-labs-adapter/) | ElevenLabs TTS adapter |
-| [vcon-right-to-know](vcon-right-to-know/) | GDPR right-to-access/forget demo |
+| [homebrew-tap](homebrew-tap/) | Homebrew tap — index of vCon Homebrew formulas |
+| [homebrew-vcon](homebrew-vcon/) | Homebrew formula for the vCon CLI tools |
 
 ### External Forks
 
@@ -148,6 +153,22 @@ Update a single submodule:
 ```bash
 git submodule update --remote vcon-server
 ```
+
+## Tools
+
+The [`tools/`](tools/) directory contains local utilities:
+
+- `update-submodules.sh` — shell script to pull all submodules to latest
+- `postgres_schema.sql` — PostgreSQL schema for vcon-server storage
+- `embed_streamlit_demo.html` — iframe embed snippet for Streamlit app demos
+
+## Assets
+
+The [`assets/docs/`](assets/docs/) directory contains standalone reference documents:
+
+- *What is a vCon* (PDF)
+- *vCons: an Open Standard for Conversation Data* (PDF)
+- *Communications Design* diagram
 
 ## Automated Updates
 

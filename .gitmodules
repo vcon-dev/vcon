@@ -1,23 +1,23 @@
 [submodule "vcon-server"]
 	path = vcon-server
-	url = https://github.com/vcon-dev/vcon-server
+	url = https://github.com/vcon-dev/vcon-server.git
 	branch = main
 [submodule "vcon-right-to-know"]
 	path = vcon-right-to-know
-	url = https://github.com/vcon-dev/vcon-right-to-know
+	url = https://github.com/vcon-dev/vcon-right-to-know.git
 [submodule "vcon-admin"]
 	path = vcon-admin
-	url = https://github.com/vcon-dev/vcon-admin
+	url = https://github.com/vcon-dev/vcon-admin.git
 	branch = main
 [submodule "vcon-faker"]
 	path = vcon-faker
-	url = https://github.com/vcon-dev/vcon_faker
+	url = https://github.com/vcon-dev/vcon_faker.git
 [submodule "conversation-gpt"]
 	path = conversation-gpt
-	url = https://github.com/vcon-dev/conversation_gpt
+	url = https://github.com/vcon-dev/conversation_gpt.git
 [submodule "fake-vcons"]
 	path = fake-vcons
-	url = https://github.com/vcon-dev/fake-vcons
+	url = https://github.com/vcon-dev/fake-vcons.git
 [submodule "TTS"]
 	path = TTS
 	url = https://github.com/vcon-dev/TTS.git

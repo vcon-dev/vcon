@@ -106,7 +106,7 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 
 | Submodule | Description |
 |-----------|-------------|
-| [docs](docs/) | Developer documentation site (Mintlify) |
+| [docs](docs/) | *(archived)* Developer documentation site (Mintlify) |
 | [vcon-docs](vcon-docs/) | Additional vCon documentation |
 | [vcon-info](vcon-info/) | Informational resources about vCon |
 | [vcon-background-docs](vcon-background-docs/) | Background reading and research |

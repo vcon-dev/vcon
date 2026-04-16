@@ -1,250 +1,165 @@
-# 🏠 vCon Super Repository
+# vCon Super Repository
 
-Welcome to the **vCon Super Repository** - the central hub for all vCon (Virtual Conversation) development projects. This repository serves as a parent repository that tracks and manages all major vCon-related projects, making it easy to stay up-to-date with the latest developments across the entire vCon ecosystem.
+Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtual Conversation) development projects. This repository tracks all 61 repos in the [vcon-dev](https://github.com/vcon-dev) GitHub organization as git submodules, giving you a single checkout of the entire ecosystem.
 
-## 🎯 What is vCon?
+## What is vCon?
 
-**vCon** (Virtual Conversation) is an open standard for conversation data that defines how human conversations can be shared, analyzed, and secured. Think of it as "PDFs for human conversations" - a standardized format that captures all aspects of conversations including audio, transcripts, metadata, and analysis.
+**vCon** (Virtual Conversation) is an open standard for conversation data that defines how human conversations can be shared, analyzed, and secured. Think of it as "PDFs for human conversations" — a standardized format capturing audio, transcripts, metadata, and analysis.
 
-The vCon ecosystem consists of two primary components:
-- **The Python vCon Package**: For constructing and operating on vCon objects
-- **The Conserver**: A domain-specific data platform for storing, managing, and manipulating vCon objects
+- IETF spec: [draft-ietf-vcon-vcon-core](https://datatracker.ietf.org/doc/draft-ietf-vcon-vcon-core/)
+- Ecosystem overview: [vcon-dev.github.io](https://vcon-dev.github.io)
 
-## 📚 Repository Overview
+## Repository Overview
 
-This super repository contains the following projects, each serving a specific role in the vCon ecosystem:
+### Core Libraries
 
-### 🐰 Core Infrastructure
+| Submodule | Description |
+|-----------|-------------|
+| [vcon-lib](vcon-lib/) | Python vCon library — reference implementation, vCon 0.4.0 spec |
+| [vcon-js](vcon-js/) | TypeScript/JavaScript vCon library — core-02 spec |
+| [pydantic-vcon](pydantic-vcon/) | Pydantic v2 models for vCon |
 
-#### [vcon-server](vcon-server/) - **Main vCon Server**
-The heart of the vCon ecosystem - a powerful conversation processing and storage system that enables advanced analysis and management of conversation data.
+### Server & Infrastructure
 
-**Key Features:**
-- Flexible processing pipeline with multiple storage backends (PostgreSQL, S3, Elasticsearch, Milvus)
-- Real-time conversation processing and analysis
-- Webhook integrations and API endpoints
-- Docker-based deployment with automated installation
-- Support for dynamic module installation
+| Submodule | Description |
+|-----------|-------------|
+| [vcon-server](vcon-server/) | The Conserver — main vCon processing and storage platform |
+| [vcon-server-cli](vcon-server-cli/) | CLI for managing and interacting with vcon-server |
+| [vcon-mcp](vcon-mcp/) | Model Context Protocol server for vCon data |
+| [mongo-redis-sync](mongo-redis-sync/) | MongoDB ↔ Redis sync service for vCon storage |
+| [vcon-s3-loader](vcon-s3-loader/) | S3 batch loader for vCon files |
+| [load_test](load_test/) | Load testing tools for vcon-server |
 
-**Quick Start:**
-```bash
-# Automated installation
-curl -O https://raw.githubusercontent.com/vcon-dev/vcon-server/main/scripts/install_conserver.sh
-chmod +x install_conserver.sh
-sudo ./install_conserver.sh --domain your-domain.com --email your-email@example.com
-```
+### Telephony Adapters
 
-### 🛠️ Development & Testing Tools
+| Submodule | Description |
+|-----------|-------------|
+| [vcon-telephony-adapters](vcon-telephony-adapters/) | Umbrella repo for all telephony adapters |
+| [vcon-siprec-adapter](vcon-siprec-adapter/) | SIP Recording (SIPREC) adapter |
+| [sippy-conserver-adapter](sippy-conserver-adapter/) | Sippy B2BUA adapter for vcon-server |
+| [signalwire_adapter](signalwire_adapter/) | SignalWire telephony adapter |
+| [vcon-audio-adapter](vcon-audio-adapter/) | Generic audio file adapter |
+| [vcon-fadapter](vcon-fadapter/) | File adapter for batch vCon import |
+| [matrix_vcon_emitter](matrix_vcon_emitter/) | Matrix protocol vCon emitter |
 
-#### [vcon-faker](vcon-faker/) - **Synthetic Data Generator**
-Generates realistic fake conversations for testing and development purposes using OpenAI's language models and text-to-speech capabilities.
+### Transcription & AI
 
-**Key Features:**
-- AI-powered conversation generation with customizable prompts
-- Audio synthesis for each conversation line
-- vCon file creation with metadata and audio URLs
-- S3 integration for storage
-- Streamlit web interface for easy management
+| Submodule | Description |
+|-----------|-------------|
+| [whisper](whisper/) | OpenAI Whisper integration for vCon transcription |
+| [TTS](TTS/) | Text-to-speech integration |
+| [speechmatics-link](speechmatics-link/) | Speechmatics transcription adapter |
+| [vcon-mac-wtf](vcon-mac-wtf/) | macOS World Transcription Format client |
+| [wtf-server](wtf-server/) | WTF (World Transcription Format) server |
+| [wtf-transcript-converter](wtf-transcript-converter/) | Converter between WTF and other transcript formats |
+| [conversational_search](conversational_search/) | Semantic search over vCon data |
+| [langchain](langchain/) | LangChain integration for vCon |
+| [conversation_gpt](conversation_gpt/) | ChatGPT over vCon data via Elasticsearch |
 
-**Quick Start:**
-```bash
-cd vcon-faker
-pip install -r requirements.txt
-streamlit run main.py
-```
+### Developer Tools & Utilities
 
-#### [fake-vcons](fake-vcons/) - **Sample vCon Data**
-A collection of synthetic vCon files created using vcon-faker, perfect for testing, demos, and development.
+| Submodule | Description |
+|-----------|-------------|
+| [vcon-admin](vcon-admin/) | Streamlit-based admin dashboard |
+| [vcon-app-template](vcon-app-template/) | Starter template for vCon applications |
+| [vcon-speckit](vcon-speckit/) | Tools for working with the vCon spec |
+| [vcon-desk-viewer](vcon-desk-viewer/) | Desktop vCon viewer application |
+| [vscode-vcon-viewer](vscode-vcon-viewer/) | VS Code extension for viewing vCon files |
+| [vcon-laptop](vcon-laptop/) | Laptop-local vCon capture tools |
+| [scitt-action](scitt-action/) | GitHub Action for SCITT ledger registration |
+| [scittles](scittles/) | SCITT utilities for vCon transparency |
+| [ietf2vcon](ietf2vcon/) | Convert IETF meeting recordings to vCon |
+| [modelcontextprotocol](modelcontextprotocol/) | MCP protocol tools for vCon |
+| [vcon-sample-link](vcon-sample-link/) | Sample link resolver for vCon references |
+| [vcon-zip](vcon-zip/) | vCon zip/bundle utilities |
+| [tadhack-2025](tadhack-2025/) | TADHack 2025 hackathon projects |
 
-**Use Cases:**
-- Training customer service agents
-- Testing conversational AI systems
-- Demonstrating vCon capabilities
-- Development and testing of vCon processing applications
+### Data & Testing
 
-### 🔧 Administrative Tools
+| Submodule | Description |
+|-----------|-------------|
+| [vcon_faker](vcon-faker/) | Synthetic vCon generator using OpenAI |
+| [fake-vcons](fake-vcons/) | Sample/synthetic vCon files for testing |
+| [ietf-meeting-vcons](ietf-meeting-vcons/) | vCons from IETF meeting recordings |
+| [vcon-the-hacks](vcon-the-hacks/) | Hackathon and experimental vCon projects |
 
-#### [vcon-admin](vcon-admin/) - **Administrative Dashboard**
-A comprehensive Streamlit-based administrative toolkit for vCon developers, testers, and operators.
+### IETF Internet-Drafts
 
-**Key Features:**
-- Import/export vCons from various storages (Redis, S3, JSONL, JSON, MongoDB)
-- Real-time system monitoring and Docker container management
-- Elasticsearch and vector database integration
-- ChatGPT prompt testing on vCon subsets
-- Data analysis and visualization tools
-- vCon inspector and workbench functionality
+| Submodule | Description |
+|-----------|-------------|
+| [draft-howe-vcon-wtf-extension](draft-howe-vcon-wtf-extension/) | World Transcription Format extension for vCon |
+| [draft-howe-vcon-sip-signaling](draft-howe-vcon-sip-signaling/) | SIP signaling extension for vCon |
+| [draft-howe-vcon-lawful-basis](draft-howe-vcon-lawful-basis/) | Lawful basis extension for vCon |
+| [draft-howe-vcon-lifecycle](draft-howe-vcon-lifecycle/) | vCon lifecycle management draft |
+| [draft-howe-sipcore-mcp-extension](draft-howe-sipcore-mcp-extension/) | SIP core MCP extension draft |
+| [draft-ietf-vcon-privacy-primer](draft-ietf-vcon-privacy-primer/) | Privacy considerations for vCon |
+| [draft-ietf-vcon-vcon-overview](draft-ietf-vcon-vcon-overview/) | vCon ecosystem overview draft |
 
-**Quick Start:**
-```bash
-cd vcon-admin
-docker compose up -d
-# Visit http://localhost:8501
-```
+### Documentation & Info
 
-### 🤖 AI & Analytics
+| Submodule | Description |
+|-----------|-------------|
+| [docs](docs/) | Developer documentation site (Mintlify) |
+| [vcon-docs](vcon-docs/) | Additional vCon documentation |
+| [vcon-info](vcon-info/) | Informational resources about vCon |
+| [vcon-background-docs](vcon-background-docs/) | Background reading and research |
+| [awesome-vcon](awesome-vcon/) | Curated list of vCon tools and resources |
+| [vcon-dev.github.io](vcon-dev.github.io/) | vcon-dev GitHub Pages site |
 
-#### [conversation-gpt](conversation-gpt/) - **AI Conversation Assistant**
-A Streamlit app that uses OpenAI's assistant API and Elasticsearch to enable ChatGPT over conversational data.
+### Packages & Distribution
 
-**Key Features:**
-- Direct conversation analysis with GPT
-- Conversation identification and filtering
-- Thread management with vCon tracking
-- Export capabilities for analyzed conversations
-- Integration with vCon format for seamless data flow
+| Submodule | Description |
+|-----------|-------------|
+| [homebrew-vcon](homebrew-vcon/) | Homebrew formula for vCon tools |
+| [homebrew-tap](homebrew-tap/) | Homebrew tap repository |
+| [vcon-eleven-labs-adapter](vcon-eleven-labs-adapter/) | ElevenLabs TTS adapter |
+| [vcon-right-to-know](vcon-right-to-know/) | GDPR right-to-access/forget demo |
 
-**Use Cases:**
-- Writing follow-up emails based on conversations
-- Analyzing customer interactions
-- Extracting insights from conversation data
-- Automated conversation processing
+### External Forks
 
-### 🔒 Privacy & Compliance
+| Submodule | Description |
+|-----------|-------------|
+| [pyVoIP](pyVoIP/) | Fork of pyVoIP with vCon integration |
+| [rd-apmm-python-lib-rtp](rd-apmm-python-lib-rtp/) | Fork of RTP library for vCon audio |
 
-#### [vcon-right-to-know](vcon-right-to-know/) - **Privacy Compliance Tool**
-A Python demo application that implements GDPR compliance features for vCon data, specifically the Right to Access and Right to be Forgotten.
+## Quick Setup
 
-**Key Features:**
-- Customer data access requests
-- Data deletion requests
-- MongoDB-based vCon search functionality
-- Email and phone number matching
-- Privacy law compliance demonstration
+Clone with all submodules:
 
-**Quick Start:**
-```bash
-cd vcon-right-to-know
-pip install -r requirements.txt
-streamlit run right-to-know.py
-```
-
-### 🛠️ Utilities
-
-#### [tools/](tools/) - **Development Utilities**
-- `update-submodules.sh`: Automated script for updating all submodules
-- `postgres_schema.sql`: Database schema for PostgreSQL storage
-- `embed_streamlit_demo.html`: Demo embedding for Streamlit applications
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Git
-- Docker and Docker Compose (for most components)
-- Python 3.12+ (for development)
-- OpenAI API key (for AI features)
-- AWS credentials (for S3 storage)
-
-### Quick Setup
-
-1. **Clone the super repository:**
-   ```bash
-   git clone --recursive https://github.com/vcon-dev/vcon.git
-   cd vcon
-   ```
-
-2. **Initialize all submodules:**
-   ```bash
-   git submodule update --init --recursive
-   ```
-
-3. **Choose your starting point:**
-   - For **production deployment**: Start with `vcon-server`
-   - For **development and testing**: Use `vcon-faker` and `fake-vcons`
-   - For **administration**: Deploy `vcon-admin`
-   - For **AI integration**: Explore `conversation-gpt`
-
-## 🔄 Managing Submodules
-
-This repository uses Git submodules to track all the individual projects. The submodules are automatically updated to ensure you have the latest versions of all vCon projects.
-
-### Automated Updates
-
-A GitHub Action automatically checks for updates in all submodules every Monday at 9 AM UTC. When updates are available, it creates a pull request with the changes for your review.
-
-### Manual Updates
-
-You can also update submodules manually using the provided script:
-
-```bash
-./tools/update-submodules.sh
-```
-
-Or use standard git commands:
-
-```bash
-# Update all submodules to latest versions
-git submodule update --remote --recursive
-
-# Commit the updates
-git add .
-git commit -m "chore: update submodules to latest versions"
-git push
-```
-
-### Working with Submodules
-
-**Initial Setup**: If you're cloning this repository for the first time:
 ```bash
 git clone --recursive https://github.com/vcon-dev/vcon.git
+cd vcon
 ```
 
-**Existing Clone**: If you already have the repository cloned:
+Or initialize submodules in an existing clone:
+
 ```bash
 git submodule update --init --recursive
 ```
 
-**Updating a Specific Submodule**: To update just one submodule:
+Update all submodules to latest:
+
 ```bash
-git submodule update --remote <submodule-name>
+git submodule update --remote --recursive
 ```
 
-## 📖 Documentation & Resources
+Update a single submodule:
 
-### Presentations & Whitepapers
-- [Birds of a Feather session at IETF 116, Yokohama](https://youtu.be/EF2OMbo6Qj4)
-- [Presentation at TADSummit](https://youtu.be/ZBRJ6FcVblc)
-- [Presentation at IETF](https://youtu.be/dJsPzZITr_g?t=243)
-- [Presentation at IIT](https://youtu.be/s-pjgpBOQqc)
-
-### Technical Documentation
-- [IETF draft proposal](https://datatracker.ietf.org/doc/html/draft-petrie-vcon-01)
-- [White paper](https://docs.google.com/document/d/1TV8j29knVoOJcZvMHVFDaan0OVfraH_-nrS5gW4-DEA/edit?usp=sharing)
-- [vCon Library Quick Start for Python](https://github.com/vcon-dev/vcon/wiki/Library-Quick-Start)
-
-### Keynote & Blog Posts
-- [Keynote proposal for vCons](https://blog.tadsummit.com/2021/12/08/strolid-keynote-vcons/)
-
-## 🧪 Testing
-
-### Testing the vCon Package
 ```bash
-pytest -v -rP tests
-pytest -v -rP tests/test_vcon_cli.py
+git submodule update --remote vcon-server
 ```
 
-### Testing the Conserver
-```bash
-cd vcon-server
-source .env
-pytest -v -rP tests
-```
+## Automated Updates
 
-## 🤝 Contributing
+A GitHub Action runs every Monday at 9 AM UTC, updates all submodules to their latest commits, and opens a pull request with the changes for review.
 
-Each submodule has its own contribution guidelines. Please refer to the individual repository READMEs for specific contribution instructions.
+## Resources
 
-## 📄 License
+- [IETF vCon datatracker](https://datatracker.ietf.org/doc/draft-ietf-vcon-vcon-core/)
+- [vcon-dev organization](https://github.com/vcon-dev)
+- [Developer docs](https://vcon-dev.github.io)
+- [Community discussions](https://github.com/vcon-dev/vcon/discussions)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## License
 
-## 🆘 Support
-
-- **Issues**: Use the GitHub Issues page of the specific submodule
-- **Discussions**: Join the [vCon community discussions](https://github.com/vcon-dev/vcon/discussions)
-- **Documentation**: Check the individual repository READMEs for detailed documentation
-
----
-
-**🎉 Welcome to the vCon ecosystem! Start exploring the repositories above to build powerful conversation-based applications.**
-
+MIT — see [LICENSE](LICENSE) for details.

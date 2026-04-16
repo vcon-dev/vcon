@@ -18,3 +18,168 @@
 [submodule "fake-vcons"]
 	path = fake-vcons
 	url = https://github.com/vcon-dev/fake-vcons
+[submodule "TTS"]
+	path = TTS
+	url = https://github.com/vcon-dev/TTS.git
+[submodule "awesome-vcon"]
+	path = awesome-vcon
+	url = https://github.com/vcon-dev/awesome-vcon.git
+[submodule "conversational_search"]
+	path = conversational_search
+	url = https://github.com/vcon-dev/conversational_search.git
+[submodule "draft-howe-sipcore-mcp-extension"]
+	path = draft-howe-sipcore-mcp-extension
+	url = https://github.com/vcon-dev/draft-howe-sipcore-mcp-extension.git
+[submodule "draft-howe-vcon-lawful-basis"]
+	path = draft-howe-vcon-lawful-basis
+	url = https://github.com/vcon-dev/draft-howe-vcon-lawful-basis.git
+[submodule "draft-howe-vcon-lifecycle"]
+	path = draft-howe-vcon-lifecycle
+	url = https://github.com/vcon-dev/draft-howe-vcon-lifecycle.git
+[submodule "draft-howe-vcon-sip-signaling"]
+	path = draft-howe-vcon-sip-signaling
+	url = https://github.com/vcon-dev/draft-howe-vcon-sip-signaling.git
+[submodule "draft-howe-vcon-wtf-extension"]
+	path = draft-howe-vcon-wtf-extension
+	url = https://github.com/vcon-dev/draft-howe-vcon-wtf-extension.git
+[submodule "draft-ietf-vcon-privacy-primer"]
+	path = draft-ietf-vcon-privacy-primer
+	url = https://github.com/vcon-dev/draft-ietf-vcon-privacy-primer.git
+[submodule "draft-ietf-vcon-vcon-overview"]
+	path = draft-ietf-vcon-vcon-overview
+	url = https://github.com/vcon-dev/draft-ietf-vcon-vcon-overview.git
+[submodule "homebrew-tap"]
+	path = homebrew-tap
+	url = https://github.com/vcon-dev/homebrew-tap.git
+[submodule "homebrew-vcon"]
+	path = homebrew-vcon
+	url = https://github.com/vcon-dev/homebrew-vcon.git
+[submodule "ietf-meeting-vcons"]
+	path = ietf-meeting-vcons
+	url = https://github.com/vcon-dev/ietf-meeting-vcons.git
+[submodule "ietf2vcon"]
+	path = ietf2vcon
+	url = https://github.com/vcon-dev/ietf2vcon.git
+[submodule "langchain"]
+	path = langchain
+	url = https://github.com/vcon-dev/langchain.git
+[submodule "load_test"]
+	path = load_test
+	url = https://github.com/vcon-dev/load_test.git
+[submodule "matrix_vcon_emitter"]
+	path = matrix_vcon_emitter
+	url = https://github.com/vcon-dev/matrix_vcon_emitter.git
+[submodule "modelcontextprotocol"]
+	path = modelcontextprotocol
+	url = https://github.com/vcon-dev/modelcontextprotocol.git
+[submodule "mongo-redis-sync"]
+	path = mongo-redis-sync
+	url = https://github.com/vcon-dev/mongo-redis-sync.git
+[submodule "pyVoIP"]
+	path = pyVoIP
+	url = https://github.com/vcon-dev/pyVoIP.git
+[submodule "pydantic-vcon"]
+	path = pydantic-vcon
+	url = https://github.com/vcon-dev/pydantic-vcon.git
+[submodule "rd-apmm-python-lib-rtp"]
+	path = rd-apmm-python-lib-rtp
+	url = https://github.com/vcon-dev/rd-apmm-python-lib-rtp.git
+[submodule "scitt-action"]
+	path = scitt-action
+	url = https://github.com/vcon-dev/scitt-action.git
+[submodule "scittles"]
+	path = scittles
+	url = https://github.com/vcon-dev/scittles.git
+[submodule "signalwire_adapter"]
+	path = signalwire_adapter
+	url = https://github.com/vcon-dev/signalwire_adapter.git
+[submodule "sippy-conserver-adapter"]
+	path = sippy-conserver-adapter
+	url = https://github.com/vcon-dev/sippy-conserver-adapter.git
+[submodule "speechmatics-link"]
+	path = speechmatics-link
+	url = https://github.com/vcon-dev/speechmatics-link.git
+[submodule "tadhack-2025"]
+	path = tadhack-2025
+	url = https://github.com/vcon-dev/tadhack-2025.git
+[submodule "vcon-app-template"]
+	path = vcon-app-template
+	url = https://github.com/vcon-dev/vcon-app-template.git
+[submodule "vcon-audio-adapter"]
+	path = vcon-audio-adapter
+	url = https://github.com/vcon-dev/vcon-audio-adapter.git
+[submodule "vcon-background-docs"]
+	path = vcon-background-docs
+	url = https://github.com/vcon-dev/vcon-background-docs.git
+[submodule "vcon-desk-viewer"]
+	path = vcon-desk-viewer
+	url = https://github.com/vcon-dev/vcon-desk-viewer.git
+[submodule "vcon-dev.github.io"]
+	path = vcon-dev.github.io
+	url = https://github.com/vcon-dev/vcon-dev.github.io.git
+[submodule "vcon-docs"]
+	path = vcon-docs
+	url = https://github.com/vcon-dev/vcon-docs.git
+[submodule "vcon-eleven-labs-adapter"]
+	path = vcon-eleven-labs-adapter
+	url = https://github.com/vcon-dev/vcon-eleven-labs-adapter.git
+[submodule "vcon-fadapter"]
+	path = vcon-fadapter
+	url = https://github.com/vcon-dev/vcon-fadapter.git
+[submodule "vcon-info"]
+	path = vcon-info
+	url = https://github.com/vcon-dev/vcon-info.git
+[submodule "vcon-js"]
+	path = vcon-js
+	url = https://github.com/vcon-dev/vcon-js.git
+[submodule "vcon-laptop"]
+	path = vcon-laptop
+	url = https://github.com/vcon-dev/vcon-laptop.git
+[submodule "vcon-lib"]
+	path = vcon-lib
+	url = https://github.com/vcon-dev/vcon-lib.git
+[submodule "vcon-mac-wtf"]
+	path = vcon-mac-wtf
+	url = https://github.com/vcon-dev/vcon-mac-wtf.git
+[submodule "vcon-mcp"]
+	path = vcon-mcp
+	url = https://github.com/vcon-dev/vcon-mcp.git
+[submodule "vcon-s3-loader"]
+	path = vcon-s3-loader
+	url = https://github.com/vcon-dev/vcon-s3-loader.git
+[submodule "vcon-sample-link"]
+	path = vcon-sample-link
+	url = https://github.com/vcon-dev/vcon-sample-link.git
+[submodule "vcon-server-cli"]
+	path = vcon-server-cli
+	url = https://github.com/vcon-dev/vcon-server-cli.git
+[submodule "vcon-siprec-adapter"]
+	path = vcon-siprec-adapter
+	url = https://github.com/vcon-dev/vcon-siprec-adapter.git
+[submodule "vcon-speckit"]
+	path = vcon-speckit
+	url = https://github.com/vcon-dev/vcon-speckit.git
+[submodule "vcon-telephony-adapters"]
+	path = vcon-telephony-adapters
+	url = https://github.com/vcon-dev/vcon-telephony-adapters.git
+[submodule "vcon-the-hacks"]
+	path = vcon-the-hacks
+	url = https://github.com/vcon-dev/vcon-the-hacks.git
+[submodule "vcon-zip"]
+	path = vcon-zip
+	url = https://github.com/vcon-dev/vcon-zip.git
+[submodule "vscode-vcon-viewer"]
+	path = vscode-vcon-viewer
+	url = https://github.com/vcon-dev/vscode-vcon-viewer.git
+[submodule "whisper"]
+	path = whisper
+	url = https://github.com/vcon-dev/whisper.git
+[submodule "wtf-server"]
+	path = wtf-server
+	url = https://github.com/vcon-dev/wtf-server.git
+[submodule "wtf-transcript-converter"]
+	path = wtf-transcript-converter
+	url = https://github.com/vcon-dev/wtf-transcript-converter.git
+[submodule "docs"]
+	path = docs
+	url = https://github.com/vcon-dev/docs.git

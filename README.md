@@ -55,7 +55,7 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 | [wtf-transcript-converter](wtf-transcript-converter/) | Converter between WTF and other transcript formats |
 | [conversational_search](conversational_search/) | Semantic search over vCon data |
 | [langchain](langchain/) | LangChain integration for vCon |
-| [conversation-gpt](conversation-gpt/) | ChatGPT over vCon data via Elasticsearch |
+| [conversation-gpt](conversation-gpt/) | *(archived)* ChatGPT over vCon data via Elasticsearch |
 
 ### Developer Tools & Utilities
 
@@ -79,7 +79,7 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 
 | Submodule | Description |
 |-----------|-------------|
-| [vcon-right-to-know](vcon-right-to-know/) | GDPR right-to-access and right-to-forget demo |
+| [vcon-right-to-know](vcon-right-to-know/) | *(archived)* GDPR right-to-access and right-to-forget demo |
 
 ### Data & Testing
 

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "repo": "vcon",
+  "repo_version": null,
+  "archetype": "minimal",
+  "generated_at": "2026-04-16T15:15:46.751452+00:00",
+  "stats": {
+    "node_count": 3,
+    "edge_count": 0
+  },
+  "nodes": [
+    {
+      "id": "document:readme",
+      "type": "document",
+      "name": "README",
+      "file": "README.md"
+    },
+    {
+      "id": "component:docs",
+      "type": "component",
+      "name": "docs",
+      "file": "docs",
+      "description": "3 files"
+    },
+    {
+      "id": "component:tools",
+      "type": "component",
+      "name": "tools",
+      "file": "tools",
+      "description": "3 files"
+    }
+  ],
+  "edges": [],
+  "subsystems": []
+}

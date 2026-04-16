@@ -26,7 +26,7 @@ Welcome to the **vCon Super Repository** — the central hub for all vCon (Virtu
 | [vcon-server](vcon-server/) | The Conserver — main vCon processing and storage platform |
 | [vcon-server-cli](vcon-server-cli/) | CLI for managing and interacting with vcon-server |
 | [vcon-mcp](vcon-mcp/) | Model Context Protocol server for vCon data |
-| [mongo-redis-sync](mongo-redis-sync/) | MongoDB ↔ Redis sync service for vCon storage |
+| [mongo-redis-sync](mongo-redis-sync/) | *(archived)* MongoDB ↔ Redis sync service for vCon storage |
 | [vcon-s3-loader](vcon-s3-loader/) | S3 batch loader for vCon files |
 | [load_test](load_test/) | Load testing tools for vcon-server |
 

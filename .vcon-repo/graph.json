@@ -3,7 +3,7 @@
   "repo": "vcon",
   "repo_version": null,
   "archetype": "minimal",
-  "generated_at": "2026-04-16T15:15:46.751452+00:00",
+  "generated_at": "2026-04-17T12:29:51.236645+00:00",
   "stats": {
     "node_count": 3,
     "edge_count": 0
@@ -16,10 +16,10 @@
       "file": "README.md"
     },
     {
-      "id": "component:docs",
+      "id": "component:assets",
       "type": "component",
-      "name": "docs",
-      "file": "docs",
+      "name": "assets",
+      "file": "assets",
       "description": "3 files"
     },
     {

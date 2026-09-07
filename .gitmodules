@@ -183,3 +183,7 @@
 [submodule "docs"]
 	path = docs
 	url = https://github.com/vcon-dev/docs.git
+[submodule "vcon-c"]
+	path = vcon-c
+	url = https://github.com/vcon-dev/vcon-c.git
+	branch = main
